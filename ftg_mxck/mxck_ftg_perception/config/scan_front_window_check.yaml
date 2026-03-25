@@ -1,0 +1,16 @@
+/**:
+  ros__parameters:
+    scan_topic: "/scan"
+    base_frame: "base_link"
+    diagnostic_topic: "/autonomous/ftg/scan_check"
+    marker_topic: "/autonomous/ftg/scan_check_markers"
+
+    front_center_deg: 0.0
+    front_fov_deg: 120.0
+
+    clip_min_range_m: 0.05
+    clip_max_range_m: 8.0
+
+    beam_stride: 2
+    log_every_n_scans: 10
+    publish_markers: true

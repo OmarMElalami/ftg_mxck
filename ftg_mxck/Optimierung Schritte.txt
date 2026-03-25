@@ -1,0 +1,70 @@
+# Schritt 1 — Prüfen, dass nur ein Publisher aktiv ist
+
+Bitte zuerst diese Befehle ausführen:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 node list | sort"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ftg/gap_angle -v"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ftg/target_speed -v"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ackermann_cmd -v"
+Erwartung
+
+Je FTG-Topic idealerweise:
+
+1 Publisher für /autonomous/ftg/gap_angle
+1 Publisher für /autonomous/ftg/target_speed
+1 Publisher für /autonomous/ackermann_cmd aus deinem FTG-Control-Node
+
+Wenn da mehrere stehen, müssen wir das zuerst bereinigen.
+
+# Schritt 1 — Prüfen, dass nur ein Publisher aktiv ist
+
+Bitte zuerst diese Befehle ausführen:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 node list | sort"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ftg/gap_angle -v"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ftg/target_speed -v"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ackermann_cmd -v"
+Erwartung
+
+Je FTG-Topic idealerweise:
+
+1 Publisher für /autonomous/ftg/gap_angle
+1 Publisher für /autonomous/ftg/target_speed
+1 Publisher für /autonomous/ackermann_cmd aus deinem FTG-Control-Node
+
+Wenn da mehrere stehen, müssen wir das zuerst bereinigen.
+
+mv /home/mxck/development_ws/src/follow_the_gap_v0 /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+mv /home/mxck/development_ws/src/follow_the_gap_v0_ride /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+mv /home/mxck/development_ws/src/auto /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+mv /home/mxck/development_ws/src/obstacle_substitution /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+mv /home/mxck/development_ws/src/mxck_obstacle_substitution /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+mv /home/mxck/development_ws/src/lidar_vs /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+mv /home/mxck/development_ws/src/ftg_scan_filter /home/mxck/backup_old_ftg_ws/ 2>/dev/null
+
+Schritt 3 — Alte Build-/Install-Artefakte löschen
+
+Danach die alten Artefakte in build, install, log löschen:
+
+rm -rf /home/mxck/development_ws/build/follow_the_gap_v0
+rm -rf /home/mxck/development_ws/build/follow_the_gap_v0_ride
+rm -rf /home/mxck/development_ws/build/auto
+rm -rf /home/mxck/development_ws/build/obstacle_substitution
+rm -rf /home/mxck/development_ws/build/mxck_obstacle_substitution
+rm -rf /home/mxck/development_ws/build/lidar_vs
+rm -rf /home/mxck/development_ws/build/ftg_scan_filter
+
+rm -rf /home/mxck/development_ws/install/follow_the_gap_v0
+rm -rf /home/mxck/development_ws/install/follow_the_gap_v0_ride
+rm -rf /home/mxck/development_ws/install/auto
+rm -rf /home/mxck/development_ws/install/obstacle_substitution
+rm -rf /home/mxck/development_ws/install/mxck_obstacle_substitution
+rm -rf /home/mxck/development_ws/install/lidar_vs
+rm -rf /home/mxck/development_ws/install/ftg_scan_filter
+
+Optional auch alte Logs löschen:
+
+rm -rf /home/mxck/development_ws/log
+rm -rf /home/mxck/development_ws/src/log
+
+########

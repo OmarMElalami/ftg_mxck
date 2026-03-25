@@ -1,0 +1,48 @@
+So gehst du jetzt vor
+1) Paket auf den Jetson kopieren
+
+Vom PC:
+
+scp -r .\mxck_ftg_control mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+2) Im mxck2_control-Container bauen
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+cd /mxck2_ws
+colcon build --symlink-install --packages-select mxck_ftg_control
+source /mxck2_ws/install/setup.bash
+ros2 pkg executables mxck_ftg_control
+
+Erwartung:
+
+mxck_ftg_control ftg_command_node
+3) Startreihenfolge
+
+Terminal A:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_run broadcast_tf_launch.py"
+
+Terminal B:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_perception scan_preprocessor.launch.py"
+
+Terminal C:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_planner ftg_planner.launch.py"
+
+Terminal D:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_control ftg_command.launch.py"
+4) Prüfen
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ackermann_cmd"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ftg/control_status"
+
+## Sofort noch testen
+
+Bitte prüfe jetzt direkt:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ackermann_cmd"
+
+und zusätzlich:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic hz /autonomous/ackermann_cmd"

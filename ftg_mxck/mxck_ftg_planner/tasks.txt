@@ -1,0 +1,32 @@
+Die richtige Reihenfolge von jetzt an
+Schritt 1
+
+mxck2_lidar und mxck2_control über Portainer starten
+
+Schritt 2
+
+In einem Terminal TF starten:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_run broadcast_tf_launch.py"
+Schritt 3
+
+mxck_ftg_perception von deinem PC nach
+/home/mxck/mxck2_ws/src/
+kopieren
+
+Schritt 4
+
+Im mxck2_control-Container nur dieses Paket bauen
+
+Schritt 5
+
+Erst danach scan_front_window_check testen
+
+Schritt 6
+
+Dann scan_preprocessor_node
+
+Erst danach kommen:
+
+mxck_ftg_planner
+mxck_ftg_control
