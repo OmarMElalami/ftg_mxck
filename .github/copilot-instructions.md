@@ -1,42 +1,29 @@
 # Copilot instructions for ftg_mxck
 
-This repository contains a ROS2-based Follow-The-Gap integration for an MXCarkit platform.
+This repository implements a ROS2-based Follow-The-Gap integration for the MXCarkit platform.
 
-## Platform rules
-- The platform is MXCarkit on NVIDIA Jetson, ROS2 in Docker.
-- The final autonomous output must be `/autonomous/ackermann_cmd` using `ackermann_msgs/AckermannDriveStamped`.
-- Do not bypass the MXCK control chain.
-- Do not publish directly to VESC topics from FTG logic.
-- `vehicle_control` / `ackermann_to_vesc` remain the existing downstream control path.
-- Manual control and safety / deadman remain external to the FTG stack.
-- Final autonomous output must remain /autonomous/ackermann_cmd.
-- Do not bypass the MXCK vehicle control chain.
-- manual_control_launch.py is started separately and is responsible for RC / Deadman / safety / ackermann_to_vesc.
-- The FTG stack must be compatible with the existing MXCK platform and control flow.
-- follow_the_gap_v0 stays as a separate C++ package.
-- obstacle_substitution stays as a separate Python package.
-- mxck_ftg_planner should only contain the CTU adapter node, not a Python reimplementation of CTU FTG.
-- ftg_command_node.py is the final MXCK command adapter and should not be redesigned without necessity.
-- Prefer minimal, architecture-preserving fixes.
-- Always verify package.xml, setup.py, CMakeLists.txt, launch files, topic names, executable names, YAML configs, and node interfaces together.
-- Flag any mismatch between documentation, launch graph, and runtime assumptions.
-- Be extra careful with ROS distro mismatches, Docker/devcontainer assumptions, duplicate control logic, and safety-related launch errors.
+## Non-negotiable platform rules
+- The platform is MXCarkit on NVIDIA Jetson with ROS2 in Docker.
+- The final autonomous output must remain `/autonomous/ackermann_cmd` using `ackermann_msgs/AckermannDriveStamped`.
+- Do not bypass the MXCK vehicle-control chain.
+- Do not publish FTG output directly to VESC topics.
+- `vehicle_control` / `ackermann_to_vesc` remain the downstream control path.
+- `manual_control_launch.py` is started separately and remains responsible for RC, Deadman, safety, and `ackermann_to_vesc`.
+- The FTG stack must integrate into the existing MXCK control flow, not replace it.
 
-## Target pipeline
-- `/scan`
-- optional scan preprocessor
-- `obstacle_substitution`
-- `/obstacles`
-- `follow_the_gap_v0`
-- `/final_heading_angle`
-- `/gap_found`
-- `ctu_ftg_adapter_node`
-- `/autonomous/ftg/gap_angle`
-- `/autonomous/ftg/target_speed`
-- `ftg_command_node`
-- `/autonomous/ackermann_cmd`
+## Required target pipeline
+`/scan`
+-> `[optional] scan_preprocessor_node`
+-> `obstacle_substitution`
+-> `/obstacles`
+-> `follow_the_gap_v0`
+-> `/final_heading_angle` + `/gap_found`
+-> `ctu_ftg_adapter_node`
+-> `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed` + `/autonomous/ftg/planner_status`
+-> `ftg_command_node`
+-> `/autonomous/ackermann_cmd`
 
-## Architectural constraints
+## Package boundaries
 - Keep CTU-origin packages separate:
   - `obstacle_msgs`
   - `obstacle_substitution`
@@ -46,24 +33,39 @@ This repository contains a ROS2-based Follow-The-Gap integration for an MXCarkit
   - `mxck_ftg_control`
   - `mxck_ftg_perception`
   - `mxck_ftg_planner`
-- Do not rewrite the CTU FTG core to Python.
-- `ftg_command_node` is the final MXCK command adapter and should remain the node that publishes `/autonomous/ackermann_cmd`.
 
-## What to verify
-- Package structure
-- entry points
-- ROS2 dependencies in package.xml / setup.py / CMakeLists.txt
-- node executable names
-- launch file consistency
-- topic names, remappings, publishers, subscribers
-- whether optional preprocessor logic is actually valid
-- whether `vehicle_control` is duplicated anywhere
-- whether rosbag topics reflect the final architecture
-- whether the FTG stack matches MXCK platform constraints
+## Architecture constraints
+- Do not rewrite the CTU FTG core in Python.
+- `mxck_ftg_planner` should only contain the CTU adapter node, not a Python reimplementation of FTG.
+- `ftg_command_node.py` is the final MXCK command adapter and should remain the node that publishes `/autonomous/ackermann_cmd`.
+- Prefer minimal, architecture-preserving fixes.
+- Avoid duplicated control logic, especially duplicated speed scaling or duplicated startup of vehicle-control components.
 
-## Safety and review behavior
-- Prefer audit-first.
-- If changing code, keep changes minimal and well justified.
-- Do not invent files, nodes, or topics that are not present.
+## What to verify together
+Always verify these together, not in isolation:
+- `package.xml`
+- `setup.py`
+- `CMakeLists.txt`
+- launch files
+- YAML configs
+- executable names
+- topic names
+- remappings
+- publishers/subscribers
+- package dependencies
+- runtime assumptions
+
+## High-priority audit checks
+- Whether topic names and remappings match exactly across code, YAML, and launch files
+- Whether optional preprocessor logic is actually valid
+- Whether `vehicle_control` is started twice anywhere
+- Whether rosbag topics reflect the final architecture
+- Whether documentation, Docker/devcontainer setup, and runtime assumptions disagree
+- Whether safety-related launch or control mistakes could break first vehicle testing
+
+## Review behavior
+- Prefer audit-first before making broad code changes.
+- If changing code, keep changes minimal, local, and justified.
+- Do not invent files, nodes, topics, or architecture that are not present.
 - Explicitly flag uncertainties instead of guessing.
-- Produce a clear audit report before proposing risky runtime changes.
+- Preserve compatibility with the MXCK platform and control chain.
