@@ -16,6 +16,17 @@ This audit is static (code + launch + config inspection). Runtime build/test ver
 
 So this report explicitly distinguishes **verified-from-repo** findings vs **runtime assumptions that must be validated on vehicle**.
 
+## Release/readiness status
+
+This PR should be treated as an **audit/documentation PR with small mechanical fixes**, **not** as a full “system ready for vehicle test” release.
+
+In particular, this PR intentionally does **not** claim closure of the following runtime/architecture items:
+
+- potential layered speed-scaling behavior across `ctu_ftg_adapter_node` and `ftg_command_node`
+- operator misuse risk of parallel planner publishers
+- no functional changes in `follow_the_gap_v0/main.cpp` for `/gap_found`
+- no functional changes in `follow_the_gap.h/.cpp` static/extern structure
+
 ---
 
 ## 1) Architecture summary (as implemented)
@@ -340,3 +351,12 @@ This aligns package metadata with actual imports in:
 ### 11.3 Conservative safety note
 
 No new architecture changes were applied in second pass. The previously flagged P0/P1 operational checks still apply and should be enforced during first-vehicle bringup (single command publisher verification, timeout-stop behavior, and steering-direction sanity check at low speed).
+
+### 11.4 Raw package.xml integrity check
+
+`mxck_ftg_planner/package.xml` was re-checked in raw form after dependency edits:
+
+- XML parse result: valid
+- closing `</package>` tag count: exactly 1
+
+No duplicate trailing closing tag is present.
