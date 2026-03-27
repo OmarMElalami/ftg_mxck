@@ -9,6 +9,18 @@ This repository contains a ROS2-based Follow-The-Gap integration for an MXCarkit
 - Do not publish directly to VESC topics from FTG logic.
 - `vehicle_control` / `ackermann_to_vesc` remain the existing downstream control path.
 - Manual control and safety / deadman remain external to the FTG stack.
+- Final autonomous output must remain /autonomous/ackermann_cmd.
+- Do not bypass the MXCK vehicle control chain.
+- manual_control_launch.py is started separately and is responsible for RC / Deadman / safety / ackermann_to_vesc.
+- The FTG stack must be compatible with the existing MXCK platform and control flow.
+- follow_the_gap_v0 stays as a separate C++ package.
+- obstacle_substitution stays as a separate Python package.
+- mxck_ftg_planner should only contain the CTU adapter node, not a Python reimplementation of CTU FTG.
+- ftg_command_node.py is the final MXCK command adapter and should not be redesigned without necessity.
+- Prefer minimal, architecture-preserving fixes.
+- Always verify package.xml, setup.py, CMakeLists.txt, launch files, topic names, executable names, YAML configs, and node interfaces together.
+- Flag any mismatch between documentation, launch graph, and runtime assumptions.
+- Be extra careful with ROS distro mismatches, Docker/devcontainer assumptions, duplicate control logic, and safety-related launch errors.
 
 ## Target pipeline
 - `/scan`
