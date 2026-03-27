@@ -1,0 +1,25 @@
+/**:
+  ros__parameters:
+    gap_angle_topic: "/autonomous/ftg/gap_angle"
+    target_speed_topic: "/autonomous/ftg/target_speed"
+
+    ackermann_topic: "/autonomous/ackermann_cmd"
+    status_topic: "/autonomous/ftg/control_status"
+    frame_id: "base_link"
+
+    publish_rate_hz: 15.0
+    command_timeout_sec: 0.5
+
+    invert_steering: false
+    steering_gain: 1.0
+    steering_limit_deg: 22.0
+    enable_steering_smoothing: true
+    steering_smoothing_alpha: 0.35
+
+    speed_limit_mps: 0.35
+    stop_on_timeout: true
+
+    enable_turn_speed_scaling: true
+    slowdown_start_deg: 10.0
+    slowdown_full_deg: 22.0
+    min_turn_speed_mps: 0.15

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+
+	<name>obstacle_substitution</name>
+	<version>0.1.3</version>
+	<description>
+		This package is used as an example for recognition layer. It simply converts
+		all LiDAR measurements into circle obstacles. Since 0.1.1 it throws away all
+		measurements that are too close (closer than range_min) or too far away
+		(further than range_max) instead of keeping them.
+	</description>
+	<maintainer email="klapajar@fel.cvut.cz">Jaroslav Klapálek</maintainer>
+	<license>Apache License 2.0</license>
+	<author email="klapajar@fel.cvut.cz">Jaroslav Klapálek</author>
+
+	<exec_depend>rclpy</exec_depend>
+
+	<exec_depend>obstacle_msgs</exec_depend>
+	<exec_depend>std_msgs</exec_depend>
+	<exec_depend>geometry_msgs</exec_depend>
+	<exec_depend>sensor_msgs</exec_depend>
+
+	<test_depend>ament_copyright</test_depend>
+	<test_depend>ament_flake8</test_depend>
+	<test_depend>ament_pep257</test_depend>
+	<test_depend>python3-pytest</test_depend>
+
+	<export>
+		<build_type>ament_python</build_type>
+	</export>
+
+</package>

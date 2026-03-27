@@ -1,0 +1,8 @@
+[<recognition>obstacle_substitution|
+Imitate obstacle recognition
+by substituting lidar measurements
+by small circular obstacles.
+]
+[<state> /scan|sensor_msgs/LaserScan]->[obstacle_substitution]
+[<state> /scan/preprocessed|sensors_msgs/LaserScan]->[obstacle_substitution]
+[obstacle_substitution]->[<state> /obstacles|obstacle_msgs/ObstaclesStamped]

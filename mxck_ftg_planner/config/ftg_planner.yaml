@@ -1,0 +1,24 @@
+/**:
+  ros__parameters:
+    scan_topic: "/autonomous/ftg/scan_filtered"
+    front_clearance_topic: "/autonomous/ftg/front_clearance"
+    base_frame: "base_link"
+
+    gap_angle_topic: "/autonomous/ftg/gap_angle"
+    target_speed_topic: "/autonomous/ftg/target_speed"
+    status_topic: "/autonomous/ftg/planner_status"
+    marker_topic: "/autonomous/ftg/planner_markers"
+
+    free_space_threshold_m: 1.00
+    min_gap_beams: 10
+    safety_bubble_radius_m: 0.35
+    steering_limit_deg: 22.0
+    center_bias_weight: 0.8
+
+    stop_distance_m: 0.35
+    slow_distance_m: 0.60
+    cruise_distance_m: 1.20
+    speed_stop_mps: 0.0
+    speed_slow_mps: 0.15
+    speed_medium_mps: 0.25
+    speed_fast_mps: 0.35

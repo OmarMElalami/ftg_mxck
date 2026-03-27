@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+	NOTE: THIS IS NOT USED IN ROS 2
+	      SEE start.launch.py
+	      THIS FILE IS LEFT FOR REFERENCE ONLY
+	      (MAY BE REMOVED ONCE PORTING IS FINISHED)
+	Author: Jaroslav Klapálek <klapajar@fel.cvut.cz>
+	Description: Launch a node for obstacle substitution.
+-->
+<launch>
+	<arg name="/scan" default="/scan" doc="Topic for remapping the '/scan'."/>
+	<arg name="/obstacles" default="/obstacles" doc="Topic for remapping the '/obstacles'."/>
+	<arg name="remap" default="false" doc="When true use arguments above for remapping."/>
+
+	<arg name="anonymous" default="false" doc="When true run a node as anonymous."/>
+
+	<arg name="node_name" value="$(anon recognition_obstacle_sub)" if="$(arg anonymous)"/>
+	<arg name="node_name" value="recognition_obstacle_sub" unless="$(arg anonymous)"/>
+
+	<node
+		pkg="obstacle_substitution"
+		type="substitute.py"
+		name="$(arg node_name)"
+		output="screen"
+		args="anonymous=$(arg anonymous)"
+	>
+		<remap from="/scan" to="$(arg /scan)" if="$(arg remap)"/>
+		<remap from="/obstacles" to="$(arg /obstacles)" if="$(arg remap)"/>
+	</node>
+</launch>
