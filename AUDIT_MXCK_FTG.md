@@ -334,8 +334,8 @@ This section is a strict re-check focused on:
 
 This aligns package metadata with actual imports in:
 
-- `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/mxck_ftg_planner/ftg_planner_node.py`
-- `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/mxck_ftg_planner/common.py`
+- `mxck_ftg_planner/mxck_ftg_planner/ftg_planner_node.py`
+- `mxck_ftg_planner/mxck_ftg_planner/common.py`
 
 ### 11.3 Conservative safety note
 
