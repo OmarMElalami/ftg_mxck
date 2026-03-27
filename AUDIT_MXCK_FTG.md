@@ -296,3 +296,47 @@ No other runtime behavior changes were made.
 - Actual topic rates and timing stability under load
 
 These must be validated on target platform before autonomous driving.
+
+---
+
+## 11) Second-pass strict review (PR comment follow-up)
+
+This section is a strict re-check focused on:
+
+1. ROS2 package/dependency correctness
+2. launch-file consistency
+3. topic graph consistency
+4. executable-name correctness
+5. YAML parameter mismatches
+6. MXCK vehicle-control integration
+7. duplicate control logic
+8. duplicate turn-speed scaling
+9. duplicate `vehicle_control` startup
+10. safety blockers for first vehicle test
+
+### 11.1 Results summary
+
+- **Dependency correctness:** one confirmed packaging issue in `mxck_ftg_planner` (now fixed in this PR): missing runtime deps for imported message/TF modules.
+- **Launch consistency:** main FTG launch wiring is internally consistent; node names/executables resolve.
+- **Topic graph:** requested chain is consistent in default stack (`follow_the_gap` → `ctu_ftg_adapter_node` → `ftg_command_node`).
+- **Executable names:** launch executables match `setup.py` / CMake targets.
+- **YAML params:** no key mismatches found for active stack configs.
+- **MXCK integration:** FTG stack outputs only `/autonomous/ackermann_cmd`; `vehicle_control` remains external as required.
+- **Duplicate control logic / turn-speed scaling:** no duplicate implementation of turn-scaling logic; there is layered speed policy (adapter clearance policy + control-node turn scaling) that remains a tuning/safety consideration.
+- **Duplicate `vehicle_control` startup:** not present in FTG launches.
+
+### 11.2 Confirmed local fix applied from second pass
+
+- Added missing `mxck_ftg_planner/package.xml` runtime deps:
+  - `geometry_msgs`
+  - `visualization_msgs`
+  - `tf2_ros`
+
+This aligns package metadata with actual imports in:
+
+- `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/mxck_ftg_planner/ftg_planner_node.py`
+- `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/mxck_ftg_planner/common.py`
+
+### 11.3 Conservative safety note
+
+No new architecture changes were applied in second pass. The previously flagged P0/P1 operational checks still apply and should be enforced during first-vehicle bringup (single command publisher verification, timeout-stop behavior, and steering-direction sanity check at low speed).
