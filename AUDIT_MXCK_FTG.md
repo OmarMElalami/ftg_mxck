@@ -4,6 +4,11 @@
 
 Repository audited: `/home/runner/work/ftg_mxck/ftg_mxck`
 
+Repository instruction file check:
+
+- `AGENTS.md` was not found in this repository at audit time.
+- Platform/architecture constraints were taken from the repository Copilot instructions and issue requirements.
+
 This audit is static (code + launch + config inspection). Runtime build/test verification in this sandbox was limited because required tools were unavailable:
 
 - `colcon` not available (`colcon: command not found`)
@@ -191,6 +196,31 @@ No FTG node publishes `/commands/motor/*` or `/commands/servo/*`. Those appear o
 ---
 
 ## 6) Risk detection (pre-physical-test)
+
+### P0 / P1 classification for first vehicle testing
+
+#### P0 (must be resolved or explicitly accepted before first autonomous motion)
+
+1. **Potential double speed scaling**
+   - `ctu_ftg_adapter_node` computes clearance-based target speed:
+     - `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/mxck_ftg_planner/ctu_ftg_adapter_node.py:210-222`
+   - `ftg_command_node` applies additional turn-based speed scaling (enabled by config):
+     - `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_control/mxck_ftg_control/ftg_command_node.py:97-111`
+     - `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_control/config/ftg_control.yaml:22`
+   - Why P0: first on-vehicle speed behavior can be harder to predict/tune due to compounded reductions.
+
+2. **Operational risk of duplicate FTG planner publishers if wrong launch combination is used**
+   - `ftg_planner_node` and `ctu_ftg_adapter_node` can both publish `/autonomous/ftg/gap_angle` and `/autonomous/ftg/target_speed` if launched together.
+   - Why P0: multiple publishers on command-producing topics can produce unstable/ambiguous behavior.
+
+#### P1 (should be fixed before broader validation, but not necessarily a hard blocker for first controlled low-speed run)
+
+1. **`mxck_ftg_planner/package.xml` dependency gap for alternate planner path**
+   - `ftg_planner_node.py` imports `visualization_msgs` and `tf2_ros`, but package manifest does not declare them.
+   - Files:
+     - `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/mxck_ftg_planner/ftg_planner_node.py:11-12`
+     - `/home/runner/work/ftg_mxck/ftg_mxck/mxck_ftg_planner/package.xml:13-15`
+   - Why P1: primarily affects alternate path and strict deployment/build consistency.
 
 ## High priority
 
