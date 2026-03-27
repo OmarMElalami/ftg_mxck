@@ -289,23 +289,24 @@ void Callback(sensor_msgs::msg::LaserScan::ConstSharedPtr lidar_data) {
 	PublishVisualizeObstacles(obstacles_out, lidar_data->header.frame_id);
 }
 */
-// -- Neu
-PublishGapFound(ok);
+	// -- Neu
+	PublishGapFound(ok);
 
-if (ok) {
-    PublishFinalHeadingAngle(angle);
-    PublishVisualizeFinalHeadingAngle(angle, lidar_data->header.frame_id);
+	if (ok) {
+		PublishFinalHeadingAngle(angle);
+		PublishVisualizeFinalHeadingAngle(angle, lidar_data->header.frame_id);
 
-    if (gap_borders_out.size() >= 2) {
-        PublishVisualizeLargestGap(
-            gap_borders_out.at(0),
-            gap_borders_out.at(1),
-            lidar_data->header.frame_id
-        );
-    }
+		if (gap_borders_out.size() >= 2) {
+			PublishVisualizeLargestGap(
+				gap_borders_out.at(0),
+				gap_borders_out.at(1),
+				lidar_data->header.frame_id
+			);
+		}
+	}
+
+	PublishVisualizeObstacles(obstacles_out, lidar_data->header.frame_id);
 }
-
-PublishVisualizeObstacles(obstacles_out, lidar_data->header.frame_id);
 
 // Note: This method does not yield the same results as the original LiDAR method.It is
 // most likely caused by different rounding (Py / C++).
@@ -329,18 +330,18 @@ void ObstaclesCallback(
 	PublishGapFound(ok);
 	
 	if (ok) {
-    PublishFinalHeadingAngle(angle);
-    PublishVisualizeFinalHeadingAngle(angle, obstacles_data->header.frame_id);
+		PublishFinalHeadingAngle(angle);
+		PublishVisualizeFinalHeadingAngle(angle, obstacles_data->header.frame_id);
 
-    if (gap_borders_out.size() >= 2) {
-        PublishVisualizeLargestGap(
-            gap_borders_out.at(0),
-            gap_borders_out.at(1),
-            obstacles_data->header.frame_id
-        );
-    }
-}
-PublishVisualizeObstacles(obstacles_out, obstacles_data->header.frame_id);
+		if (gap_borders_out.size() >= 2) {
+			PublishVisualizeLargestGap(
+				gap_borders_out.at(0),
+				gap_borders_out.at(1),
+				obstacles_data->header.frame_id
+			);
+		}
+	}
+	PublishVisualizeObstacles(obstacles_out, obstacles_data->header.frame_id);
 
 }
 
