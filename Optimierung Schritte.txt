@@ -67,4 +67,72 @@ Optional auch alte Logs löschen:
 rm -rf /home/mxck/development_ws/log
 rm -rf /home/mxck/development_ws/src/log
 
-########
+########  #########################  #########################   ######################
+5) Was du nach dem Merge praktisch machen sollst
+
+Wenn der technische Fix-PR gemerged ist, dann kommt dein echter Plattform-Test.
+
+Terminal A — vehicle_control wie bisher starten
+
+Nutze deine bekannte funktionierende Reihenfolge im Container.
+Minimal:
+
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /mxck2_ws/install/setup.bash
+ros2 launch vehicle_control manual_control_launch.py
+
+Dann:
+
+Deadman prüfen
+Kalibrierung abschließen
+Manual testen
+Terminal B — echten Build des FTG-Stacks
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /mxck2_ws/install/setup.bash
+cd /mxck2_ws
+
+colcon build --symlink-install --packages-select \
+  obstacle_msgs \
+  obstacle_substitution \
+  follow_the_gap_v0 \
+  mxck_ftg_perception \
+  mxck_ftg_planner \
+  mxck_ftg_control \
+  mxck_ftg_bringup
+
+Dann:
+
+source /mxck2_ws/install/setup.bash
+Terminal C — FTG-Stack starten
+source /opt/ros/$ROS_DISTRO/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+  use_tf:=true \
+  use_ftg_stack:=true \
+  use_scan_preprocessor:=true \
+  record_bag:=true \
+  bag_name:=ftg_vehicle_pretest_01
+6) Was du vor dem echten Fahrzeugtest prüfen musst
+Nodes
+ros2 node list | sort
+
+Erwartet ungefähr:
+
+/follow_the_gap
+/obstacle_substitution
+/scan_preprocessor_node
+/ctu_ftg_adapter_node
+/ftg_command_node
+Wichtige Topics
+ros2 topic list | grep -E "scan|obstacles|final_heading_angle|gap_found|autonomous/ftg|ackermann"
+Einzeltests
+ros2 topic echo /gap_found
+ros2 topic echo /final_heading_angle
+ros2 topic echo /autonomous/ftg/gap_angle
+ros2 topic echo /autonomous/ftg/target_speed
+ros2 topic echo /autonomous/ackermann_cmd
+Ganz wichtig: nur ein Publisher auf Final Command
+ros2 topic info /autonomous/ackermann_cmd -v
+
+Da darf vor deinem Test kein Chaos sein.
