@@ -1,0 +1,22 @@
+- [ ] Confirm external control chain is running separately (`manual_control_launch.py` / vehicle_control) before FTG stack start
+- [ ] Verify TF is available (`base_link` ↔ LiDAR frame) before enabling Autonomous mode
+- [ ] Verify exactly one publisher on `/autonomous/ackermann_cmd` (`ros2 topic info /autonomous/ackermann_cmd -v`)
+- [ ] Verify FTG stack nodes are up (`scan_preprocessor_node` optional, `obstacle_substitution`, `follow_the_gap`, `ctu_ftg_adapter_node`, `ftg_command_node`)
+- [ ] Verify `/scan` is live and stable (`ros2 topic hz /scan`)
+- [ ] If preprocessor enabled, verify `/autonomous/ftg/scan_filtered` is live (`ros2 topic hz /autonomous/ftg/scan_filtered`)
+- [ ] Verify obstacle chain output (`ros2 topic hz /obstacles`)
+- [ ] Verify CTU outputs (`ros2 topic echo /final_heading_angle`, `ros2 topic echo /gap_found`)
+- [ ] Verify adapter outputs (`ros2 topic echo /autonomous/ftg/gap_angle`, `ros2 topic echo /autonomous/ftg/target_speed`)
+- [ ] Verify final command type and flow (`ros2 topic echo /autonomous/ackermann_cmd` should show `AckermannDriveStamped` with finite steering/speed)
+- [ ] Verify timeout-stop behavior: stop/interrupt FTG upstream briefly and confirm speed falls to 0 on `/autonomous/ackermann_cmd`
+- [ ] Verify steering sign in low-speed controlled test (small obstacle offset should cause expected steering direction)
+- [ ] Verify speed remains within configured limit (`<= 0.35 m/s` in current config)
+- [ ] Verify only one planner path is active (do **not** run `ftg_planner_node` in parallel with `ctu_ftg_adapter_node`)
+- [ ] Confirm emergency abort path works before first autonomous movement (deadman/RC/manual override tested)
+- [ ] Abort test immediately if any of the following occur:
+  - [ ] no TF / repeated TF lookup failures in active nodes
+  - [ ] no data on `/gap_found` or `/final_heading_angle`
+  - [ ] no data on `/autonomous/ftg/gap_angle` or `/autonomous/ftg/target_speed`
+  - [ ] more than one publisher on `/autonomous/ackermann_cmd`
+  - [ ] oscillatory or inverted steering behavior at low speed
+  - [ ] non-zero command persists after upstream timeout/disconnect
