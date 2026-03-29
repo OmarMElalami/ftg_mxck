@@ -1,330 +1,331 @@
-# ftg_mxck — Follow-The-Gap für MXCarkit (ROS 2 Humble)
+# ftg_mxck — Follow-The-Gap for MXCarkit (ROS 2 Humble)
 
-Dieses Repository enthält eine vollständige ROS 2-Implementierung des **Follow-The-Gap (FTG)**-Algorithmus für das autonome Fahrzeug **MXCarkit (MXCK)**. Das System läuft auf einem **NVIDIA Jetson Xavier NX** unter **Ubuntu 20.04 / JetPack 5.1.5** in einem Docker-Workspace (`mxck2_ws`) mit ROS 2 Humble.
+This repository contains a complete ROS 2 integration of the **Follow-The-Gap (FTG)** algorithm for the autonomous vehicle **MXCarkit (MXCK)**. The stack runs on an **NVIDIA Jetson Xavier NX** under **Ubuntu 20.04 / JetPack 5.1.5** inside a Docker workspace (`mxck2_ws`) with ROS 2 Humble.
 
----
-
-## Inhaltsverzeichnis
-
-1. [Systemübersicht](#1-systemübersicht)
-2. [Repository-Struktur](#2-repository-struktur)
-3. [Pakete im Überblick](#3-pakete-im-überblick)
-4. [Nodes, Topics und Verbindungen](#4-nodes-topics-und-verbindungen)
-5. [Konfigurationsparameter](#5-konfigurationsparameter)
-6. [Abhängigkeiten](#6-abhängigkeiten)
-7. [Installation und Build](#7-installation-und-build)
-8. [Deployment auf den Jetson](#8-deployment-auf-den-jetson)
-9. [Starten des Systems](#9-starten-des-systems)
-10. [Einzelne Pakete separat starten](#10-einzelne-pakete-separat-starten)
-11. [Diagnose und Debugging](#11-diagnose-und-debugging)
-12. [Rosbag aufnehmen](#12-rosbag-aufnehmen)
-13. [Algorithmik — wie FTG funktioniert](#13-algorithmik--wie-ftg-funktioniert)
-14. [Architektur-Entscheidungen](#14-architektur-entscheidungen)
+The CTU FTG core (`follow_the_gap_v0`) is a C++ implementation by the Czech Technical University in Prague. The MXCK-specific packages provide scan preprocessing, an adapter layer, and the final Ackermann command node.
 
 ---
 
-## 1. Systemübersicht
+## Table of Contents
 
-Der FTG-Stack setzt sich aus vier Stufen zusammen, die als eigene ROS 2-Pakete realisiert sind:
+1. [System Overview](#1-system-overview)
+2. [Repository Structure](#2-repository-structure)
+3. [Package Descriptions](#3-package-descriptions)
+4. [Nodes, Topics and Connections](#4-nodes-topics-and-connections)
+5. [Configuration Parameters](#5-configuration-parameters)
+6. [Dependencies](#6-dependencies)
+7. [Installation and Build](#7-installation-and-build)
+8. [Deployment to the Jetson](#8-deployment-to-the-jetson)
+9. [Starting the System](#9-starting-the-system)
+10. [Launching Individual Packages](#10-launching-individual-packages)
+11. [Diagnostics and Debugging](#11-diagnostics-and-debugging)
+12. [Recording a Rosbag](#12-recording-a-rosbag)
+13. [Algorithm — How FTG Works](#13-algorithm--how-ftg-works)
+14. [Architecture Decisions](#14-architecture-decisions)
+15. [Pre-Test Checklist](#15-pre-test-checklist)
+
+---
+
+## 1. System Overview
+
+The FTG stack is composed of several layers implemented as separate ROS 2 packages:
 
 ```
 [LiDAR]
    │  /scan  (sensor_msgs/LaserScan)
    ▼
-┌──────────────────────────────┐
-│  mxck_ftg_perception         │  Stage 2
-│  scan_preprocessor_node      │──► /autonomous/ftg/scan_filtered
-│                              │──► /autonomous/ftg/front_clearance
-│  scan_front_window_check     │──► /autonomous/ftg/scan_check  (Debug)
-└──────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  mxck_ftg_perception          [OPTIONAL]     │
+│  scan_preprocessor_node                      │
+│  pub: /autonomous/ftg/scan_filtered          │
+└──────────────────────────────────────────────┘
+           │ /autonomous/ftg/scan_filtered (if used)
+           │ or /scan (directly, if preprocessor disabled)
+           ▼
+┌──────────────────────────────────────────────┐
+│  obstacle_substitution                       │  CTU package
+│  obstacle_substitution_node                  │
+│  sub: /scan  (or remapped scan_filtered)     │
+│  pub: /obstacles  (obstacle_msgs/ObstaclesStamped) │
+└──────────────────────────────────────────────┘
+           │  /obstacles
+           ▼
+┌──────────────────────────────────────────────┐
+│  follow_the_gap_v0                           │  CTU C++ package
+│  follow_the_gap                              │
+│  pub: /final_heading_angle (std_msgs/Float32)│
+│  pub: /gap_found           (std_msgs/Bool)   │
+└──────────────────────────────────────────────┘
+           │  /final_heading_angle + /gap_found
+           ▼
+┌──────────────────────────────────────────────┐
+│  mxck_ftg_planner                            │
+│  ctu_ftg_adapter_node                        │
+│  pub: /autonomous/ftg/gap_angle              │
+│  pub: /autonomous/ftg/target_speed           │
+│  pub: /autonomous/ftg/planner_status         │
+└──────────────────────────────────────────────┘
+           │  /autonomous/ftg/gap_angle + target_speed
+           ▼
+┌──────────────────────────────────────────────┐
+│  mxck_ftg_control                            │
+│  ftg_command_node                            │
+│  pub: /autonomous/ackermann_cmd ◄── VEHICLE  │
+│  pub: /autonomous/ftg/control_status         │
+└──────────────────────────────────────────────┘
            │
-           ▼ /autonomous/ftg/scan_filtered
-           ▼ /autonomous/ftg/front_clearance
-┌──────────────────────────────┐
-│  mxck_ftg_planner            │  Stage 3 / 4
-│  ftg_planner_node            │──► /autonomous/ftg/gap_angle
-│                              │──► /autonomous/ftg/target_speed
-│                              │──► /autonomous/ftg/planner_status
-│                              │──► /autonomous/ftg/planner_markers
-└──────────────────────────────┘
-           │
-           ▼ /autonomous/ftg/gap_angle
-           ▼ /autonomous/ftg/target_speed
-┌──────────────────────────────┐
-│  mxck_ftg_control            │  Stage 5
-│  ftg_command_node            │──► /autonomous/ackermann_cmd
-│                              │──► /autonomous/ftg/control_status
-└──────────────────────────────┘
-           │
-           ▼ /autonomous/ackermann_cmd  (ackermann_msgs/AckermannDriveStamped)
-        [Vehicle Control / VESC]
+           ▼ /autonomous/ackermann_cmd (ackermann_msgs/AckermannDriveStamped)
+        [vehicle_control / ackermann_to_vesc / VESC]
 ```
 
-Das Fahrzeug-Backend (VESC-Treiber, RC-Weiche, TF-Publisher) kommt aus dem separaten `mxck2_ws`-System (`mxck_run`, `vehicle_control`). Der FTG-Stack gibt seinen finalen Fahrbefehl auf dem Topic `/autonomous/ackermann_cmd` aus — genau dem Topic, das die bestehende Fahrzeugsteuerung im Autonomous-Modus übernimmt.
+The vehicle backend (VESC driver, RC switch, TF publisher) is provided by the existing `mxck2_ws` system (`mxck_run`, `vehicle_control`). `manual_control_launch.py` must be started **separately** — it handles RC, Deadman, safety, and `ackermann_to_vesc`. The FTG stack outputs its final drive command on `/autonomous/ackermann_cmd`, which the existing vehicle control chain picks up in Autonomous mode.
 
 ---
 
-## 2. Repository-Struktur
+## 2. Repository Structure
 
 ```
 ftg_mxck/
-└── ftg_mxck/                         # gemeinsamer Quell-Ordner (in mxck2_ws/src/ ablegen)
-    ├── mxck_ftg_perception/           # Stage 2: Scan-Vorverarbeitung
-    │   ├── config/
-    │   │   ├── scan_preprocessor.yaml
-    │   │   └── scan_front_window_check.yaml
-    │   ├── launch/
-    │   │   ├── scan_preprocessor.launch.py
-    │   │   ├── scan_front_window_check.launch.py
-    │   │   └── stage2_perception.launch.py
-    │   └── mxck_ftg_perception/
-    │       ├── common.py
-    │       ├── scan_preprocessor_node.py
-    │       └── scan_front_window_check.py
-    ├── mxck_ftg_planner/              # Stage 3 / 4: FTG-Algorithmus
-    │   ├── config/
-    │   │   └── ftg_planner.yaml
-    │   ├── launch/
-    │   │   └── ftg_planner.launch.py
-    │   └── mxck_ftg_planner/
-    │       ├── common.py
-    │       └── ftg_planner_node.py
-    ├── mxck_ftg_control/              # Stage 5: Fahrbefehl-Ausgabe
-    │   ├── config/
-    │   │   └── ftg_control.yaml
-    │   ├── launch/
-    │   │   └── ftg_command.launch.py
-    │   └── mxck_ftg_control/
-    │       └── ftg_command_node.py
-    └── mxck_ftg_bringup/              # Stage 6: System-Bringup
-        └── launch/
-            ├── ftg_stack.launch.py    # kompakter Stack-Launch
-            └── ftg_full_system.launch.py  # vollständiges System inkl. TF + Rosbag
+├── follow_the_gap_v0/         # CTU C++ FTG algorithm (upstream, unchanged)
+├── obstacle_msgs/             # CTU message definitions (CircleObstacle, ObstaclesStamped)
+├── obstacle_substitution/     # CTU Python node: /scan → /obstacles
+├── mxck_ftg_perception/       # Optional scan preprocessor (FOV filter, range clip)
+├── mxck_ftg_planner/          # Adapter: CTU outputs → MXCK topics
+├── mxck_ftg_control/          # Final command node → /autonomous/ackermann_cmd
+└── mxck_ftg_bringup/          # Launch files for the full stack
+    └── launch/
+        ├── ftg_stack.launch.py          # Compact stack launch
+        └── ftg_full_system.launch.py    # Full system with rosbag support
 ```
+
+All packages must be placed in `mxck2_ws/src/` (flat — not inside a subdirectory).
 
 ---
 
-## 3. Pakete im Überblick
+## 3. Package Descriptions
 
-### 3.1 `mxck_ftg_perception` — Scan-Vorverarbeitung (Stage 2)
+### 3.1 `follow_the_gap_v0` — CTU C++ FTG Core
 
-Dieses Paket liest den Roh-LiDAR-Scan und bereitet ihn für den FTG-Algorithmus auf. Es enthält zwei Nodes:
+The upstream C++ implementation of the Follow-The-Gap algorithm by the Czech Technical University in Prague.
+
+- Subscribes to `/obstacles` (`obstacle_msgs/ObstaclesStamped`)
+- Publishes `/final_heading_angle` (`std_msgs/Float32`) — target steering angle in radians
+- Publishes `/gap_found` (`std_msgs/Bool`) — whether a drivable gap was found
+- Also publishes visualization topics for RViz debugging
+
+**Do not modify this package.** It is treated as an upstream dependency.
+
+---
+
+### 3.2 `obstacle_msgs` — CTU Message Definitions
+
+Defines `CircleObstacle` and `ObstaclesStamped` message types used between `obstacle_substitution` and `follow_the_gap_v0`.
+
+---
+
+### 3.3 `obstacle_substitution` — CTU Scan-to-Obstacle Converter
+
+Converts a raw `LaserScan` into a list of circular obstacles.
+
+- Subscribes to `/scan` (hardcoded — use remapping if the preprocessor is active)
+- Publishes `/obstacles` (`obstacle_msgs/ObstaclesStamped`)
+
+> **Important:** When `use_scan_preprocessor=true`, the launch file remaps `/scan` → `/autonomous/ftg/scan_filtered` for this node automatically.
+
+---
+
+### 3.4 `mxck_ftg_perception` — Optional Scan Preprocessor
+
+Pre-processes the raw LiDAR scan before it enters the CTU pipeline.
 
 #### `scan_preprocessor_node`
 
-Der **Haupt-Preprocessing-Node** des FTG-Stacks:
+- Subscribes to `/scan`
+- Applies a configurable front FOV window filter
+- Clips range values to `[clip_min_range_m, clip_max_range_m]`
+- Optionally applies a moving-average noise filter
+- Publishes `/autonomous/ftg/scan_filtered` (filtered scan passed to `obstacle_substitution`)
 
-- Abonniert `/scan` (roher LiDAR-Scan)
-- Nutzt TF, um den Scan-Frame nach `base_link` zu transformieren
-- Filtert alle Strahlen außerhalb des konfigurierbaren **Front-FOV-Fensters** heraus
-- Clippt Messwerte auf `[clip_min_range_m, clip_max_range_m]`
-- Setzt Strahlen außerhalb des FOV optional auf `clip_min` (als Hindernis) oder `inf`
-- Berechnet die **minimale Frontdistanz** (`front_clearance`) aus allen gültigen Front-Strahlen
-- Optionaler gleitender Mittelwert zur Rauschunterdrückung
-- Publiziert den gefilterten Scan und die Frontfreiheit
+#### `scan_front_window_check` (diagnostic only)
 
-#### `scan_front_window_check`
-
-Ein **Diagnose-Node** zur visuellen Verifikation der Scan-Orientierung:
-
-- Liest `/scan` und transformiert Punkte nach `base_link`
-- Findet den nächsten Punkt im Front-Sichtfenster
-- Gibt Richtungsinformation aus (LEFT / CENTER / RIGHT)
-- Publiziert optional RViz-Marker (Sphere + Pfeil)
-- Läuft nur alle N Scans, um die Konsole zu schonen (`log_every_n_scans`)
+- Reads `/scan`, finds the nearest point in the front window
+- Logs direction (LEFT / CENTER / RIGHT) every N scans
+- Optionally publishes RViz markers
 
 ---
 
-### 3.2 `mxck_ftg_planner` — FTG-Algorithmus (Stage 3 / 4)
+### 3.5 `mxck_ftg_planner` — CTU Adapter Node
 
-Implementiert den eigentlichen **Follow-The-Gap**-Algorithmus nach Sezer & Gökasan:
+Bridges the CTU FTG outputs to the MXCK topic namespace.
 
-#### `ftg_planner_node`
+#### `ctu_ftg_adapter_node` *(active default)*
 
-1. Empfängt den vorverarbeiteten Scan von `/autonomous/ftg/scan_filtered`
-2. Ermittelt den nächsten Hindernis-Strahl
-3. **Safety-Bubble**: Setzt alle Strahlen im Radius `safety_bubble_radius_m` um das nächste Hindernis auf 0
-4. **Gap-Suche**: Findet zusammenhängende freie Segmente (`range >= free_space_threshold_m`)
-5. **Gap-Selektion**: Wählt das beste Gap gewichtet nach Breite und Zentriertheit (`center_bias_weight`)
-6. **Zielpunkt**: Findet den besten Punkt im Gap (maximale Reichweite, minimale Abweichung von geradeaus)
-7. **Speed-Policy**: Leitet die Zielgeschwindigkeit aus der Frontfreiheit (`front_clearance`) ab
-8. Publiziert `gap_angle` (Lenkwinkel in Radiant) und `target_speed` (m/s)
-9. Publiziert RViz-Marker (Zielpunkt + Richtungspfeil)
+- Subscribes to `/final_heading_angle`, `/gap_found`, and optionally `/scan` (for speed policy)
+- Applies heading sign/offset correction and angle clamping
+- Computes a clearance-based target speed from a front scan window
+- Publishes `/autonomous/ftg/gap_angle`, `/autonomous/ftg/target_speed`, `/autonomous/ftg/planner_status`
+
+> **Note:** `ftg_planner_node.py` also exists in this package as a standalone Python FTG reimplementation. It is **not** used in the standard launch pipeline. Do not start it alongside `ctu_ftg_adapter_node`.
 
 ---
 
-### 3.3 `mxck_ftg_control` — Fahrbefehl-Node (Stage 5)
+### 3.6 `mxck_ftg_control` — Final Command Node
 
-Wandelt die Planner-Ausgabe in einen robusten **AckermannDriveStamped**-Befehl um:
+Converts planner outputs into a safe, rate-limited `AckermannDriveStamped` command.
 
 #### `ftg_command_node`
 
-- Empfängt `gap_angle` und `target_speed` vom Planner
-- **Timeout-Überwachung**: Stoppt das Fahrzeug, wenn keine frischen Daten vorliegen (`command_timeout_sec`)
-- **Lenkwinkel-Verarbeitung**:
-  - Optionale Invertierung (`invert_steering`)
-  - Multiplikation mit `steering_gain`
-  - Clamp auf `±steering_limit_deg`
-  - Optionales **exponentielles Glätten** (IIR-Filter, `steering_smoothing_alpha`)
-- **Geschwindigkeits-Verarbeitung**:
-  - Clamp auf `[0, speed_limit_mps]`
-  - Optionale **Kurvengeschwindigkeits-Reduktion** (Turn-Speed-Scaling): Verringert die Geschwindigkeit proportional bei großem Lenkwinkel
-- Publiziert mit fester Rate (`publish_rate_hz` Hz) auf `/autonomous/ackermann_cmd`
-- Publiziert Statustext auf `/autonomous/ftg/control_status`
+- Subscribes to `/autonomous/ftg/gap_angle` and `/autonomous/ftg/target_speed`
+- Applies timeout safety (stops if no fresh data within `command_timeout_sec`)
+- Applies steering gain, inversion, clamp, and optional IIR smoothing
+- Applies optional turn-speed scaling (reduces speed during sharp turns)
+- Publishes at a fixed rate (`publish_rate_hz`) to `/autonomous/ackermann_cmd`
+- Publishes status on `/autonomous/ftg/control_status`
 
 ---
 
-### 3.4 `mxck_ftg_bringup` — System-Bringup (Stage 6)
+### 3.7 `mxck_ftg_bringup` — Launch Coordinator
 
-Enthält zwei Launch-Dateien, die alle Komponenten koordiniert starten:
+Contains launch files that start all components together.
 
 #### `ftg_stack.launch.py`
-Kompakter Launch mit direkten Paketpfaden. Startet:
-- Optional: TF-Broadcast (`mxck_run/broadcast_tf_launch.py`)
-- Optional: `scan_front_window_check` (Debug-Node)
-- `scan_preprocessor_node`
-- `ftg_planner_node`
+
+The primary launch file. Starts:
+- (Optional) TF broadcast via `mxck_run/broadcast_tf_launch.py`
+- (Optional) `scan_preprocessor_node` (enabled by `use_scan_preprocessor:=true`)
+- `obstacle_substitution_node` (with remapping if preprocessor is active)
+- `follow_the_gap` (CTU C++ node)
+- `ctu_ftg_adapter_node`
 - `ftg_command_node`
 
-Konfigurationsdateien werden direkt aus den jeweiligen Paket-Shares geladen.
-
 #### `ftg_full_system.launch.py`
-Erweiterter Launch mit Laufzeit-Argumenten. Startet zusätzlich:
-- Optional: `vehicle_control/manual_control_launch.py` (Low-Level-Fahrzeugsteuerung)
-- Optional: **Rosbag-Aufnahme** aller wichtigen FTG-Topics
+
+Wraps `ftg_stack.launch.py` and adds optional rosbag recording. Does **not** start `vehicle_control` — that must be started separately.
 
 ---
 
-## 4. Nodes, Topics und Verbindungen
+## 4. Nodes, Topics and Connections
 
-### Vollständige Topic-Tabelle
+### Full Topic Table
 
-| Topic | Typ | Publisher | Subscriber | Beschreibung |
-|-------|-----|-----------|------------|--------------|
-| `/scan` | `sensor_msgs/LaserScan` | LiDAR-Driver (`mxck_run`) | `scan_preprocessor_node`, `scan_front_window_check` | Roh-LiDAR-Scan |
-| `/tf` / `/tf_static` | TF-Baum | `mxck_run/broadcast_tf_launch.py` | alle Nodes (via `tf2_ros`) | Koordinatensystem-Transformationen |
-| `/autonomous/ftg/scan_filtered` | `sensor_msgs/LaserScan` | `scan_preprocessor_node` | `ftg_planner_node` | Vorverarbeiteter, auf FOV-Fenster reduzierter Scan |
-| `/autonomous/ftg/front_clearance` | `std_msgs/Float32` | `scan_preprocessor_node` | `ftg_planner_node` | Minimale Frontdistanz in Metern |
-| `/autonomous/ftg/status` | `std_msgs/String` | `scan_preprocessor_node` | — | Statusmeldung der Vorverarbeitung |
-| `/autonomous/ftg/gap_angle` | `std_msgs/Float32` | `ftg_planner_node` | `ftg_command_node` | Ziel-Lenkwinkel in Radiant |
-| `/autonomous/ftg/target_speed` | `std_msgs/Float32` | `ftg_planner_node` | `ftg_command_node` | Ziel-Geschwindigkeit in m/s |
-| `/autonomous/ftg/planner_status` | `std_msgs/String` | `ftg_planner_node` | — | Statusmeldung des Planers |
-| `/autonomous/ftg/planner_markers` | `visualization_msgs/MarkerArray` | `ftg_planner_node` | — | RViz-Visualisierung (Zielpunkt + Richtungspfeil) |
-| `/autonomous/ackermann_cmd` | `ackermann_msgs/AckermannDriveStamped` | `ftg_command_node` | Vehicle Control (VESC) | **Finaler autonomer Fahrbefehl** |
-| `/autonomous/ftg/control_status` | `std_msgs/String` | `ftg_command_node` | — | Statusmeldung des Control-Nodes |
-| `/autonomous/ftg/scan_check` | `std_msgs/String` | `scan_front_window_check` | — | Diagnose-Ausgabe (Frontbereich) |
-| `/autonomous/ftg/scan_check_markers` | `visualization_msgs/MarkerArray` | `scan_front_window_check` | — | RViz-Marker (Diagnose) |
+| Topic | Type | Publisher | Subscriber | Description |
+|-------|------|-----------|------------|-------------|
+| `/scan` | `sensor_msgs/LaserScan` | LiDAR driver (`mxck_run`) | `scan_preprocessor_node`, `obstacle_substitution_node`, `scan_front_window_check`, `ctu_ftg_adapter_node` | Raw LiDAR scan |
+| `/tf` / `/tf_static` | TF tree | `mxck_run/broadcast_tf_launch.py` | All nodes (via `tf2_ros`) | Coordinate frame transforms |
+| `/autonomous/ftg/scan_filtered` | `sensor_msgs/LaserScan` | `scan_preprocessor_node` | `obstacle_substitution_node` (remapped `/scan`) | FOV-filtered, clipped scan |
+| `/obstacles` | `obstacle_msgs/ObstaclesStamped` | `obstacle_substitution_node` | `follow_the_gap` | Circle-obstacle list |
+| `/final_heading_angle` | `std_msgs/Float32` | `follow_the_gap` | `ctu_ftg_adapter_node` | Target heading angle from CTU FTG [rad] |
+| `/gap_found` | `std_msgs/Bool` | `follow_the_gap` | `ctu_ftg_adapter_node` | Whether a drivable gap was found |
+| `/autonomous/ftg/gap_angle` | `std_msgs/Float32` | `ctu_ftg_adapter_node` | `ftg_command_node` | Adjusted target steering angle [rad] |
+| `/autonomous/ftg/target_speed` | `std_msgs/Float32` | `ctu_ftg_adapter_node` | `ftg_command_node` | Target speed [m/s] |
+| `/autonomous/ftg/planner_status` | `std_msgs/String` | `ctu_ftg_adapter_node` | — | Planner status string |
+| `/autonomous/ackermann_cmd` | `ackermann_msgs/AckermannDriveStamped` | `ftg_command_node` | Vehicle control (VESC) | **Final autonomous drive command** |
+| `/autonomous/ftg/control_status` | `std_msgs/String` | `ftg_command_node` | — | Control node status string |
 
-### Node-Verbindungsdiagramm
+### Node Connection Diagram
 
 ```
 mxck_run (LiDAR)
-   └─[/scan]──────────────────────────────────────────────────────┐
-                                                                   │
-                                              ┌────────────────────▼──────────────────────────┐
-                                              │          scan_preprocessor_node                │
-                                              │  sub: /scan                                    │
-                                              │  pub: /autonomous/ftg/scan_filtered            │
-                                              │  pub: /autonomous/ftg/front_clearance          │
-                                              │  pub: /autonomous/ftg/status                   │
-                                              └──────────┬──────────────────┬──────────────────┘
-                                                         │                  │
-                                         [scan_filtered] │    [front_clearance]
-                                                         │                  │
-                                              ┌──────────▼──────────────────▼──────────────────┐
-                                              │            ftg_planner_node                     │
-                                              │  sub: /autonomous/ftg/scan_filtered             │
-                                              │  sub: /autonomous/ftg/front_clearance           │
-                                              │  pub: /autonomous/ftg/gap_angle                 │
-                                              │  pub: /autonomous/ftg/target_speed              │
-                                              │  pub: /autonomous/ftg/planner_status            │
-                                              │  pub: /autonomous/ftg/planner_markers           │
-                                              └──────────┬──────────────────┬──────────────────┘
-                                                         │                  │
-                                             [gap_angle] │     [target_speed]
-                                                         │                  │
-                                              ┌──────────▼──────────────────▼──────────────────┐
-                                              │            ftg_command_node                     │
-                                              │  sub: /autonomous/ftg/gap_angle                 │
-                                              │  sub: /autonomous/ftg/target_speed              │
-                                              │  pub: /autonomous/ackermann_cmd ◄── FAHRZEUG    │
-                                              │  pub: /autonomous/ftg/control_status            │
-                                              └────────────────────────────────────────────────┘
+   └─[/scan]──────────────────────────────────────┐
+                                                   │
+                              ┌────────────────────▼───────────────────────┐
+                              │      scan_preprocessor_node  [OPTIONAL]    │
+                              │  sub: /scan                                │
+                              │  pub: /autonomous/ftg/scan_filtered        │
+                              └──────────────────┬─────────────────────────┘
+                                                 │ /autonomous/ftg/scan_filtered
+                              ┌──────────────────▼─────────────────────────┐
+                              │      obstacle_substitution_node             │
+                              │  sub: /scan  (remapped when preprocessor on)│
+                              │  pub: /obstacles                            │
+                              └──────────────────┬─────────────────────────┘
+                                                 │ /obstacles
+                              ┌──────────────────▼─────────────────────────┐
+                              │      follow_the_gap  (CTU C++)              │
+                              │  sub: /obstacles                            │
+                              │  pub: /final_heading_angle                  │
+                              │  pub: /gap_found                            │
+                              └──────┬──────────────────┬───────────────────┘
+                       [heading]     │        [gap_found]│
+                              ┌──────▼──────────────────▼───────────────────┐
+                              │      ctu_ftg_adapter_node                   │
+                              │  sub: /final_heading_angle                  │
+                              │  sub: /gap_found                            │
+                              │  sub: /scan  (for speed policy)             │
+                              │  pub: /autonomous/ftg/gap_angle             │
+                              │  pub: /autonomous/ftg/target_speed          │
+                              │  pub: /autonomous/ftg/planner_status        │
+                              └──────┬──────────────────┬───────────────────┘
+                   [gap_angle]       │    [target_speed] │
+                              ┌──────▼──────────────────▼───────────────────┐
+                              │      ftg_command_node                       │
+                              │  sub: /autonomous/ftg/gap_angle             │
+                              │  sub: /autonomous/ftg/target_speed          │
+                              │  pub: /autonomous/ackermann_cmd  ◄─ VEHICLE │
+                              │  pub: /autonomous/ftg/control_status        │
+                              └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Konfigurationsparameter
+## 5. Configuration Parameters
 
 ### 5.1 `mxck_ftg_perception` — `scan_preprocessor.yaml`
 
 ```yaml
-scan_topic: "/scan"                  # Input: Roh-LiDAR-Topic
-base_frame: "base_link"              # Ziel-Frame für TF-Lookup
+scan_topic: "/scan"
+base_frame: "base_link"
 filtered_scan_topic: "/autonomous/ftg/scan_filtered"
 front_clearance_topic: "/autonomous/ftg/front_clearance"
 status_topic: "/autonomous/ftg/status"
 
-front_center_deg: 0.0                # Zentrum des Frontfensters relativ zu base_link [Grad]
-front_fov_deg: 140.0                 # Gesamtbreite des Frontfensters [Grad]
+front_center_deg: 0.0          # Center of front FOV window [deg]
+front_fov_deg: 140.0           # Total width of front FOV window [deg]
 
-clip_min_range_m: 0.05               # Minimale gültige Messung [m]
-clip_max_range_m: 8.0                # Maximale gültige Messung [m]
-outside_window_as_obstacle: true     # Strahlen außerhalb FOV auf clip_min setzen (= Hindernis)
+clip_min_range_m: 0.05         # Minimum valid range [m]
+clip_max_range_m: 8.0          # Maximum valid range [m]
+outside_window_as_obstacle: true  # Set rays outside FOV to clip_min (= obstacle)
 
-enable_moving_average: false         # Gleitender Mittelwert aktivieren
-moving_average_window: 3             # Fenstergröße für gleitenden Mittelwert
+enable_moving_average: false   # Enable moving-average noise filter
+moving_average_window: 3       # Window size for moving average
 ```
 
-### 5.2 `mxck_ftg_perception` — `scan_front_window_check.yaml`
+### 5.2 `mxck_ftg_planner` — `ctu_ftg_adapter.yaml`
 
 ```yaml
-scan_topic: "/scan"
-base_frame: "base_link"
-diagnostic_topic: "/autonomous/ftg/scan_check"
-marker_topic: "/autonomous/ftg/scan_check_markers"
+ctu_ftg_adapter_node:
+  ros__parameters:
+    final_heading_topic: /final_heading_angle
+    gap_found_topic: /gap_found
+    scan_topic: /scan            # Used for speed policy (front window clearance)
 
-front_center_deg: 0.0                # Zentrum des Prüffensters [Grad]
-front_fov_deg: 120.0                 # Breite des Prüffensters [Grad]
+    gap_angle_topic: /autonomous/ftg/gap_angle
+    target_speed_topic: /autonomous/ftg/target_speed
+    planner_status_topic: /autonomous/ftg/planner_status
 
-clip_min_range_m: 0.05
-clip_max_range_m: 8.0
-beam_stride: 2                       # Jeden 2. Strahl verarbeiten (Performance)
-log_every_n_scans: 10                # Nur jeden 10. Scan in Konsole ausgeben
-publish_markers: true                # RViz-Marker publizieren
+    publish_rate_hz: 15.0
+    message_timeout_sec: 0.50
+
+    use_scan_for_speed: true     # Derive speed from /scan front-window clearance
+    front_window_deg: 20.0       # Half-angle of speed-policy front window [deg]
+    default_front_clearance_m: 10.0  # Fallback when scan unavailable
+
+    heading_sign: 1.0            # Set to -1.0 if steering direction is inverted
+    heading_offset_rad: 0.0
+    gap_angle_limit_rad: 0.60    # Clamp output angle to ±this value [rad]
+
+    # Speed policy thresholds
+    stop_distance_m: 0.30
+    slow_distance_m: 0.55
+    clear_distance_m: 0.90
+
+    stop_speed_mps: 0.0
+    crawl_speed_mps: 0.10
+    slow_speed_mps: 0.18
+    cruise_speed_mps: 0.25
 ```
 
-### 5.3 `mxck_ftg_planner` — `ftg_planner.yaml`
-
-```yaml
-scan_topic: "/autonomous/ftg/scan_filtered"
-front_clearance_topic: "/autonomous/ftg/front_clearance"
-base_frame: "base_link"
-
-gap_angle_topic: "/autonomous/ftg/gap_angle"
-target_speed_topic: "/autonomous/ftg/target_speed"
-status_topic: "/autonomous/ftg/planner_status"
-marker_topic: "/autonomous/ftg/planner_markers"
-
-# Gap-Erkennung
-free_space_threshold_m: 1.00         # Mindestdistanz für "freien" Strahl [m]
-min_gap_beams: 10                    # Mindestanzahl Strahlen für ein gültiges Gap
-safety_bubble_radius_m: 0.35         # Radius der Sicherheitsblase [m]
-steering_limit_deg: 22.0             # Maximaler Lenkwinkel für Planer [Grad]
-center_bias_weight: 0.8              # Gewichtung der Geradeaus-Präferenz [0..1]
-
-# Speed-Policy (basierend auf front_clearance)
-stop_distance_m: 0.35                # Unterhalb: Stopp
-slow_distance_m: 0.60                # Unterhalb: Langsamfahrt
-cruise_distance_m: 1.20              # Unterhalb: Mittlere Geschwindigkeit; darüber: Vollgas
-
-speed_stop_mps: 0.0
-speed_slow_mps: 0.15
-speed_medium_mps: 0.25
-speed_fast_mps: 0.35
-```
-
-### 5.4 `mxck_ftg_control` — `ftg_control.yaml`
+### 5.3 `mxck_ftg_control` — `ftg_control.yaml`
 
 ```yaml
 gap_angle_topic: "/autonomous/ftg/gap_angle"
@@ -333,140 +334,175 @@ ackermann_topic: "/autonomous/ackermann_cmd"
 status_topic: "/autonomous/ftg/control_status"
 frame_id: "base_link"
 
-publish_rate_hz: 15.0                # Ausgabe-Rate [Hz]
-command_timeout_sec: 0.5             # Maximales Alter der Planner-Daten [s]
+publish_rate_hz: 15.0
+command_timeout_sec: 0.5       # Stop if no fresh planner data for this long
 
-# Lenkung
-invert_steering: false               # Lenkrichtung umkehren
-steering_gain: 1.0                   # Multiplikator für Lenkwinkel
-steering_limit_deg: 22.0             # Maximaler Lenkwinkel [Grad]
-enable_steering_smoothing: true      # IIR-Glättungsfilter aktivieren
-steering_smoothing_alpha: 0.35       # Glättungskoeffizient (0=starr, 1=kein Filter)
+# Steering
+invert_steering: false         # Invert steering direction if needed
+steering_gain: 1.0             # Steering angle multiplier
+steering_limit_deg: 22.0       # Clamp output to ±this value [deg]
+enable_steering_smoothing: true
+steering_smoothing_alpha: 0.35 # IIR coefficient (0=frozen, 1=no filter)
 
-# Geschwindigkeit
-speed_limit_mps: 0.35                # Absolute Geschwindigkeitsbegrenzung [m/s]
-stop_on_timeout: true                # Bei Timeout stoppen
+# Speed
+speed_limit_mps: 0.35          # Absolute speed cap [m/s]
+stop_on_timeout: true          # Issue zero-speed command on timeout
 
-# Kurvengeschwindigkeits-Reduktion
-enable_turn_speed_scaling: true      # Aktivieren
-slowdown_start_deg: 10.0             # Ab diesem Lenkwinkel beginnt Reduktion [Grad]
-slowdown_full_deg: 22.0              # Bei diesem Lenkwinkel maximale Reduktion [Grad]
-min_turn_speed_mps: 0.15             # Mindestgeschwindigkeit in scharfer Kurve [m/s]
+# Turn-speed scaling
+enable_turn_speed_scaling: true
+slowdown_start_deg: 10.0       # Scaling begins at this steering angle [deg]
+slowdown_full_deg: 22.0        # Maximum reduction applied at this angle [deg]
+min_turn_speed_mps: 0.15       # Minimum speed during sharp turns [m/s]
 ```
 
 ---
 
-## 6. Abhängigkeiten
+## 6. Dependencies
 
-| Paket | ROS 2 Dependencies |
-|-------|--------------------|
-| `mxck_ftg_perception` | `rclpy`, `sensor_msgs`, `std_msgs`, `geometry_msgs`, `visualization_msgs`, `tf2_ros` |
-| `mxck_ftg_planner` | `rclpy`, `sensor_msgs`, `std_msgs`, `visualization_msgs`, `tf2_ros` |
-| `mxck_ftg_control` | `rclpy`, `std_msgs`, `ackermann_msgs` |
-| `mxck_ftg_bringup` | `launch`, `launch_ros`, `ament_index_python`, `mxck_run`*, `vehicle_control`* |
+| Package | Type | ROS 2 Dependencies |
+|---------|------|--------------------|
+| `obstacle_msgs` | C++ (ament_cmake) | `std_msgs`, `geometry_msgs` |
+| `obstacle_substitution` | Python | `rclpy`, `sensor_msgs`, `obstacle_msgs` |
+| `follow_the_gap_v0` | C++ (ament_cmake) | `rclcpp`, `sensor_msgs`, `std_msgs`, `visualization_msgs`, `geometry_msgs`, `obstacle_msgs`, `tf2_geometry_msgs` |
+| `mxck_ftg_perception` | Python | `rclpy`, `sensor_msgs`, `std_msgs`, `geometry_msgs`, `visualization_msgs`, `tf2_ros` |
+| `mxck_ftg_planner` | Python | `rclpy`, `sensor_msgs`, `std_msgs`, `geometry_msgs`, `visualization_msgs`, `tf2_ros` |
+| `mxck_ftg_control` | Python | `rclpy`, `std_msgs`, `ackermann_msgs` |
+| `mxck_ftg_bringup` | Python | `launch`, `launch_ros`, `ament_index_python`, `mxck_run`*, `vehicle_control`* |
 
-> **\*Hinweis:** `mxck_run` und `vehicle_control` sind Pakete aus dem bestehenden `mxck2_ws`-System und müssen bereits installiert sein.
+> **\*Note:** `mxck_run` and `vehicle_control` are packages from the existing `mxck2_ws` system and must already be installed.
 
-**System-Voraussetzungen:**
-- Ubuntu 20.04 (auf Jetson: JetPack 5.1.5)
+**System requirements:**
+- Ubuntu 20.04 (on Jetson: JetPack 5.1.5)
 - ROS 2 Humble
 - Python 3.10+
 - `ros-humble-ackermann-msgs`
 - `ros-humble-tf2-ros`
 - `ros-humble-visualization-msgs`
+- C++ build tools for `follow_the_gap_v0` and `obstacle_msgs` (`ament_cmake`, `g++`)
 
 ---
 
-## 7. Installation und Build
+## 7. Installation and Build
 
-### 7.1 Pakete in den Workspace kopieren
+### 7.1 Place packages in the workspace
 
-Die Pakete müssen im `mxck2_ws`-Source-Verzeichnis liegen. Entweder direkt im Container oder via `scp` (siehe Abschnitt 8).
+All packages must be placed directly inside `mxck2_ws/src/` (not in a subdirectory):
 
 ```bash
-# Prüfen, ob die Pakete korrekt liegen:
+# Check that the packages are in the right location:
+ls /mxck2_ws/src/follow_the_gap_v0
+ls /mxck2_ws/src/obstacle_msgs
+ls /mxck2_ws/src/obstacle_substitution
 ls /mxck2_ws/src/mxck_ftg_perception
 ls /mxck2_ws/src/mxck_ftg_planner
 ls /mxck2_ws/src/mxck_ftg_control
 ls /mxck2_ws/src/mxck_ftg_bringup
 ```
 
-### 7.2 In den Container einloggen
+### 7.2 Log into the container
 
 ```bash
 sudo docker exec -it mxck2_control bash
 ```
 
-### 7.3 ROS-Umgebung sourcen
+### 7.3 Source the ROS environment
 
 ```bash
 source /opt/ros/humble/setup.bash
 source /mxck2_ws/install/setup.bash
 ```
 
-### 7.4 Pakete bauen
+### 7.4 Build all FTG packages
+
+Build the CTU message and C++ packages first, then the Python packages:
 
 ```bash
 cd /mxck2_ws
 colcon build --symlink-install --packages-select \
+    obstacle_msgs \
+    obstacle_substitution \
+    follow_the_gap_v0 \
     mxck_ftg_perception \
     mxck_ftg_planner \
     mxck_ftg_control \
     mxck_ftg_bringup
 ```
 
-### 7.5 Workspace nach dem Build sourcen
+### 7.5 Re-source the workspace after building
 
 ```bash
 source /mxck2_ws/install/setup.bash
 ```
 
-### 7.6 Build prüfen
+### 7.6 Verify the build
 
 ```bash
-# Prüfen, ob alle ausführbaren Nodes registriert sind:
+# Check that all executables are registered:
 ros2 pkg executables mxck_ftg_perception
 ros2 pkg executables mxck_ftg_planner
 ros2 pkg executables mxck_ftg_control
+ros2 pkg executables follow_the_gap_v0
+ros2 pkg executables obstacle_substitution
 
-# Erwartete Ausgabe:
+# Expected output:
 # mxck_ftg_perception scan_front_window_check
 # mxck_ftg_perception scan_preprocessor_node
+# mxck_ftg_planner ctu_ftg_adapter_node
 # mxck_ftg_planner ftg_planner_node
 # mxck_ftg_control ftg_command_node
+# follow_the_gap_v0 follow_the_gap
+# obstacle_substitution obstacle_substitution_node
 ```
 
-### 7.7 Verfügbare Pakete im Workspace auflisten
-
-```bash
-colcon list
-```
+> **Warning:** Do not run `ftg_planner_node` and `ctu_ftg_adapter_node` at the same time. Only `ctu_ftg_adapter_node` is used in the standard pipeline.
 
 ---
 
-## 8. Deployment auf den Jetson
+## 8. Deployment to the Jetson
 
-### 8.1 Alle Pakete auf einmal kopieren (vom Entwicklungs-PC)
+### 8.1 Copy all packages at once (from development PC)
 
 ```bash
-# Gesamten FTG-Ordner kopieren:
-scp -r ftg_mxck mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+# Copy the entire repository folder:
+scp -r ftg_mxck/* mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
 
-# Alternativ einzelne Pakete:
-scp -r mxck_ftg_perception mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
-scp -r mxck_ftg_planner    mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
-scp -r mxck_ftg_control    mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
-scp -r mxck_ftg_bringup    mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+# Or copy individual packages:
+scp -r follow_the_gap_v0    mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+scp -r obstacle_msgs        mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+scp -r obstacle_substitution mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+scp -r mxck_ftg_perception  mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+scp -r mxck_ftg_planner     mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+scp -r mxck_ftg_control     mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
+scp -r mxck_ftg_bringup     mxck@192.168.0.100:/home/mxck/mxck2_ws/src/
 ```
 
-### 8.2 Docker-Container auf dem Jetson starten
+### 8.2 Remove conflicting old packages (if present)
+
+If your workspace contains older versions of the CTU packages from a previous setup, remove them first:
+
+```bash
+# Move old packages out of the source tree:
+mv /home/mxck/mxck2_ws/src/follow_the_gap_v0_ride /home/mxck/backup_old_ftg/ 2>/dev/null || true
+mv /home/mxck/mxck2_ws/src/auto                   /home/mxck/backup_old_ftg/ 2>/dev/null || true
+mv /home/mxck/mxck2_ws/src/ftg_scan_filter        /home/mxck/backup_old_ftg/ 2>/dev/null || true
+
+# Remove old build artifacts:
+rm -rf /mxck2_ws/build/follow_the_gap_v0_ride
+rm -rf /mxck2_ws/build/auto
+rm -rf /mxck2_ws/build/ftg_scan_filter
+rm -rf /mxck2_ws/install/follow_the_gap_v0_ride
+rm -rf /mxck2_ws/install/auto
+rm -rf /mxck2_ws/install/ftg_scan_filter
+```
+
+### 8.3 Start the Docker containers on the Jetson
 
 ```bash
 cd ~/mxck2_ws/.devcontainer
 sudo docker compose -f docker-compose.all.yml up -d lidar foxglove control kickstart
 ```
 
-### 8.3 Build auf dem Jetson (im Container)
+### 8.4 Build on the Jetson (inside container)
 
 ```bash
 sudo docker exec -it mxck2_control bash -lc "
@@ -474,6 +510,9 @@ sudo docker exec -it mxck2_control bash -lc "
     source /mxck2_ws/install/setup.bash &&
     cd /mxck2_ws &&
     colcon build --symlink-install --packages-select \
+        obstacle_msgs \
+        obstacle_substitution \
+        follow_the_gap_v0 \
         mxck_ftg_perception \
         mxck_ftg_planner \
         mxck_ftg_control \
@@ -482,7 +521,7 @@ sudo docker exec -it mxck2_control bash -lc "
 "
 ```
 
-### 8.4 Prüfen, ob TF bereits läuft (nur einmal nötig!)
+### 8.5 Check TF availability (run only once)
 
 ```bash
 sudo docker exec -it mxck2_control bash -lc "
@@ -490,14 +529,29 @@ sudo docker exec -it mxck2_control bash -lc "
     source /mxck2_ws/install/setup.bash &&
     ros2 node list | grep robot_state_publisher
 "
-# Wenn bereits ein robot_state_publisher läuft, keinen zweiten starten.
+# If a robot_state_publisher is already running, do NOT start a second one.
+# Use start_tf:=false in ftg_stack.launch.py in that case.
 ```
 
 ---
 
-## 9. Starten des Systems
+## 9. Starting the System
 
-### 9.1 Vollständiges System mit einem Befehl (empfohlen)
+### Step 0 — Start vehicle control separately (mandatory first step)
+
+The FTG stack does **not** start vehicle control. It must be running before you launch the FTG stack:
+
+```bash
+sudo docker exec -it mxck2_control bash -lc "
+    source /opt/ros/humble/setup.bash &&
+    source /mxck2_ws/install/setup.bash &&
+    ros2 launch vehicle_control manual_control_launch.py
+"
+```
+
+### Step 1 — Start the FTG stack
+
+#### Recommended: full stack with scan preprocessor (default)
 
 ```bash
 sudo docker exec -it mxck2_control bash -lc "
@@ -507,23 +561,19 @@ sudo docker exec -it mxck2_control bash -lc "
 "
 ```
 
-**Mit optionalem Debug-Node:**
+#### Without the optional scan preprocessor (direct /scan → obstacle_substitution)
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 launch mxck_ftg_bringup ftg_stack.launch.py start_scan_check:=true
-"
+ros2 launch mxck_ftg_bringup ftg_stack.launch.py use_scan_preprocessor:=false
 ```
 
-**Ohne TF-Broadcast** (wenn `robot_state_publisher` bereits läuft):
+#### Without TF broadcast (when TF is already running)
 
 ```bash
 ros2 launch mxck_ftg_bringup ftg_stack.launch.py start_tf:=false
 ```
 
-### 9.2 Vollständiges System mit Rosbag-Aufnahme
+### Step 2 — Full system with rosbag recording
 
 ```bash
 sudo docker exec -it mxck2_control bash -lc "
@@ -536,102 +586,88 @@ sudo docker exec -it mxck2_control bash -lc "
 "
 ```
 
-### 9.3 Launch-Argumente von `ftg_stack.launch.py`
+### Launch Arguments — `ftg_stack.launch.py`
 
-| Argument | Standard | Beschreibung |
-|----------|----------|--------------|
-| `start_tf` | `true` | TF-Broadcast via `mxck_run` starten |
-| `start_scan_check` | `false` | Debug-Node `scan_front_window_check` mitstart |
-| `scan_check_config` | Paket-Default | Pfad zur YAML-Config für `scan_front_window_check` |
-| `perception_config` | Paket-Default | Pfad zur YAML-Config für `scan_preprocessor_node` |
-| `planner_config` | Paket-Default | Pfad zur YAML-Config für `ftg_planner_node` |
-| `control_config` | Paket-Default | Pfad zur YAML-Config für `ftg_command_node` |
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `start_tf` | `true` | Start TF broadcast via `mxck_run/broadcast_tf_launch.py` |
+| `use_scan_preprocessor` | `true` | Run `scan_preprocessor_node` before `obstacle_substitution` |
+| `start_ctu_ftg` | `true` | Start `follow_the_gap_v0` C++ node |
+| `start_adapter` | `true` | Start `ctu_ftg_adapter_node` |
+| `start_control` | `true` | Start `ftg_command_node` |
 
-### 9.4 Launch-Argumente von `ftg_full_system.launch.py`
+### Launch Arguments — `ftg_full_system.launch.py`
 
-| Argument | Standard | Beschreibung |
-|----------|----------|--------------|
-| `use_tf` | `true` | TF-Broadcast starten |
-| `use_vehicle_control` | `false` | `vehicle_control` mitstart (i.d.R. schon aktiv) |
-| `use_perception` | `true` | Perception-Paket starten |
-| `use_planner` | `true` | Planner-Paket starten |
-| `use_control` | `true` | Control-Paket starten |
-| `record_bag` | `false` | Rosbag-Aufnahme aktivieren |
-| `bag_dir` | `/mxck2_ws/bags` | Verzeichnis für Bag-Dateien |
-| `bag_name` | `ftg_run` | Name der Bag-Session |
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `use_tf` | `true` | Start TF broadcast |
+| `use_ftg_stack` | `true` | Start the full FTG stack |
+| `use_scan_preprocessor` | `true` | Pass to inner `ftg_stack.launch.py` |
+| `record_bag` | `false` | Enable rosbag2 MCAP recording |
+| `bag_dir` | `/mxck2_ws/bags` | Output directory for bag files |
+| `bag_name` | `ctu_ftg_run` | Bag session name |
 
 ---
 
-## 10. Einzelne Pakete separat starten
+## 10. Launching Individual Packages
 
-Für stufenweise Tests oder Debugging kann jedes Paket unabhängig gestartet werden.
+For step-by-step testing you can launch each package independently.
 
-### Stage 2: Scan-Vorverarbeitung
-
-```bash
-# Nur Preprocessor:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 launch mxck_ftg_perception scan_preprocessor.launch.py
-"
-
-# Nur Diagnose-Node:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 launch mxck_ftg_perception scan_front_window_check.launch.py
-"
-
-# Beide zusammen (Stage 2 komplett):
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 launch mxck_ftg_perception stage2_perception.launch.py
-"
-```
-
-### Stage 3/4: Planner
+### Scan Preprocessor only
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 launch mxck_ftg_planner ftg_planner.launch.py
-"
+ros2 launch mxck_ftg_perception scan_preprocessor.launch.py
 ```
 
-### Stage 5: Control-Node
+### Diagnostic scan check only
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 launch mxck_ftg_control ftg_command.launch.py
-"
+ros2 launch mxck_ftg_perception scan_front_window_check.launch.py
 ```
 
-### Startreihenfolge für manuelle Tests (4 Terminals)
+### Adapter node only
+
+```bash
+# Use the adapter launch from mxck_ftg_planner
+ros2 run mxck_ftg_planner ctu_ftg_adapter_node \
+    --ros-args --params-file $(ros2 pkg prefix mxck_ftg_planner)/share/mxck_ftg_planner/config/ctu_ftg_adapter.yaml
+```
+
+### Control node only
+
+```bash
+ros2 launch mxck_ftg_control ftg_command.launch.py
+```
+
+### Manual startup order (4 terminals)
 
 ```bash
 # Terminal A — TF
-sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_run broadcast_tf_launch.py"
+ros2 launch mxck_run broadcast_tf_launch.py
 
-# Terminal B — Perception
-sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_perception scan_preprocessor.launch.py"
+# Terminal B — Scan preprocessor
+ros2 launch mxck_ftg_perception scan_preprocessor.launch.py
 
-# Terminal C — Planner
-sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_planner ftg_planner.launch.py"
+# Terminal C — CTU obstacle pipeline
+ros2 run obstacle_substitution obstacle_substitution_node \
+    --ros-args --remap /scan:=/autonomous/ftg/scan_filtered
 
-# Terminal D — Control
-sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_control ftg_command.launch.py"
+# Terminal D — CTU FTG C++ node
+ros2 run follow_the_gap_v0 follow_the_gap
+
+# Terminal E — Adapter
+ros2 run mxck_ftg_planner ctu_ftg_adapter_node \
+    --ros-args --params-file $(ros2 pkg prefix mxck_ftg_planner)/share/mxck_ftg_planner/config/ctu_ftg_adapter.yaml
+
+# Terminal F — Control
+ros2 launch mxck_ftg_control ftg_command.launch.py
 ```
 
 ---
 
-## 11. Diagnose und Debugging
+## 11. Diagnostics and Debugging
 
-### 11.1 Laufende Nodes prüfen
+### 11.1 Check running nodes
 
 ```bash
 sudo docker exec -it mxck2_control bash -lc "
@@ -639,181 +675,110 @@ sudo docker exec -it mxck2_control bash -lc "
     source /mxck2_ws/install/setup.bash &&
     ros2 node list | sort
 "
-# Erwartete Nodes:
+# Expected nodes (minimal):
+# /ctu_ftg_adapter_node
+# /follow_the_gap
 # /ftg_command_node
-# /ftg_planner_node
-# /scan_preprocessor_node
-# (/scan_front_window_check — falls gestartet)
+# /obstacle_substitution
+# /scan_preprocessor_node  (if use_scan_preprocessor=true)
 ```
 
-### 11.2 Alle aktiven Topics anzeigen
+### 11.2 Verify publisher counts (critical safety check)
+
+Each of these topics must have exactly **1 publisher**:
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic list
-"
+ros2 topic info /autonomous/ftg/gap_angle -v
+ros2 topic info /autonomous/ftg/target_speed -v
+ros2 topic info /autonomous/ackermann_cmd -v
 ```
 
-### 11.3 LiDAR-Scan prüfen
+### 11.3 Check LiDAR scan
 
 ```bash
-# Einmalig Scan ausgeben:
-sudo docker exec -it mxck2_lidar bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /scan --once
-"
+# Print one scan:
+ros2 topic echo /scan --once
 
-# Scan-Frequenz messen:
-sudo docker exec -it mxck2_lidar bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic hz /scan
-"
+# Measure scan frequency:
+ros2 topic hz /scan
 ```
 
-### 11.4 Vorverarbeiteten Scan prüfen
+### 11.4 Check CTU pipeline output
 
 ```bash
-# Frequenz des gefilterten Scans:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic hz /autonomous/ftg/scan_filtered
-"
+# Obstacle list:
+ros2 topic hz /obstacles
 
-# Frontdistanz ausgeben:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ftg/front_clearance
-"
+# CTU heading output (should be a radian value):
+ros2 topic echo /final_heading_angle
 
-# Preprocessor-Status:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ftg/status
-"
+# Gap found flag:
+ros2 topic echo /gap_found
 ```
 
-### 11.5 Planner-Ausgabe prüfen
+### 11.5 Check adapter output
 
 ```bash
-# Zielwinkel (in Radiant):
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ftg/gap_angle
-"
+# Target steering angle:
+ros2 topic echo /autonomous/ftg/gap_angle
 
-# Zielgeschwindigkeit:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ftg/target_speed
-"
+# Target speed:
+ros2 topic echo /autonomous/ftg/target_speed
 
-# Planner-Statusmeldung:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ftg/planner_status
-"
+# Planner status string:
+ros2 topic echo /autonomous/ftg/planner_status
 ```
 
-### 11.6 Finalen Fahrbefehl prüfen
+### 11.6 Check final drive command
 
 ```bash
-# AckermannDriveStamped ausgeben:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ackermann_cmd
-"
+# AckermannDriveStamped output:
+ros2 topic echo /autonomous/ackermann_cmd
 
-# Frequenz des Fahrbefehls:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic hz /autonomous/ackermann_cmd
-"
+# Output frequency (should match publish_rate_hz = 15 Hz):
+ros2 topic hz /autonomous/ackermann_cmd
 
-# Control-Statusmeldung (Lenkwinkel, Geschwindigkeit, Timeout):
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /autonomous/ftg/control_status
-"
+# Control node status:
+ros2 topic echo /autonomous/ftg/control_status
 ```
 
-### 11.7 Topic-Publisher prüfen (Mehrfach-Publisher erkennen)
+### 11.7 Check preprocessed scan
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic info /autonomous/ftg/gap_angle -v &&
-    ros2 topic info /autonomous/ftg/target_speed -v &&
-    ros2 topic info /autonomous/ackermann_cmd -v
-"
-# Pro Topic sollte jeweils genau 1 Publisher vorhanden sein.
+# Filtered scan frequency:
+ros2 topic hz /autonomous/ftg/scan_filtered
 ```
 
-### 11.8 TF-Transformationen prüfen
+### 11.8 Check TF transforms
 
 ```bash
-# Alle statischen Transformationen ausgeben:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 topic echo /tf_static --qos-durability transient_local --once
-"
+# All static transforms:
+ros2 topic echo /tf_static --qos-durability transient_local --once
 
-# TF-Baum im Terminal anzeigen:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 run tf2_tools view_frames
-"
+# View TF tree:
+ros2 run tf2_tools view_frames
 ```
 
-### 11.9 Laufende Parameter eines Nodes einsehen
+### 11.9 Inspect and change parameters at runtime
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 param list /ftg_planner_node &&
-    ros2 param get /ftg_planner_node free_space_threshold_m
-"
-```
+# List all parameters:
+ros2 param list /ctu_ftg_adapter_node
+ros2 param list /ftg_command_node
 
-### 11.10 Laufende Parameter zur Laufzeit ändern
+# Read a parameter:
+ros2 param get /ftg_command_node speed_limit_mps
 
-```bash
-# Beispiel: Maximale Geschwindigkeit erhöhen:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 param set /ftg_command_node speed_limit_mps 0.5
-"
-
-# Beispiel: Sicherheitsblase vergrößern:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 param set /ftg_planner_node safety_bubble_radius_m 0.5
-"
+# Change a parameter at runtime:
+ros2 param set /ftg_command_node speed_limit_mps 0.30
+ros2 param set /ctu_ftg_adapter_node heading_sign -1.0
 ```
 
 ---
 
-## 12. Rosbag aufnehmen
+## 12. Recording a Rosbag
 
-### 12.1 Manuelle Aufnahme der wichtigsten Topics
+### 12.1 Manual recording of all relevant topics
 
 ```bash
 sudo docker exec -it mxck2_control bash -lc "
@@ -825,134 +790,138 @@ sudo docker exec -it mxck2_control bash -lc "
         /tf \
         /tf_static \
         /autonomous/ftg/scan_filtered \
-        /autonomous/ftg/front_clearance \
+        /obstacles \
+        /final_heading_angle \
+        /gap_found \
         /autonomous/ftg/gap_angle \
         /autonomous/ftg/target_speed \
+        /autonomous/ftg/planner_status \
         /autonomous/ackermann_cmd \
         /autonomous/ftg/control_status \
-        /autonomous/ftg/planner_status
+        /rc/ackermann_cmd \
+        /commands/servo/position \
+        /commands/motor/speed \
+        /commands/motor/brake
 "
 ```
 
-### 12.2 Bag-Datei offline abspielen (für Tests ohne Fahrzeug)
+### 12.2 Play back a bag for offline testing (without a vehicle)
 
 ```bash
-# Bag-Datei abspielen:
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    source /mxck2_ws/install/setup.bash &&
-    ros2 bag play /mxck2_ws/bags/ftg_run --clock
-"
+# Play back the bag:
+ros2 bag play /mxck2_ws/bags/ftg_run --clock
 
-# Parallel FTG-Stack gegen die Bag-Daten laufen lassen:
+# Run the FTG stack against the bag data (in a second terminal):
 ros2 launch mxck_ftg_bringup ftg_stack.launch.py start_tf:=false
 ```
 
-### 12.3 Bag-Inhalt anzeigen
+### 12.3 Inspect bag contents
 
 ```bash
-sudo docker exec -it mxck2_control bash -lc "
-    source /opt/ros/humble/setup.bash &&
-    ros2 bag info /mxck2_ws/bags/ftg_run
-"
+ros2 bag info /mxck2_ws/bags/ftg_run
 ```
 
 ---
 
-## 13. Algorithmik — wie FTG funktioniert
+## 13. Algorithm — How FTG Works
 
-Der **Follow-The-Gap**-Algorithmus ist ein reaktives lokales Planungsverfahren. Die Implementierung folgt dem Paper von Sezer & Gökasan (2012) und arbeitet in folgenden Schritten:
+The **Follow-The-Gap** algorithm is a reactive local planning method. The implementation follows the paper by Sezer & Gökasan (2012). The MXCK stack feeds it through the CTU packages as follows:
 
-### Schritt 1 — Scan empfangen und validieren
+### Step 1 — Scan preprocessing (optional)
 
-Der `ftg_planner_node` erhält den vorverarbeiteten Scan von `scan_preprocessor_node`. Ungültige Strahlen (NaN, Inf, ≤ 0) werden ignoriert.
+`scan_preprocessor_node` restricts the raw `/scan` to a configurable front FOV window, clips out-of-range values, and optionally smooths with a moving average. The result is `/autonomous/ftg/scan_filtered`.
 
-### Schritt 2 — Nächsten Hindernis-Strahl finden
+### Step 2 — Obstacle conversion
 
-```
-closest_idx = argmin(ranges[i] for valid i)
-```
+`obstacle_substitution_node` converts each valid LiDAR beam into a `CircleObstacle` message and publishes the full list as `/obstacles`.
 
-### Schritt 3 — Safety-Bubble setzen
+### Step 3 — CTU FTG algorithm (C++)
 
-Um das nächste Hindernis wird ein Sicherheitskreis mit Radius `safety_bubble_radius_m` gelegt. Alle Strahlen, die in diesen Kreis fallen, werden auf 0 gesetzt:
+`follow_the_gap` receives `/obstacles` and:
+1. Finds the nearest obstacle
+2. Applies a **safety bubble** around it (sets nearby beams to zero distance)
+3. Identifies **free gaps** (consecutive beams above a distance threshold)
+4. Selects the best gap (widest, closest to center)
+5. Computes the **final heading angle** toward the best gap
 
-```
-half_angle = atan2(safety_bubble_radius, distance_to_closest)
-→ alle Strahlen in [closest_idx - bubble_beams, closest_idx + bubble_beams] = 0
-```
+Outputs `/final_heading_angle` (rad) and `/gap_found` (bool) every callback cycle.
 
-### Schritt 4 — Gaps suchen
+### Step 4 — Adapter (MXCK bridge)
 
-Zusammenhängende Folgen von Strahlen mit `range >= free_space_threshold_m` und Mindestlänge `min_gap_beams` werden als **Gaps** (freie Segmente) identifiziert.
+`ctu_ftg_adapter_node` receives the CTU outputs and:
+- Applies heading sign correction (`heading_sign`) and offset
+- Clamps the angle to `±gap_angle_limit_rad`
+- Computes front clearance from a narrow forward `/scan` window
+- Derives a target speed from the clearance thresholds:
 
-### Schritt 5 — Bestes Gap wählen
+| Condition | Speed |
+|-----------|-------|
+| `clearance < stop_distance_m` (0.30 m) | 0.0 m/s (stop) |
+| `clearance < slow_distance_m` (0.55 m) | 0.10 m/s (crawl) |
+| `clearance < clear_distance_m` (0.90 m) | 0.18 m/s (slow) |
+| `clearance >= clear_distance_m` | 0.25 m/s (cruise) |
 
-Jedes Gap wird bewertet nach:
+Outputs `/autonomous/ftg/gap_angle` and `/autonomous/ftg/target_speed`.
 
-```
-score = width_score - center_bias_weight × center_penalty × width_score
-```
+### Step 5 — Command node (safety layer)
 
-- `width_score` = Anzahl der Strahlen im Gap
-- `center_penalty` = absolute Abweichung der Gap-Mitte von der Fahrtrichtung (geradeaus)
-- `center_bias_weight` steuert, wie stark Geradeausfahrt bevorzugt wird (0 = keine Präferenz, 1 = starke Präferenz)
-
-### Schritt 6 — Zielpunkt im Gap wählen
-
-Innerhalb des gewählten Gaps wird der Punkt mit dem besten Score ausgewählt:
-
-```
-score = range - center_bias_weight × |theta_base|
-```
-
-Der zugehörige Winkel (im `base_link`-Frame) ist der **Ziel-Lenkwinkel** `gap_angle`.
-
-### Schritt 7 — Speed-Policy
-
-Die Zielgeschwindigkeit wird aus `front_clearance` (Minimaldistanz im Frontbereich) abgeleitet:
-
-| Bedingung | Geschwindigkeit |
-|-----------|-----------------|
-| `clearance <= stop_distance_m` (0,35 m) | 0,0 m/s (Stopp) |
-| `clearance <= slow_distance_m` (0,60 m) | 0,15 m/s (langsam) |
-| `clearance <= cruise_distance_m` (1,20 m) | 0,25 m/s (mittel) |
-| `clearance > cruise_distance_m` | 0,35 m/s (schnell) |
-
-### Schritt 8 — Fahrbefehl ausgeben
-
-Der `ftg_command_node` wendet auf `gap_angle` und `target_speed` noch folgende Sicherheitslogik an:
-
-- **Timeout-Check**: Sind die Daten älter als `command_timeout_sec`? → Sofortstopp
-- **Lenkwinkel-Clamp**: `±steering_limit_deg`
-- **IIR-Glättung**: `filtered = α × new + (1−α) × old`
-- **Turn-Speed-Scaling**: Reduziert die Geschwindigkeit bei großen Lenkwinkeln linear von `slowdown_start_deg` bis `slowdown_full_deg`
+`ftg_command_node` applies a final safety layer before outputting to the vehicle:
+- **Timeout check**: If no fresh data for `command_timeout_sec`, speed is forced to 0
+- **Steering gain and clamp**: `steering_gain × angle`, clamped to `±steering_limit_deg`
+- **IIR smoothing**: `filtered = α × new + (1−α) × old`
+- **Turn-speed scaling**: Reduces speed linearly between `slowdown_start_deg` and `slowdown_full_deg`
+- Publishes at `publish_rate_hz` Hz to `/autonomous/ackermann_cmd`
 
 ---
 
-## 14. Architektur-Entscheidungen
+## 14. Architecture Decisions
 
-### Warum 4 separate Pakete?
+### Why separate CTU and MXCK packages?
 
-Die Aufteilung in `perception`, `planner`, `control` und `bringup` entspricht dem **Separation-of-Concerns**-Prinzip:
+The CTU packages (`follow_the_gap_v0`, `obstacle_substitution`, `obstacle_msgs`) are upstream code maintained by Czech Technical University in Prague. They are kept unchanged to allow clean upstream updates. The MXCK-specific packages add the adapter and safety layers needed for the MXCarkit platform.
 
-- **`perception`**: Kann unabhängig getestet werden, bevor der Algorithmus läuft
-- **`planner`**: Rein algorithmisch, keine Hardware-Abhängigkeit
-- **`control`**: Kapselt alle Sicherheits- und Fahrzeugspezifika
-- **`bringup`**: Koordiniert alles, enthält keine Logik
+### Why `/autonomous/ackermann_cmd`?
 
-### Warum `/autonomous/ackermann_cmd`?
+This topic is the defined input of the autonomous vehicle control chain in `mxck2_ws`. The RC switch and VESC driver consume commands from this topic in Autonomous mode. Publishing here integrates the FTG stack transparently into the existing vehicle architecture without modifying any downstream components.
 
-Dieses Topic ist der definierte Eingang der autonomen Fahrzeugsteuerung im `mxck2_ws`-System. Die RC-Weiche und der VESC-Treiber übernehmen Befehle aus diesem Topic im Autonomous-Modus. Der FTG-Stack ist damit vollständig in die bestehende Fahrzeugarchitektur integriert.
+### Why is vehicle_control started separately?
 
-### Warum TF für die Scan-Transformation?
+`vehicle_control/manual_control_launch.py` owns RC control, Deadman, VESC driver setup, and the safety switch. It must be running before the FTG stack so that the safety interlock is always active. Starting it from the FTG launch would risk duplicate startup or loss of the safety chain.
 
-Der LiDAR-Sensor ist nicht zwingend zentriert auf `base_link`. Durch die TF-Transformation wird sichergestellt, dass Winkel und Abstände immer im Fahrzeugkoordinatensystem (`base_link`) berechnet werden — unabhängig von der physischen Montageposition des Sensors.
+### Why an optional scan preprocessor?
 
-### Warum `scan_filtered` statt Roh-Scan im Planner?
+The CTU FTG algorithm is sensitive to wide-angle noise and out-of-range artifacts. Restricting input to the front FOV and clipping extremes reduces false gaps and improves gap detection reliability in confined spaces. The preprocessor can be disabled with `use_scan_preprocessor:=false` for testing with raw scan data.
 
-Der FTG-Algorithmus ist empfindlich gegenüber Rauschen und Ausreißern. Die Vorverarbeitung (FOV-Beschränkung, Range-Clipping, optionale Glättung) stellt sicher, dass der Planner nur sinnvolle Daten erhält und nicht auf Artefakte reagiert.
+### Why does `ftg_command_node` apply turn-speed scaling if the adapter already has a speed policy?
+
+The adapter's speed policy is based on **front clearance** (obstacle proximity). The command node's turn-speed scaling is based on **steering angle** (cornering dynamics). These are orthogonal concerns. The command node always applies a final hard speed cap and timeout safety, regardless of what the adapter computes.
 
 ---
 
-*Dieses Repository wurde für das MXCarkit-Projekt entwickelt. ROS 2 Humble, Jetson Xavier NX, Docker-basiertes Deployment.*
+## 15. Pre-Test Checklist
+
+Run through this checklist before the first autonomous movement on the vehicle:
+
+- [ ] `vehicle_control` / `manual_control_launch.py` is running separately before the FTG stack is started
+- [ ] TF is available (`base_link` ↔ LiDAR frame) — verify with `ros2 run tf2_tools view_frames`
+- [ ] Exactly one publisher on `/autonomous/ackermann_cmd` — verify with `ros2 topic info /autonomous/ackermann_cmd -v`
+- [ ] All expected FTG nodes are up: `obstacle_substitution`, `follow_the_gap`, `ctu_ftg_adapter_node`, `ftg_command_node`
+- [ ] `/scan` is live and stable (`ros2 topic hz /scan`)
+- [ ] `/obstacles` is being published (`ros2 topic hz /obstacles`)
+- [ ] `/final_heading_angle` and `/gap_found` are published every scan cycle
+- [ ] `/autonomous/ftg/gap_angle` and `/autonomous/ftg/target_speed` are published
+- [ ] `/autonomous/ackermann_cmd` carries finite `steering_angle` and `speed` values
+- [ ] Timeout behavior verified: interrupting upstream briefly causes speed to fall to 0
+- [ ] Steering sign verified in a low-speed test (obstacle offset left → steers right, and vice versa)
+- [ ] Speed stays within the configured limit (`<= 0.35 m/s` in default config)
+- [ ] Emergency abort path (deadman / RC override) tested before first autonomous movement
+- [ ] **Abort immediately** if:
+  - No TF or repeated TF lookup failures
+  - No data on `/gap_found` or `/final_heading_angle`
+  - More than one publisher on `/autonomous/ackermann_cmd`
+  - Non-zero speed command persists after upstream disconnect
+  - Oscillatory or inverted steering at low speed
+
+---
+
+*This repository is part of an integration project for the MXCarkit autonomous vehicle platform. The CTU FTG core (`follow_the_gap_v0`) is © Czech Technical University in Prague, licensed under GPL-3.0.*
