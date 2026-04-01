@@ -86,7 +86,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_ftg_stack',
             default_value='true',
-            description='Start the CTU FTG stack'
+            description='Start the MXCK FTG stack (primary path default)'
         ),
         DeclareLaunchArgument(
             'use_scan_preprocessor',
@@ -96,12 +96,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'start_ctu_ftg',
             default_value='false',
-            description='Start follow_the_gap_v0 node (required only for CTU adapter path)'
+            description='Start legacy follow_the_gap_v0 node (effective only when use_ftg_planner:=false)'
         ),
         DeclareLaunchArgument(
             'use_ftg_planner',
             default_value='true',
-            description='Use primary TF-aware ftg_planner_node path instead of ctu_ftg_adapter_node',
+            description='Use primary recentered-scan ftg_planner_node path instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'record_bag',
@@ -115,11 +115,11 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'bag_name',
-            default_value='ctu_ftg_run',
+            default_value='mxck_ftg_run',
             description='Bag session name'
         ),
 
-        LogInfo(msg='Starting MXCK full CTU-FTG system...'),
+        LogInfo(msg='Starting MXCK full FTG system (primary planner path by default)...'),
         LogInfo(msg='vehicle_control must be started separately via manual_control_launch.py'),
 
         tf_include,

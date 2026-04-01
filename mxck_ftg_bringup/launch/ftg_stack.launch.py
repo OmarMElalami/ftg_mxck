@@ -85,7 +85,10 @@ def generate_launch_description():
         executable='follow_the_gap',
         name='follow_the_gap',
         output='screen',
-        condition=IfCondition(start_ctu_ftg),
+        condition=AndCondition([
+            IfCondition(start_ctu_ftg),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     adapter_node = Node(
@@ -149,7 +152,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_ftg_planner',
             default_value='true',
-            description='Use primary TF-aware ftg_planner_node instead of ctu_ftg_adapter_node',
+            description='Use primary recentered-scan ftg_planner_node instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'start_control',

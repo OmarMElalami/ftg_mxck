@@ -1,8 +1,9 @@
 /**:
   ros__parameters:
     # Primary FTG planner path:
-    # scan_preprocessor_node recenters the scan so 0 rad is vehicle front in base_link.
-    # ftg_planner_node still applies TF for robustness against mounting/TF offsets.
+    # scan_preprocessor_node applies the base_link<-scan_frame TF correction once,
+    # recenters so 0 rad is vehicle front, and publishes frame_id=base_link.
+    # ftg_planner_node then consumes this base-relative scan without re-applying mounting-yaw correction.
     scan_topic: "/autonomous/ftg/scan_filtered"
     front_clearance_topic: "/autonomous/ftg/front_clearance"
     base_frame: "base_link"

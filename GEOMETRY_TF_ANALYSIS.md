@@ -18,14 +18,14 @@ This PR makes one explicit choice and applies minimal corrective changes.
 
 **Chosen option: Option B**
 
-Make the TF-aware `ftg_planner_node` path the **primary production path**.
+Make the `scan_preprocessor_node` + `ftg_planner_node` path the **primary production path**.
 
 Primary pipeline is now:
 
 `/scan`
 -> `scan_preprocessor_node`
 -> `/autonomous/ftg/scan_filtered` + `/autonomous/ftg/front_clearance`
--> `ftg_planner_node` (TF-aware)
+-> `ftg_planner_node`
 -> `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed` + `/autonomous/ftg/planner_status`
 -> `ftg_command_node`
 -> `/autonomous/ackermann_cmd`
@@ -58,14 +58,15 @@ Legacy/alternate path kept available:
    - As primary path for MXCK, it is less robust to LiDAR mounting/frame mismatches.
 
 6. **LiDAR mounting / TF handling**
-   - `scan_preprocessor_node` and `ftg_planner_node` use TF (`base_link <- scan frame`).
-   - This makes primary path robust to non-zero LiDAR mounting yaw.
+   - In primary path, TF mounting-yaw correction is applied in `scan_preprocessor_node` (`base_link <- scan frame`) before publishing `/autonomous/ftg/scan_filtered`.
+   - `ftg_planner_node` consumes base-relative/recentered scan semantics (`frame_id=base_link`) and does not re-apply mounting-yaw correction in this mode.
 
-7. **TF-aware planner robustness**
-   - `ftg_planner_node` is more robust for real MXCK mounting/TF uncertainty because it explicitly transforms scan angles to base semantics before selecting and scoring gaps.
+7. **Planner robustness contract**
+   - Primary-path robustness to mounting yaw comes from preprocessor TF correction + recentering.
+   - Planner scoring then operates directly on base-relative/front-relative scan angles.
 
 8. **Primary path decision**
-   - Switched primary to TF-aware planner path (`use_ftg_planner:=true` by default).
+   - Switched primary to `scan_preprocessor_node` + `ftg_planner_node` (`use_ftg_planner:=true` by default).
 
 9. **Duplicate speed/steering semantics**
    - Primary path avoids CTU adapter speed logic entirely.
@@ -105,7 +106,7 @@ Legacy/alternate path kept available:
 ## Why this correction is correct
 
 - It preserves required MXCK control chain and final output topic/type.
-- It selects the path that is explicitly TF-aware at planning time.
+- It selects a path with explicit single-stage TF correction in perception, followed by planner operation in base-relative scan semantics.
 - It aligns filtered-scan metadata with actual geometric interpretation.
 - It is minimal and local (launch defaults + frame metadata + documentation).
 

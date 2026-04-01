@@ -160,15 +160,22 @@ class FTGPlannerNode(Node):
 
     def scan_cb(self, msg: LaserScan) -> None:
         scan_frame = msg.header.frame_id or 'laser'
-        try:
-            tf_msg = self.tf_buffer.lookup_transform(self.base_frame, scan_frame, Time())
-        except TransformException as exc:
-            text = f"[PLANNER] TF lookup failed {self.base_frame} <- {scan_frame}: {exc}"
-            self.get_logger().warn(text)
-            self.status_pub.publish(String(data=text))
-            return
+        # Primary-path contract:
+        # scan_preprocessor_node already recenters scan angles to vehicle-front semantics
+        # and publishes /autonomous/ftg/scan_filtered in base_frame.
+        # Therefore no mounting-yaw re-correction is applied here when scan_frame == base_frame.
+        if scan_frame == self.base_frame:
+            yaw_base_from_laser = 0.0
+        else:
+            try:
+                tf_msg = self.tf_buffer.lookup_transform(self.base_frame, scan_frame, Time())
+            except TransformException as exc:
+                text = f"[PLANNER] TF lookup failed {self.base_frame} <- {scan_frame}: {exc}"
+                self.get_logger().warn(text)
+                self.status_pub.publish(String(data=text))
+                return
 
-        _, _, yaw_base_from_laser = transform_to_2d(tf_msg)
+            _, _, yaw_base_from_laser = transform_to_2d(tf_msg)
         ranges = [float(r) for r in msg.ranges]
         valid_indices = [i for i, r in enumerate(ranges) if range_is_valid(r)]
 

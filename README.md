@@ -34,7 +34,7 @@ The FTG stack **does not** bypass the MXCK control chain and **does not** publis
 - `mxck_ftg_perception`  
   Optional scan preprocessor and scan/front-window diagnostics.
 - `mxck_ftg_planner`  
-  TF-aware planner node (primary path) and CTU adapter node (legacy/alternate path).
+  Planner node for base-relative/recentered scan input (primary path) and CTU adapter node (legacy/alternate path).
 - `mxck_ftg_control`  
   Final command adapter to `/autonomous/ackermann_cmd`.
 - `obstacle_substitution` (CTU-origin Python)
@@ -66,7 +66,7 @@ The default production path launched by bringup is:
 `/scan`
 → `scan_preprocessor_node`
 → `/autonomous/ftg/scan_filtered` + `/autonomous/ftg/front_clearance`
-→ `ftg_planner_node` (TF-aware)
+→ `ftg_planner_node`
 → `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed` + `/autonomous/ftg/planner_status`
 → `ftg_command_node`
 → `/autonomous/ackermann_cmd`
@@ -90,9 +90,9 @@ The default production path launched by bringup is:
 ## 5) Node overview
 
 - `scan_preprocessor_node` (`mxck_ftg_perception`)  
-  TF-aware front-window scan recentering/cropping for primary path.
+  Front-window scan recentering/cropping with base-link semantics for primary path.
 - `ftg_planner_node` (`mxck_ftg_planner`)  
-  Primary TF-aware FTG planner publishing planner interface topics.
+  Primary FTG planner publishing planner interface topics from recentered base-relative scan.
 - `obstacle_substitution_node` + `follow_the_gap` + `ctu_ftg_adapter_node`  
   Legacy/alternate CTU path.
 - `ftg_command_node` (`mxck_ftg_control`)  
@@ -106,7 +106,7 @@ Key production topics:
 
 - Inputs:
   - `/scan`
-- `/tf`, `/tf_static`
+  - `/tf`, `/tf_static`
 - Intermediate:
   - `/autonomous/ftg/scan_filtered`
   - `/autonomous/ftg/front_clearance`
@@ -126,12 +126,12 @@ Key production topics:
 
 Primary is now:
 
-- `scan_preprocessor_node` + TF-aware `ftg_planner_node`
+- `scan_preprocessor_node` + `ftg_planner_node`
 
 Reason:
 
 - More robust for MXCK LiDAR mounting/TF offsets
-- Uses explicit TF correction at perception and planning stages
+- Uses explicit TF correction once in perception (`scan_preprocessor_node`)
 - Avoids geometry mismatch between laser-frame angles and vehicle-forward semantics
 
 ### Alternate path status
@@ -181,8 +181,8 @@ ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_ftg_planner:=false st
   - range clipping and filtering
 - `mxck_ftg_control/config/ftg_control.yaml`
   - steering limits, smoothing, command timeout, output limits
-- `mxck_ftg_planner/config/ftg_planner.yaml`
-  - primary planner parameters (TF-aware path)
+  - `mxck_ftg_planner/config/ftg_planner.yaml`
+  - primary planner parameters (recentered-scan path)
 - `mxck_ftg_planner/config/ctu_ftg_adapter.yaml`
   - CTU adapter parameters (legacy/alternate path)
 
