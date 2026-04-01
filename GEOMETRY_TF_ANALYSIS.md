@@ -32,7 +32,16 @@ Primary pipeline is now:
 
 Legacy/alternate path kept available:
 
-- `obstacle_substitution` -> `/obstacles` -> `follow_the_gap_v0` -> `ctu_ftg_adapter_node`
+`/scan`
+-> `[optional] scan_preprocessor_node`
+-> `obstacle_substitution`
+-> `/obstacles`
+-> `follow_the_gap_v0`
+-> `/final_heading_angle` + `/gap_found`
+-> `ctu_ftg_adapter_node`
+-> `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed`
+-> `ftg_command_node`
+-> `/autonomous/ackermann_cmd`
 
 ## Required analysis results
 
