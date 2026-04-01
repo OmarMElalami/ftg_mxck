@@ -10,6 +10,7 @@ def generate_launch_description():
     use_tf = LaunchConfiguration('use_tf')
     use_ftg_stack = LaunchConfiguration('use_ftg_stack')
     use_scan_preprocessor = LaunchConfiguration('use_scan_preprocessor')
+    use_ftg_planner = LaunchConfiguration('use_ftg_planner')
     record_bag = LaunchConfiguration('record_bag')
     bag_dir = LaunchConfiguration('bag_dir')
     bag_name = LaunchConfiguration('bag_name')
@@ -39,6 +40,7 @@ def generate_launch_description():
             'use_scan_preprocessor': use_scan_preprocessor,
             'start_ctu_ftg': 'true',
             'start_adapter': 'true',
+            'use_ftg_planner': use_ftg_planner,
             'start_control': 'true',
         }.items(),
     )
@@ -89,6 +91,11 @@ def generate_launch_description():
             'use_scan_preprocessor',
             default_value='true',
             description='Use scan_preprocessor_node before obstacle_substitution'
+        ),
+        DeclareLaunchArgument(
+            'use_ftg_planner',
+            default_value='false',
+            description='Use alternate ftg_planner_node path instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'record_bag',
