@@ -60,6 +60,7 @@ def generate_launch_description():
         output='screen',
         # CTU path without scan preprocessor
         condition=AndCondition([
+            IfCondition(start_ctu_ftg),
             UnlessCondition(use_scan_preprocessor),
             UnlessCondition(use_ftg_planner),
         ]),
@@ -75,6 +76,7 @@ def generate_launch_description():
         ],
         # CTU path with scan preprocessor
         condition=AndCondition([
+            IfCondition(start_ctu_ftg),
             IfCondition(use_scan_preprocessor),
             UnlessCondition(use_ftg_planner),
         ]),
@@ -115,6 +117,7 @@ def generate_launch_description():
         ])],
         condition=AndCondition([
             IfCondition(start_adapter),
+            IfCondition(use_scan_preprocessor),
             IfCondition(use_ftg_planner),
         ]),
     )
@@ -137,7 +140,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_scan_preprocessor',
             default_value='true',
-            description='Use scan_preprocessor_node before obstacle_substitution',
+            description='Use scan_preprocessor_node before obstacle_substitution (required for primary ftg_planner_node path)',
         ),
         DeclareLaunchArgument(
             'start_ctu_ftg',

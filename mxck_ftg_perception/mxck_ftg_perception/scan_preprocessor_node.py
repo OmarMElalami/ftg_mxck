@@ -147,7 +147,8 @@ class ScanPreprocessorNode(Node):
             filtered_ranges = self._moving_average(filtered_ranges)
 
         out = LaserScan()
-        out.header = msg.header
+        out.header.stamp.sec = msg.header.stamp.sec
+        out.header.stamp.nanosec = msg.header.stamp.nanosec
         out.header.frame_id = self.base_frame
         out.angle_min = rel_angles[0]
         out.angle_increment = msg.angle_increment
