@@ -2,7 +2,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -12,6 +12,7 @@ def generate_launch_description():
     use_scan_preprocessor = LaunchConfiguration('use_scan_preprocessor')
     start_ctu_ftg = LaunchConfiguration('start_ctu_ftg')
     start_adapter = LaunchConfiguration('start_adapter')
+    use_ftg_planner = LaunchConfiguration('use_ftg_planner')
     start_control = LaunchConfiguration('start_control')
 
     tf_launch = PathJoinSubstitution([
@@ -85,7 +86,28 @@ def generate_launch_description():
         name='ctu_ftg_adapter_node',
         output='screen',
         parameters=[adapter_cfg],
-        condition=IfCondition(start_adapter),
+        condition=IfCondition(
+            PythonExpression([
+                "'", start_adapter, "'.lower() == 'true' and '", use_ftg_planner, "'.lower() != 'true'"
+            ])
+        ),
+    )
+
+    planner_node = Node(
+        package='mxck_ftg_planner',
+        executable='ftg_planner_node',
+        name='ftg_planner_node',
+        output='screen',
+        parameters=[PathJoinSubstitution([
+            FindPackageShare('mxck_ftg_planner'),
+            'config',
+            'ftg_planner.yaml',
+        ])],
+        condition=IfCondition(
+            PythonExpression([
+                "'", start_adapter, "'.lower() == 'true' and '", use_ftg_planner, "'.lower() == 'true'"
+            ])
+        ),
     )
 
     control_node = Node(
@@ -116,7 +138,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'start_adapter',
             default_value='true',
-            description='Start ctu_ftg_adapter_node',
+            description='Start selected planner adapter path (CTU adapter or alternate ftg_planner)',
+        ),
+        DeclareLaunchArgument(
+            'use_ftg_planner',
+            default_value='false',
+            description='Use alternate ftg_planner_node instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'start_control',
@@ -130,5 +157,6 @@ def generate_launch_description():
         obstacle_substitution_filtered,
         ctu_ftg_node,
         adapter_node,
+        planner_node,
         control_node,
     ])
