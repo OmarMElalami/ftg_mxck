@@ -147,7 +147,9 @@ class ScanPreprocessorNode(Node):
             filtered_ranges = self._moving_average(filtered_ranges)
 
         out = LaserScan()
-        out.header = msg.header
+        out.header.stamp.sec = msg.header.stamp.sec
+        out.header.stamp.nanosec = msg.header.stamp.nanosec
+        out.header.frame_id = self.base_frame
         out.angle_min = rel_angles[0]
         out.angle_increment = msg.angle_increment
         out.angle_max = out.angle_min + (len(filtered_ranges) - 1) * out.angle_increment
@@ -167,6 +169,7 @@ class ScanPreprocessorNode(Node):
             status = (
                 f"[PREPROCESSOR] recentered_front_scan=true, "
                 f"scan_frame={scan_frame}, "
+                f"published_frame={self.base_frame}, "
                 f"front_center_in_scan={math.degrees(front_center_in_scan):+.1f} deg, "
                 f"published_angle_min={math.degrees(out.angle_min):+.1f} deg, "
                 f"published_angle_max={math.degrees(out.angle_max):+.1f} deg, "
@@ -175,7 +178,8 @@ class ScanPreprocessorNode(Node):
         else:
             status = (
                 f"[PREPROCESSOR] recentered_front_scan=true, "
-                f"scan_frame={scan_frame}, no valid front points"
+                f"scan_frame={scan_frame}, "
+                f"published_frame={self.base_frame}, no valid front points"
             )
 
         self.status_pub.publish(String(data=status))

@@ -19,7 +19,7 @@
     speed_limit_mps: 0.35
     stop_on_timeout: true
 
-    # Primary CTU path already computes clearance-based speed in ctu_ftg_adapter_node.
+    # Primary planner path already computes target speed upstream.
     # Keep turn scaling disabled by default to avoid stacked speed policies.
     enable_turn_speed_scaling: false
     slowdown_start_deg: 10.0

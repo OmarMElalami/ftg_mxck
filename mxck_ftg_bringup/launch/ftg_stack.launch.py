@@ -58,7 +58,12 @@ def generate_launch_description():
         executable='obstacle_substitution_node',
         name='obstacle_substitution',
         output='screen',
-        condition=UnlessCondition(use_scan_preprocessor),
+        # CTU path without scan preprocessor
+        condition=AndCondition([
+            IfCondition(start_ctu_ftg),
+            UnlessCondition(use_scan_preprocessor),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     obstacle_substitution_filtered = Node(
@@ -69,7 +74,12 @@ def generate_launch_description():
         remappings=[
             ('/scan', '/autonomous/ftg/scan_filtered'),
         ],
-        condition=IfCondition(use_scan_preprocessor),
+        # CTU path with scan preprocessor
+        condition=AndCondition([
+            IfCondition(start_ctu_ftg),
+            IfCondition(use_scan_preprocessor),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     ctu_ftg_node = Node(
@@ -77,7 +87,10 @@ def generate_launch_description():
         executable='follow_the_gap',
         name='follow_the_gap',
         output='screen',
-        condition=IfCondition(start_ctu_ftg),
+        condition=AndCondition([
+            IfCondition(start_ctu_ftg),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     adapter_node = Node(
@@ -104,6 +117,7 @@ def generate_launch_description():
         ])],
         condition=AndCondition([
             IfCondition(start_adapter),
+            IfCondition(use_scan_preprocessor),
             IfCondition(use_ftg_planner),
         ]),
     )
@@ -126,12 +140,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_scan_preprocessor',
             default_value='true',
-            description='Use scan_preprocessor_node before obstacle_substitution',
+            description='Use scan_preprocessor_node before obstacle_substitution (required for primary ftg_planner_node path)',
         ),
         DeclareLaunchArgument(
             'start_ctu_ftg',
-            default_value='true',
-            description='Start follow_the_gap_v0',
+            default_value='false',
+            description='Start legacy CTU follow_the_gap_v0 path (use only when use_ftg_planner:=false to avoid running two planners in parallel)',
         ),
         DeclareLaunchArgument(
             'start_adapter',
@@ -140,8 +154,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'use_ftg_planner',
-            default_value='false',
-            description='Use alternate ftg_planner_node instead of ctu_ftg_adapter_node',
+            default_value='true',
+            description='Use primary recentered-scan ftg_planner_node instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'start_control',

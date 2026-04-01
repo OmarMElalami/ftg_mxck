@@ -10,6 +10,7 @@ def generate_launch_description():
     use_tf = LaunchConfiguration('use_tf')
     use_ftg_stack = LaunchConfiguration('use_ftg_stack')
     use_scan_preprocessor = LaunchConfiguration('use_scan_preprocessor')
+    start_ctu_ftg = LaunchConfiguration('start_ctu_ftg')
     use_ftg_planner = LaunchConfiguration('use_ftg_planner')
     record_bag = LaunchConfiguration('record_bag')
     bag_dir = LaunchConfiguration('bag_dir')
@@ -38,7 +39,7 @@ def generate_launch_description():
         launch_arguments={
             'start_tf': 'false',
             'use_scan_preprocessor': use_scan_preprocessor,
-            'start_ctu_ftg': 'true',
+            'start_ctu_ftg': start_ctu_ftg,
             'start_adapter': 'true',
             'use_ftg_planner': use_ftg_planner,
             'start_control': 'true',
@@ -85,7 +86,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_ftg_stack',
             default_value='true',
-            description='Start the CTU FTG stack'
+            description='Start the MXCK FTG stack (primary path default)'
         ),
         DeclareLaunchArgument(
             'use_scan_preprocessor',
@@ -93,9 +94,14 @@ def generate_launch_description():
             description='Use scan_preprocessor_node before obstacle_substitution'
         ),
         DeclareLaunchArgument(
-            'use_ftg_planner',
+            'start_ctu_ftg',
             default_value='false',
-            description='Use alternate ftg_planner_node path instead of ctu_ftg_adapter_node',
+            description='Start legacy follow_the_gap_v0 node (effective only when use_ftg_planner:=false)'
+        ),
+        DeclareLaunchArgument(
+            'use_ftg_planner',
+            default_value='true',
+            description='Use primary recentered-scan ftg_planner_node path instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'record_bag',
@@ -109,11 +115,11 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'bag_name',
-            default_value='ctu_ftg_run',
+            default_value='mxck_ftg_run',
             description='Bag session name'
         ),
 
-        LogInfo(msg='Starting MXCK full CTU-FTG system...'),
+        LogInfo(msg='Starting MXCK full FTG system (primary planner path by default)...'),
         LogInfo(msg='vehicle_control must be started separately via manual_control_launch.py'),
 
         tf_include,

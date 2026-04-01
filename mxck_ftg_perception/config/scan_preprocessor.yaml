@@ -7,7 +7,11 @@
     status_topic: "/autonomous/ftg/status"
 
     # WICHTIG:
-    # Erster Test: Front liegt in deinem Stack sehr wahrscheinlich nicht bei 0°, sondern etwa bei +135°.
+    # MXCK LiDAR mounting assumption: vehicle front is at +135 deg in raw /scan.
+    # Validation on vehicle:
+    # 1) Place an obstacle straight ahead, check /autonomous/ftg/scan_filtered peaks near 0 rad.
+    # 2) If peak is shifted by delta, adjust front_center_deg by approximately +delta_deg.
+    # 3) Confirm planner publishes near-zero gap_angle on clear straight corridor.
     front_center_deg: 135.0
 
     # Erstmal enger als bisher, damit CTU wirklich nur den Frontbereich sieht.
