@@ -1,6 +1,6 @@
 # FTG Geometry / TF Analysis (Focused Correction PR)
 
-Repository: `/home/runner/work/ftg_mxck/ftg_mxck`  
+Repository: `ftg_mxck`  
 Scope: perception-to-planner geometry/frame consistency only
 
 ## Problem summary

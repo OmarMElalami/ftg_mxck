@@ -58,6 +58,7 @@ def generate_launch_description():
         executable='obstacle_substitution_node',
         name='obstacle_substitution',
         output='screen',
+        # CTU path without scan preprocessor
         condition=AndCondition([
             UnlessCondition(use_scan_preprocessor),
             UnlessCondition(use_ftg_planner),
@@ -72,6 +73,7 @@ def generate_launch_description():
         remappings=[
             ('/scan', '/autonomous/ftg/scan_filtered'),
         ],
+        # CTU path with scan preprocessor
         condition=AndCondition([
             IfCondition(use_scan_preprocessor),
             UnlessCondition(use_ftg_planner),
