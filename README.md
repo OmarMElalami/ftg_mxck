@@ -118,8 +118,11 @@ ros2 launch mxck_ftg_bringup ftg_stack.launch.py
 ## 7) Debug commands
 
 ```bash
+ros2 launch vehicle_control manual_control_launch.py
 ros2 node list
 ros2 topic list
+ros2 topic echo /tf_static --once
+ros2 run tf2_ros tf2_echo base_link laser
 ros2 topic info /autonomous/ftg/gap_angle
 ros2 topic info /autonomous/ackermann_cmd
 ros2 topic echo /autonomous/ftg/planner_status
@@ -139,6 +142,8 @@ ros2 launch mxck_ftg_perception scan_front_window_check.launch.py
 ## 8) Safety notes
 
 - Keep `manual_control_launch.py` and safety chain active separately.
+- Launch it from `vehicle_control`: `ros2 launch vehicle_control manual_control_launch.py`.
+- Validate fixed transforms via `/tf_static` and `ros2 run tf2_ros tf2_echo base_link laser`.
 - Do not bypass `ackermann_to_vesc`.
 - Do not publish FTG output directly to VESC topics.
 - Keep first tests low-speed, supervised, and with immediate abort readiness.

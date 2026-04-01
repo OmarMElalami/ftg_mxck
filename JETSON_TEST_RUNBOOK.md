@@ -43,7 +43,7 @@ cd /mxck2_ws
 source /opt/ros/$ROS_DISTRO/setup.bash
 source /mxck2_ws/install/setup.bash
 
-ros2 launch mxck_run manual_control_launch.py
+ros2 launch vehicle_control manual_control_launch.py
 ```
 
 Expected:
@@ -59,12 +59,13 @@ source /mxck2_ws/install/setup.bash
 
 ros2 topic hz /scan
 ros2 topic echo /scan --once
-ros2 topic echo /tf --once
+ros2 topic echo /tf_static --once
+ros2 run tf2_ros tf2_echo base_link laser
 ```
 
 Expected:
 - `/scan` has stable frequency and valid ranges
-- `/tf` includes transforms relevant to laser and `base_link`
+- fixed `base_link`/laser transform is available (typically from `/tf_static`)
 
 ### Terminal 3 — FTG full system launch (primary path)
 
@@ -186,7 +187,7 @@ Actions:
 ### B) Wrong TF
 Checks:
 ```bash
-ros2 topic echo /tf --once
+ros2 topic echo /tf_static --once
 ros2 run tf2_ros tf2_echo base_link laser
 ```
 Actions:
