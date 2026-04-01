@@ -139,7 +139,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'start_ctu_ftg',
             default_value='false',
-            description='Start follow_the_gap_v0 (needed for CTU adapter path)',
+            description='Start legacy CTU follow_the_gap_v0 path (use only when use_ftg_planner:=false to avoid running two planners in parallel)',
         ),
         DeclareLaunchArgument(
             'start_adapter',
