@@ -1,0 +1,126 @@
+# ============================================================
+# Paramètres — line_tracking (3 nodes séparés)
+# MXCarKit Project
+# ============================================================
+#
+# Architecture :
+#   Caméra → Lane Detector → Controller → Stanley → Moteurs
+#
+# CHANGELOG v3 — Correction oscillations :
+#   - target_speed réduit à 0.30 (stabiliser avant d'accélérer)
+#   - stanley_k réduit à 0.15 (correction latérale douce)
+#   - steer_smoothing monté à 0.50 (filtre les à-coups du CNN)
+#   - max_steer réduit à 0.35 rad (~20°) pour limiter les corrections
+#   - speed_smoothing ajouté à 0.50
+
+# ==========================
+# NODE 1 : Lane Detector
+# ==========================
+lane_detector_node:
+  ros__parameters:
+    image_topic: "/camera/camera/color/image_raw"
+    image_width:  640
+    image_height: 360
+
+    # CNN Model
+    model_filename: "best_model.pth"
+    input_size: 224
+
+    # HSV (pour le mode OpenCV uniquement)
+    hsv_lower: [0,   0, 155]
+    hsv_upper: [180, 60, 255]
+    roi_top_ratio:        0.55
+    roi_bottom_cut_ratio: 0.15
+    min_blob_area: 250
+    lane_width_min_px: 80
+    lane_width_max_px: 610
+
+    publish_debug_image: true
+    use_cv_bridge: true
+
+# ==========================
+# NODE 2 : Controller
+# ==========================
+controller_node:
+  ros__parameters:
+    image_width:  640
+    image_height: 360
+    pixels_per_meter: 905
+
+    # ── Lookahead — AUGMENTÉ pour regarder plus loin ──
+    # Plus le lookahead est grand, plus le robot anticipe et moins il zigzague
+    lookahead_distance: 0.4
+    min_lookahead:      0.35     # WAS 0.25 — augmenté pour éviter les réactions brusques
+    max_lookahead:      2.5
+    lookahead_gain:     0.5      # WAS 0.8 — réduit pour moins de variation
+
+    # ── Vitesse — RÉDUITE pour stabiliser ──
+    # Une fois que ça roule droit, augmente progressivement
+    target_speed: 0.30           # WAS 0.5 — commence lent !
+    min_speed:    0.10
+
+    n_waypoints: 10
+    control_rate:    50.0
+    no_data_timeout: 0.5
+
+    # ── Heading error clamp (NOUVEAU) ──
+    # Limite le heading_error publié pour éviter les valeurs aberrantes
+    # Le CNN sur 4 points peut donner des headings de ±80° qui sont irréalistes
+    max_heading_error_deg: 35.0  # NOUVEAU — clamp le heading à ±35°
+
+    imu_topic:            '/imu'
+    imu_fallback_speed:   0.15
+    imu_max_rotation_deg: 35.0
+    imu_max_duration_s:   1.5
+    imu_heading_decay:    0.85
+
+# ==========================
+# NODE 3 : Stanley Controller
+# ==========================
+pure_pursuit_node:
+  ros__parameters:
+    wheel_base:       0.36
+
+    # ── Steering — RÉDUIT pour arrêter les oscillations ──
+    max_steer:        0.35       # WAS 0.5236 (30°) → maintenant ~20°
+                                 # Le robot n'a pas besoin de braquer à 30° pour suivre la piste
+                                 # Réduire ça empêche les oscillations violentes
+
+    stanley_k:        0.15       # WAS 0.4 — correction latérale beaucoup plus douce
+                                 # 0.4 était trop agressif : le moindre offset faisait braquer fort
+
+    steer_smoothing:  0.15       # WAS 0.30 — filtre passe-bas sur le steering
+                                 # 0.15 = plus réactif mais assez lissé
+                                 # (le smoothing dans le code est inversé : 
+                                 #  steering = (1-s)*old + s*new, donc 0.15 = 15% du nouveau signal)
+
+    speed_smoothing:  0.20       # accélération/décélération progressive
+
+    min_speed:        0.05
+
+# ==========================
+# NODE 4 : Obstacle Detector
+# ==========================
+obstacle_detector_node:
+  ros__parameters:
+    depth_topic:           "/camera/camera/depth/image_rect_raw"
+    stop_distance_m:       0.10
+    clear_distance_m:      0.20
+    min_valid_distance_m:  0.10
+    max_valid_distance_m:  5.00
+    roi_width_ratio:       0.35
+    roi_height_ratio:      0.45
+    min_valid_pixels:      80
+
+# ==========================
+# NODE 5 : Data Recorder
+# ==========================
+data_recorder_node:
+  ros__parameters:
+    raw_image_topic:       "/camera/camera/color/image_raw"
+    processed_image_topic: "/lane_detection/debug_image"
+    save_path:             "Image_run"
+    save_interval:         5
+    recording:             true
+    use_cv_bridge:         true
+
