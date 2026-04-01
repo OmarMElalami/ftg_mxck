@@ -169,6 +169,7 @@ Useful launch arguments:
 - `use_scan_preprocessor:=true|false`
 - `start_ctu_ftg:=true|false`
 - `start_adapter:=true|false`
+- `use_ftg_planner:=true|false`
 - `start_control:=true|false`
 
 ### C) Alternate planner only (non-default path)
@@ -215,6 +216,8 @@ Example sequence:
 
 ```bash
 ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_scan_preprocessor:=true
+# alternate planner path through bringup wrapper:
+# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_ftg_planner:=true
 ```
 
 3. Switch mode using existing RC/autonomous mechanism
@@ -245,7 +248,7 @@ ros2 launch mxck_ftg_perception scan_front_window_check.launch.py
 
 - Missing TF between laser frame and `base_link` causes preprocessor/planner warnings.
 - Front-angle convention mismatch (`front_center_deg`) can rotate perceived forward direction.
-- Running alternate planner and CTU adapter path in parallel can create multiple publishers on planner topics.
+- Running alternate planner and CTU adapter path in parallel (for example by mixing separate launches) can create multiple publishers on planner topics.
 - If input topics timeout, `ftg_command_node` commands speed 0 (expected safety behavior when `stop_on_timeout=true`).
 
 ---
