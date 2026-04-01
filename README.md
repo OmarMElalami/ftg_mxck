@@ -34,7 +34,7 @@ The FTG stack **does not** bypass the MXCK control chain and **does not** publis
 - `mxck_ftg_perception`  
   Optional scan preprocessor and scan/front-window diagnostics.
 - `mxck_ftg_planner`  
-  CTU adapter node (primary path) and legacy alternate planner node.
+  TF-aware planner node (primary path) and CTU adapter node (legacy/alternate path).
 - `mxck_ftg_control`  
   Final command adapter to `/autonomous/ackermann_cmd`.
 - `obstacle_substitution` (CTU-origin Python)
@@ -51,8 +51,11 @@ The FTG stack **does not** bypass the MXCK control chain and **does not** publis
 
 ### Legacy/alternate FTG path (explicitly marked)
 
-- `mxck_ftg_planner/ftg_planner_node.py` and `mxck_ftg_planner/launch/ftg_planner.launch.py`  
-  Alternate TF-aware planner path. Not the default production FTG path in bringup.
+- CTU path via:
+  - `obstacle_substitution`
+  - `follow_the_gap_v0`
+  - `mxck_ftg_planner/ctu_ftg_adapter_node.py`
+  This path is kept available for comparison and fallback tuning.
 
 ---
 
@@ -61,12 +64,9 @@ The FTG stack **does not** bypass the MXCK control chain and **does not** publis
 The default production path launched by bringup is:
 
 `/scan`
-→ `[optional] scan_preprocessor_node`
-→ `obstacle_substitution_node`
-→ `/obstacles`
-→ `follow_the_gap_v0`
-→ `/final_heading_angle` + `/gap_found`
-→ `ctu_ftg_adapter_node`
+→ `scan_preprocessor_node`
+→ `/autonomous/ftg/scan_filtered` + `/autonomous/ftg/front_clearance`
+→ `ftg_planner_node` (TF-aware)
 → `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed` + `/autonomous/ftg/planner_status`
 → `ftg_command_node`
 → `/autonomous/ackermann_cmd`
@@ -75,14 +75,11 @@ The default production path launched by bringup is:
 
 ## 4) Alternate / legacy paths
 
-### Alternate planner path
+### Alternate CTU path
 
-- Node: `ftg_planner_node`
-- Launch: `mxck_ftg_planner/launch/ftg_planner.launch.py`
-- Role: standalone TF-aware planner consuming preprocessed scan and publishing `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed`
-
-This path is kept for experimentation and comparison.  
-The default bringup path remains CTU core + CTU adapter.
+- Nodes: `obstacle_substitution_node` + `follow_the_gap` + `ctu_ftg_adapter_node`
+- Role: CTU FTG core + adapter path, kept for comparison/fallback
+- Bringup selection: `use_ftg_planner:=false start_ctu_ftg:=true`
 
 ### Diagnostics path
 
@@ -93,13 +90,11 @@ The default bringup path remains CTU core + CTU adapter.
 ## 5) Node overview
 
 - `scan_preprocessor_node` (`mxck_ftg_perception`)  
-  Optional TF-aware front-window scan recentering/cropping.
-- `obstacle_substitution_node` (`obstacle_substitution`)  
-  Converts LaserScan beams to obstacle messages (`/obstacles`).
-- `follow_the_gap` (`follow_the_gap_v0`)  
-  C++ FTG core.
-- `ctu_ftg_adapter_node` (`mxck_ftg_planner`)  
-  Converts CTU outputs into MXCK FTG planner interface topics.
+  TF-aware front-window scan recentering/cropping for primary path.
+- `ftg_planner_node` (`mxck_ftg_planner`)  
+  Primary TF-aware FTG planner publishing planner interface topics.
+- `obstacle_substitution_node` + `follow_the_gap` + `ctu_ftg_adapter_node`  
+  Legacy/alternate CTU path.
 - `ftg_command_node` (`mxck_ftg_control`)  
   Converts FTG planner interface to final Ackermann command.
 
@@ -111,16 +106,15 @@ Key production topics:
 
 - Inputs:
   - `/scan`
-  - `/tf`, `/tf_static` (when TF-aware components enabled)
+- `/tf`, `/tf_static`
 - Intermediate:
   - `/autonomous/ftg/scan_filtered`
-  - `/obstacles`
-  - `/final_heading_angle`
-  - `/gap_found`
+  - `/autonomous/ftg/front_clearance`
   - `/autonomous/ftg/gap_angle`
   - `/autonomous/ftg/target_speed`
   - `/autonomous/ftg/planner_status`
   - `/autonomous/ftg/control_status`
+  - `/obstacles` + `/final_heading_angle` + `/gap_found` (CTU path only)
 - Final output:
   - `/autonomous/ackermann_cmd`
 
@@ -130,20 +124,20 @@ Key production topics:
 
 ### Primary production decision
 
-Primary remains:
+Primary is now:
 
-- CTU C++ core (`follow_the_gap_v0`) + `ctu_ftg_adapter_node`
+- `scan_preprocessor_node` + TF-aware `ftg_planner_node`
 
 Reason:
 
-- Preserves separation of CTU core package as C++
-- Matches required target pipeline
-- Already integrated by `mxck_ftg_bringup/launch/ftg_stack.launch.py`
+- More robust for MXCK LiDAR mounting/TF offsets
+- Uses explicit TF correction at perception and planning stages
+- Avoids geometry mismatch between laser-frame angles and vehicle-forward semantics
 
 ### Alternate path status
 
-- `ftg_planner_node` remains available but is documented as alternate/legacy.
-- It should not be launched in parallel with the CTU adapter path unless intentionally testing alternatives.
+- CTU path remains available for fallback/comparison.
+- It should not be launched in parallel with the primary path unless intentionally testing alternatives.
 
 ---
 
@@ -172,10 +166,10 @@ Useful launch arguments:
 - `use_ftg_planner:=true|false`
 - `start_control:=true|false`
 
-### C) Alternate planner only (non-default path)
+### C) Alternate CTU path (non-default path)
 
 ```bash
-ros2 launch mxck_ftg_planner ftg_planner.launch.py
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_ftg_planner:=false start_ctu_ftg:=true
 ```
 
 ---
@@ -185,12 +179,12 @@ ros2 launch mxck_ftg_planner ftg_planner.launch.py
 - `mxck_ftg_perception/config/scan_preprocessor.yaml`
   - front window definition (`front_center_deg`, `front_fov_deg`)
   - range clipping and filtering
-- `mxck_ftg_planner/config/ctu_ftg_adapter.yaml`
-  - CTU output mapping and clearance-based speed policy
 - `mxck_ftg_control/config/ftg_control.yaml`
   - steering limits, smoothing, command timeout, output limits
 - `mxck_ftg_planner/config/ftg_planner.yaml`
-  - alternate planner parameters (legacy/alternate path)
+  - primary planner parameters (TF-aware path)
+- `mxck_ftg_planner/config/ctu_ftg_adapter.yaml`
+  - CTU adapter parameters (legacy/alternate path)
 
 ---
 
@@ -216,8 +210,8 @@ Example sequence:
 
 ```bash
 ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_scan_preprocessor:=true
-# alternate planner path through bringup wrapper:
-# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_ftg_planner:=true
+# alternate CTU path through bringup wrapper:
+# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_ftg_planner:=false start_ctu_ftg:=true
 ```
 
 3. Switch mode using existing RC/autonomous mechanism

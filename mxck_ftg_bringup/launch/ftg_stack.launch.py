@@ -58,7 +58,10 @@ def generate_launch_description():
         executable='obstacle_substitution_node',
         name='obstacle_substitution',
         output='screen',
-        condition=UnlessCondition(use_scan_preprocessor),
+        condition=AndCondition([
+            UnlessCondition(use_scan_preprocessor),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     obstacle_substitution_filtered = Node(
@@ -69,7 +72,10 @@ def generate_launch_description():
         remappings=[
             ('/scan', '/autonomous/ftg/scan_filtered'),
         ],
-        condition=IfCondition(use_scan_preprocessor),
+        condition=AndCondition([
+            IfCondition(use_scan_preprocessor),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     ctu_ftg_node = Node(
@@ -130,8 +136,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'start_ctu_ftg',
-            default_value='true',
-            description='Start follow_the_gap_v0',
+            default_value='false',
+            description='Start follow_the_gap_v0 (needed for CTU adapter path)',
         ),
         DeclareLaunchArgument(
             'start_adapter',
@@ -140,8 +146,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'use_ftg_planner',
-            default_value='false',
-            description='Use alternate ftg_planner_node instead of ctu_ftg_adapter_node',
+            default_value='true',
+            description='Use primary TF-aware ftg_planner_node instead of ctu_ftg_adapter_node',
         ),
         DeclareLaunchArgument(
             'start_control',

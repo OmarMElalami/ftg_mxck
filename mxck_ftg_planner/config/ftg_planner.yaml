@@ -1,5 +1,8 @@
 /**:
   ros__parameters:
+    # Primary FTG planner path:
+    # scan_preprocessor_node recenters the scan so 0 rad is vehicle front in base_link.
+    # ftg_planner_node still applies TF for robustness against mounting/TF offsets.
     scan_topic: "/autonomous/ftg/scan_filtered"
     front_clearance_topic: "/autonomous/ftg/front_clearance"
     base_frame: "base_link"
