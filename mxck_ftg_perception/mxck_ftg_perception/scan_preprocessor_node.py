@@ -11,10 +11,13 @@ from tf2_ros import Buffer, TransformListener, TransformException
 
 from mxck_ftg_perception.common import (
     compute_front_center_in_scan,
-    angle_in_window,
     transform_to_2d,
     range_is_valid,
 )
+
+
+def wrap_to_pi(angle: float) -> float:
+    return math.atan2(math.sin(angle), math.cos(angle))
 
 
 class ScanPreprocessorNode(Node):
@@ -32,7 +35,6 @@ class ScanPreprocessorNode(Node):
 
         self.declare_parameter('clip_min_range_m', 0.05)
         self.declare_parameter('clip_max_range_m', 8.0)
-        self.declare_parameter('outside_window_as_obstacle', True)
 
         self.declare_parameter('enable_moving_average', False)
         self.declare_parameter('moving_average_window', 3)
@@ -48,7 +50,6 @@ class ScanPreprocessorNode(Node):
 
         self.clip_min = float(self.get_parameter('clip_min_range_m').value)
         self.clip_max = float(self.get_parameter('clip_max_range_m').value)
-        self.outside_window_as_obstacle = bool(self.get_parameter('outside_window_as_obstacle').value)
 
         self.enable_moving_average = bool(self.get_parameter('enable_moving_average').value)
         self.moving_average_window = max(1, int(self.get_parameter('moving_average_window').value))
@@ -63,7 +64,7 @@ class ScanPreprocessorNode(Node):
         self.sub = self.create_subscription(LaserScan, self.scan_topic, self.scan_cb, 10)
 
         self.get_logger().info(
-            f"Listening on {self.scan_topic}, publishing filtered scan to {self.filtered_scan_topic}"
+            f"Listening on {self.scan_topic}, publishing recentered front scan to {self.filtered_scan_topic}"
         )
 
     def _moving_average(self, values):
@@ -106,43 +107,56 @@ class ScanPreprocessorNode(Node):
             base_front_center_rad=self.front_center_base_rad,
         )
 
-        raw_ranges = list(msg.ranges)
-        blocked_value = self.clip_min if self.outside_window_as_obstacle else float('inf')
-        filtered_ranges = [blocked_value] * len(raw_ranges)
+        effective_min = max(self.clip_min, float(msg.range_min))
+        effective_max = min(self.clip_max, float(msg.range_max))
 
+        selected = []
         front_valid_ranges = []
-        front_indices = []
 
-        for i, raw_r in enumerate(raw_ranges):
+        intensities = list(msg.intensities) if msg.intensities else []
+
+        for i, raw_r in enumerate(msg.ranges):
             theta = msg.angle_min + i * msg.angle_increment
+            rel_theta = wrap_to_pi(theta - front_center_in_scan)
 
-            if not angle_in_window(theta, front_center_in_scan, self.front_half_fov_rad):
+            if abs(rel_theta) > self.front_half_fov_rad:
                 continue
 
-            if not range_is_valid(float(raw_r)):
-                continue
+            if range_is_valid(float(raw_r)):
+                r = min(max(float(raw_r), effective_min), effective_max)
+                front_valid_ranges.append(r)
+            else:
+                r = float('inf')
 
-            r = min(max(float(raw_r), self.clip_min), self.clip_max)
-            filtered_ranges[i] = r
-            front_valid_ranges.append(r)
-            front_indices.append(i)
+            inten = float(intensities[i]) if i < len(intensities) else 0.0
+            selected.append((rel_theta, r, inten))
 
-        if self.enable_moving_average and front_indices:
-            smoothed = self._moving_average(front_valid_ranges)
-            for idx, val in zip(front_indices, smoothed):
-                filtered_ranges[idx] = val
+        if not selected:
+            text = f"[PREPROCESSOR] no beams selected in front window"
+            self.get_logger().warn(text)
+            self.status_pub.publish(String(data=text))
+            return
+
+        selected.sort(key=lambda x: x[0])
+
+        rel_angles = [a for a, _, _ in selected]
+        filtered_ranges = [r for _, r, _ in selected]
+        filtered_intensities = [it for _, _, it in selected]
+
+        if self.enable_moving_average:
+            filtered_ranges = self._moving_average(filtered_ranges)
 
         out = LaserScan()
         out.header = msg.header
-        out.angle_min = msg.angle_min
-        out.angle_max = msg.angle_max
+        out.angle_min = rel_angles[0]
         out.angle_increment = msg.angle_increment
+        out.angle_max = out.angle_min + (len(filtered_ranges) - 1) * out.angle_increment
         out.time_increment = msg.time_increment
         out.scan_time = msg.scan_time
-        out.range_min = msg.range_min
-        out.range_max = msg.range_max
+        out.range_min = effective_min
+        out.range_max = effective_max
         out.ranges = filtered_ranges
-        out.intensities = list(msg.intensities) if msg.intensities else []
+        out.intensities = filtered_intensities
 
         clearance = min(front_valid_ranges) if front_valid_ranges else float('nan')
 
@@ -151,13 +165,18 @@ class ScanPreprocessorNode(Node):
 
         if front_valid_ranges:
             status = (
-                f"[PREPROCESSOR] scan_frame={scan_frame}, "
+                f"[PREPROCESSOR] recentered_front_scan=true, "
+                f"scan_frame={scan_frame}, "
                 f"front_center_in_scan={math.degrees(front_center_in_scan):+.1f} deg, "
-                f"front_fov={math.degrees(self.front_half_fov_rad * 2.0):.1f} deg, "
+                f"published_angle_min={math.degrees(out.angle_min):+.1f} deg, "
+                f"published_angle_max={math.degrees(out.angle_max):+.1f} deg, "
                 f"front_clearance={clearance:.2f} m"
             )
         else:
-            status = f"[PREPROCESSOR] scan_frame={scan_frame}, no valid front points"
+            status = (
+                f"[PREPROCESSOR] recentered_front_scan=true, "
+                f"scan_frame={scan_frame}, no valid front points"
+            )
 
         self.status_pub.publish(String(data=status))
 
@@ -177,3 +196,4 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+    

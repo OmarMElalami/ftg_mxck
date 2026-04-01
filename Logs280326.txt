@@ -1,0 +1,4973 @@
+wie mach ich Schritt C — Scan-Preprocessor korrigieren?, Ich bin mir fast sicher , dass es an den falschen Front-Sichtfel liegt. Bitte beachten Fahrzeug Dimensionen: Bereite> 30 cm, Länge> 50 cm.
+T1:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash
+[sudo] password for mxck: 
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# source /opt/ros/humble/setup.bash
+root@67aa178ad2eb:/# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_vehicle_control:=false record_bag:=false
+[INFO] [launch]: All log files can be found below /root/.ros/log/2000-01-01-01-22-19-916637-67aa178ad2eb-411
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: Starting MXCK full CTU-FTG system...
+[INFO] [launch.user]: vehicle_control must be started separately via manual_control_launch.py
+[INFO] [robot_state_publisher-1]: process started with pid [436]
+[INFO] [scan_preprocessor_node-2]: process started with pid [438]
+[INFO] [obstacle_substitution_node-3]: process started with pid [440]
+[INFO] [follow_the_gap-4]: process started with pid [442]
+[INFO] [ctu_ftg_adapter_node-5]: process started with pid [444]
+[INFO] [ftg_command_node-6]: process started with pid [446]
+[follow_the_gap-4] Warning: FilterLoneObstacleGroups is disabled.
+[robot_state_publisher-1] [INFO] [0946689748.621091616] [robot_state_publisher]: got segment USS_BC
+[robot_state_publisher-1] [INFO] [0946689748.621480544] [robot_state_publisher]: got segment USS_BL
+[robot_state_publisher-1] [INFO] [0946689748.621551744] [robot_state_publisher]: got segment USS_BR
+[robot_state_publisher-1] [INFO] [0946689748.621611392] [robot_state_publisher]: got segment USS_FC
+[robot_state_publisher-1] [INFO] [0946689748.621669216] [robot_state_publisher]: got segment USS_FL
+[robot_state_publisher-1] [INFO] [0946689748.621723328] [robot_state_publisher]: got segment USS_FR
+[robot_state_publisher-1] [INFO] [0946689748.621774400] [robot_state_publisher]: got segment USS_SLB
+[robot_state_publisher-1] [INFO] [0946689748.621822912] [robot_state_publisher]: got segment USS_SLF
+[robot_state_publisher-1] [INFO] [0946689748.621870624] [robot_state_publisher]: got segment USS_SRB
+[robot_state_publisher-1] [INFO] [0946689748.621925344] [robot_state_publisher]: got segment USS_SRF
+[robot_state_publisher-1] [INFO] [0946689748.621973280] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-1] [INFO] [0946689748.622021248] [robot_state_publisher]: got segment camera_rgb
+[robot_state_publisher-1] [INFO] [0946689748.622069664] [robot_state_publisher]: got segment front_axle
+[robot_state_publisher-1] [INFO] [0946689748.622120288] [robot_state_publisher]: got segment laser
+[ftg_command_node-6] [INFO] [0946689750.296535776] [ftg_command_node]: FTG command node listening on /autonomous/ftg/gap_angle and /autonomous/ftg/target_speed, publishing to /autonomous/ackermann_cmd
+[ctu_ftg_adapter_node-5] [INFO] [0946689751.267072256] [ctu_ftg_adapter_node]: CTU FTG adapter started. Inputs: /final_heading_angle, /gap_found, /scan | Outputs: /autonomous/ftg/gap_angle, /autonomous/ftg/target_speed, /autonomous/ftg/planner_status
+[scan_preprocessor_node-2] [INFO] [0946689751.928900128] [scan_preprocessor_node]: Listening on /scan, publishing filtered scan to /autonomous/ftg/scan_filtered
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+[follow_the_gap-4] No gaps found
+
+T2:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash 
+[sudo] password for mxck: 
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# source /opt/ros/humble/setup.bash
+root@67aa178ad2eb:/# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/scan_filtered --once
+header:
+  stamp:
+    sec: 946689897
+    nanosec: 794539712
+  frame_id: laser
+angle_min: -3.1241390705108643
+angle_max: 3.1415927410125732
+angle_increment: 0.0034828970674425364
+time_increment: 5.3398500313051045e-05
+scan_time: 0.09606390446424484
+range_min: 0.15000000596046448
+range_max: 16.0
+ranges:
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 1.312000036239624
+- 1.312000036239624
+- 1.312000036239624
+- 1.312000036239624
+- 1.312000036239624
+- 1.309999942779541
+- 1.309999942779541
+- 1.3220000267028809
+- 1.3459999561309814
+- 1.3459999561309814
+- 1.3459999561309814
+- 1.3459999561309814
+- 1.3459999561309814
+- 0.05000000074505806
+- 1.4980000257492065
+- 1.4980000257492065
+- 1.4980000257492065
+- 1.4980000257492065
+- 1.4980000257492065
+- 1.49399995803833
+- 1.49399995803833
+- 1.49399995803833
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.5659999847412109
+- 0.5659999847412109
+- 0.5659999847412109
+- 0.5659999847412109
+- 0.5659999847412109
+- 0.5619999766349792
+- 0.5619999766349792
+- 0.5600000023841858
+- 0.5600000023841858
+- 0.5600000023841858
+- 0.5600000023841858
+- 0.5580000281333923
+- 0.5540000200271606
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.550000011920929
+- 0.550000011920929
+- 0.550000011920929
+- 0.550000011920929
+- 0.550000011920929
+- 0.5479999780654907
+- 0.5460000038146973
+- 0.5460000038146973
+- 0.5440000295639038
+- 0.5440000295639038
+- 0.5419999957084656
+- 0.5419999957084656
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.5
+- 0.5
+- 0.5
+- 0.5
+- 0.5
+- 0.4950000047683716
+- 0.49300000071525574
+- 0.49300000071525574
+- 0.49000000953674316
+- 0.4880000054836273
+- 0.4830000102519989
+- 0.4779999852180481
+- 0.47200000286102295
+- 0.46799999475479126
+- 0.46700000762939453
+- 0.4650000035762787
+- 0.4650000035762787
+- 0.46399998664855957
+- 0.46399998664855957
+- 0.46299999952316284
+- 0.46299999952316284
+- 0.46299999952316284
+- 0.4620000123977661
+- 0.460999995470047
+- 0.460999995470047
+- 0.460999995470047
+- 0.46000000834465027
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- 0.05000000074505806
+- '...'
+intensities:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+---
+Hindernis vor dem Auto (in der Mitte circa 35 cm vom Lider):
+  - center:
+      x: 0.33642311237380973
+      y: 0.8605786049413866
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3334237712338648
+      y: 0.861745109993861
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.33042038547695085
+      y: 0.8629011615958153
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3274129915358183
+      y: 0.8640467457236966
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.32440162589183885
+      y: 0.865181848480928
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3199950394998527
+      y: 0.8625562041999356
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3169889102400345
+      y: 0.8636654800865602
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3139789357273102
+      y: 0.8647642792275008
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3109651524743553
+      y: 0.8658525882937085
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+Hindernis vorne rechts:
+  - center:
+      x: 0.34456107446345113
+      y: 0.8724228961904723
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3415204316006338
+      y: 0.8736176730309984
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.33847564590382545
+      y: 0.8748018524001693
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.3354267543079807
+      y: 0.8759754199332267
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.33308247078365655
+      y: 0.8790085683168197
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+---
+Hindernis vorne links:
+  - center:
+      x: 0.3283127549815213
+      y: 0.9042426437465476
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.47908156381539657
+      y: 2.298605030902838
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.47107286951611804
+      y: 2.300259677620223
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.4630584608392635
+      y: 2.3018864209002174
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.4550384350040959
+      y: 2.3034852410095152
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+---
+Während Vehicle-Control separat prüfen Test habe ich das gestoppt:
+
+^C[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[follow_the_gap-4] [INFO] [0946691140.482735520] [rclcpp]: signal_handler(signum=2)
+[robot_state_publisher-1] [INFO] [0946691140.484131968] [rclcpp]: signal_handler(signum=2)
+[obstacle_substitution_node-3] Traceback (most recent call last):
+[obstacle_substitution_node-3]   File "/mxck2_ws/install/obstacle_substitution/lib/obstacle_substitution/obstacle_substitution_node", line 33, in <module>
+[obstacle_substitution_node-3]     sys.exit(load_entry_point('obstacle-substitution', 'console_scripts', 'obstacle_substitution_node')())
+[obstacle_substitution_node-3]   File "/mxck2_ws/build/obstacle_substitution/obstacle_substitution/obstacle_substitution_node.py", line 193, in main
+[ctu_ftg_adapter_node-5] Traceback (most recent call last):
+[ctu_ftg_adapter_node-5]   File "/mxck2_ws/install/mxck_ftg_planner/lib/mxck_ftg_planner/ctu_ftg_adapter_node", line 33, in <module>
+[ctu_ftg_adapter_node-5]     sys.exit(load_entry_point('mxck-ftg-planner', 'console_scripts', 'ctu_ftg_adapter_node')())
+[ctu_ftg_adapter_node-5]   File "/mxck2_ws/build/mxck_ftg_planner/mxck_ftg_planner/ctu_ftg_adapter_node.py", line 254, in main
+[ctu_ftg_adapter_node-5]     rclpy.shutdown()
+[ctu_ftg_adapter_node-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 130, in shutdown
+[obstacle_substitution_node-3]     rclpy.shutdown()
+[obstacle_substitution_node-3]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 130, in shutdown
+[obstacle_substitution_node-3]     _shutdown(context=context)
+[obstacle_substitution_node-3]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/utilities.py", line 58, in shutdown
+[obstacle_substitution_node-3]     return context.shutdown()
+[obstacle_substitution_node-3]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/context.py", line 102, in shutdown
+[obstacle_substitution_node-3]     self.__context.shutdown()
+[obstacle_substitution_node-3] rclpy._rclpy_pybind11.RCLError: failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+[ctu_ftg_adapter_node-5]     _shutdown(context=context)
+[ctu_ftg_adapter_node-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/utilities.py", line 58, in shutdown
+[ctu_ftg_adapter_node-5]     return context.shutdown()
+[ctu_ftg_adapter_node-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/context.py", line 102, in shutdown
+[ctu_ftg_adapter_node-5]     self.__context.shutdown()
+[ctu_ftg_adapter_node-5] rclpy._rclpy_pybind11.RCLError: failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+[follow_the_gap-4] terminate called after throwing an instance of 'std::system_error'
+[follow_the_gap-4]   what():  Invalid argument
+[INFO] [robot_state_publisher-1]: process has finished cleanly [pid 436]
+[INFO] [ftg_command_node-6]: process has finished cleanly [pid 446]
+[INFO] [scan_preprocessor_node-2]: process has finished cleanly [pid 438]
+[ERROR] [ctu_ftg_adapter_node-5]: process has died [pid 444, exit code 1, cmd '/mxck2_ws/install/mxck_ftg_planner/lib/mxck_ftg_planner/ctu_ftg_adapter_node --ros-args -r __node:=ctu_ftg_adapter_node --params-file /mxck2_ws/install/mxck_ftg_planner/share/mxck_ftg_planner/config/ctu_ftg_adapter.yaml'].
+[ERROR] [obstacle_substitution_node-3]: process has died [pid 440, exit code 1, cmd '/mxck2_ws/install/obstacle_substitution/lib/obstacle_substitution/obstacle_substitution_node --ros-args -r __node:=obstacle_substitution -r /scan:=/autonomous/ftg/scan_filtered'].
+[ERROR] [follow_the_gap-4]: process has died [pid 442, exit code -6, cmd '/mxck2_ws/install/follow_the_gap_v0/lib/follow_the_gap_v0/follow_the_gap --ros-args -r __node:=follow_the_gap'].
+root@67aa178ad2eb:/# 
+Break war die ganze Zeit so, auch als ich das Auto manuell gefahren bin:
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+---
+data: -20.0
+Speed war die ganze Zeit leer, bis ich das Auto manuell gefahren bin und dann war die Ergebnisse so:
+data: 4379.84530878067
+---
+data: 4379.84530878067
+---
+data: 4069.497048854828
+---
+data: 4069.497048854828
+---
+data: 3640.920461297035
+---
+data: 3640.920461297035
+---
+data: 3168.0087304115295
+---
+data: 3168.0087304115295
+---
+data: 2828.1033321619034
+---
+data: 2828.1033321619034
+---
+data: 2532.5333029031754
+---
+data: 2532.5333029031754
+---
+data: 2192.6281303167343
+---
+data: 2192.6281303167343
+---
+data: 1911.8365573883057
+---
+data: 1911.8365573883057
+---
+data: 1675.3806919455528
+---
+data: 1675.3806919455528
+---
+data: 1409.367688179016
+---
+data: 1409.367688179016
+---
+data: 1187.6903918981552
+---
+data: 1187.6903918981552
+---
+data: 892.1204190552235
+---
+data: 892.1204190552235
+---
+data: -5355.22568321228
+---
+data: -5355.22568321228
+---
+data: -5517.789379835129
+---
+data: -5517.789379835129
+---
+data: -5665.573943138123
+---
+data: -5665.573943138123
+---
+data: -5783.802045106888
+---
+data: -5783.802045106888
+---
+data: -5842.915870428085
+---
+data: -5842.915870428085
+---
+data: -5990.70133638382
+---
+data: -5990.70133638382
+---
+data: -6212.378407001495
+---
+data: -6212.378407001495
+---
+data: -6419.277246952057
+---
+data: -6419.277246952057
+---
+data: -6626.176086902618
+---
+data: -6626.176086902618
+---
+data: -6744.404188871384
+---
+data: -6744.404188871384
+---
+data: -6773.961552858353
+---
+data: -6773.961552858353
+---
+data: -6626.176086902618
+ich habe auch mit FTG (Autonomes) Speed getestet und als ich ganz nah am Lider war sprin manchmal Speed und das Auto hat gelenkt und ein Stück gefahren:
+---
+data: 2369.969831943512
+---
+data: 2369.969831943512
+---
+data: 2340.412919282913
+---
+data: 2340.412919282913
+---
+data: 2310.8557809591293
+---
+data: 2310.8557809591293
+---
+data: 2281.2990939617157
+---
+data: 2281.2990939617157
+---
+data: 2222.184817314148
+---
+data: 2133.5140793323517
+---
+data: 2133.5140793323517
+---
+data: 2015.2859773635864
+---
+data: 2015.2859773635864
+---
+data: 1941.3936957120895
+---
+data: 1941.3936957120895
+---
+data: 1823.1655937433243
+---
+data: 1823.1655937433243
+---
+data: 1734.494630098343
+---
+data: 1734.494630098343
+---
+data: 1645.8236664533615
+---
+data: 1645.8236664533615
+---
+data: 1498.03876465559
+---
+data: 1498.03876465559
+---
+data: 1291.139811873436
+---
+data: 1291.139811873436
+---
+data: 1128.5763409137726
+---
+data: 1128.5763409137726
+---
+data: 921.6774445474148
+---
+data: 921.6774445474148
+---
+data: 862.5634499788284
+---
+data: 862.5634499788284
+---
+data: 803.4494554102421
+---
+data: 803.4494554102421
+---
+data: 759.1139735877514
+---
+data: 759.1139735877514
+---
+root@6     7aa178          ad2eb:
+root@67aa178ad2eb:/# ros2 topic echo /commands/motor/speed
+data: 946.5
+---
+data: 861.1572298407555
+---
+data: 758.5172072947025
+---
+data: 844.661533087492
+---
+data: 747.7949903011322
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 815.7024022042751
+---
+data: 728.9715213775635
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 815.65743881464
+---
+data: 728.9423544108868
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 861.1573990881443
+---
+data: 758.5173201262951
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 939.7899051904678
+---
+data: 809.6284519135952
+---
+data: 725.0234875380993
+---
+data: 946.5
+---
+data: 946.5
+---
+data: 946.5
+---
+^Croot@67aa178ad2eb:/# 
+Und publishing war so beim manuellen Fahren:
+publishing #4408: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #4409: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #4410: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #4411: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #4412: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #4413: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+dann so beim Autonomes:
+publishing #107: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #108: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #109: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #110: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #111: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #112: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #113: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #114: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #115: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #116: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #117: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #118: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #119: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #120: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #121: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #122: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #123: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #124: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #125: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #126: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #127: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #128: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #129: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #130: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #131: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #132: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #133: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #134: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #135: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #136: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #137: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #138: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #139: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #140: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #141: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #142: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #143: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #144: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #145: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #146: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #147: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #148: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #149: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #150: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #151: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #152: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #153: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #154: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #155: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #156: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #157: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #158: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #159: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #160: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #161: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #162: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #163: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #164: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #165: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #166: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #167: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #168: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #169: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #170: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #171: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #172: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #173: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #174: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #175: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #176: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #177: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #178: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #179: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #180: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #181: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #182: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #183: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #184: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #185: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #186: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #187: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #188: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #189: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #190: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #191: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #192: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #193: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #194: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #195: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #196: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #197: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #198: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #199: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #200: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #201: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #202: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #203: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #204: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #205: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #206: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #207: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #208: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #209: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #210: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+^Croot@67aa178ad2eb:/# ros2 topic pub /autonomous/ackermann_cmd ackermann_msgs/msg/AckermannDriveStamped "{header: {frame_id: 'base_link'}, drive: {steering_angle: 0.0, steering_angle_velocity: 0.0, speed: 0.10, acceleration: 0.0, jerk: 0.0}}" -r 10
+publisher: beginning loop
+publishing #1: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #2: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #3: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #4: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #5: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #6: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #7: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #8: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #9: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #10: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #11: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #12: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #13: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #14: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #15: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #16: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #17: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #18: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #19: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #20: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #21: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #22: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #23: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #24: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #25: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #26: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #27: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #28: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #29: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #30: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #31: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #32: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #33: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #34: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #35: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #36: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #37: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #38: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #39: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #40: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #41: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #42: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #43: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #44: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #45: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #46: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #47: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #48: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #49: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #50: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #51: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #52: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #53: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #54: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #55: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #56: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #57: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+publishing #58: ackermann_msgs.msg.AckermannDriveStamped(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id='base_link'), drive=ackermann_msgs.msg.AckermannDrive(steering_angle=0.0, steering_angle_velocity=0.0, speed=0.1, acceleration=0.0, jerk=0.0))
+
+-------------------------------------------------##### Opti 1 ####----------------------------------------------------------
+T1:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash
+[sudo] password for mxck: 
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# source /opt/ros/humble/setup.bash
+root@67aa178ad2eb:/# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# cd /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config
+root@67aa178ad2eb:/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config# cp scan_preprocessor.yaml scan_preprocessor.yaml.bak_$(date +%Y%m%d_%H%M%S)
+root@67aa178ad2eb:/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config# cp scan_front_window_check.yaml scan_front_window_check.yaml.bak_$(date +%Y%m%d_%H%M%S)
+root@67aa178ad2eb:/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config# cat > /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config/scan_preprocessor.yaml <<'EOF'
+/**:
+  ros__parameters:
+    scan_topic: "/scan"
+    base_frame: "base_link"
+    filtered_scan_topic: "/autonomous/ftg/scan_filtered"
+    front_clearance_topic: "/autonomous/ftg/front_clearance"
+    status_topic: "/autonomous/ftg/status"
+
+    # WICHTIG:
+    # Erster Test: Front liegt in deinem Stack sehr wahrscheinlich nicht bei 0°, sondern etwa bei +90°.
+    front_center_deg: 90.0
+
+    # Erstmal enger als bisher, damit CTU wirklich nur den Frontbereich sieht.
+    front_fov_deg: 100.0
+
+    # Nicht unter dem echten LiDAR-Minimum arbeiten.
+    clip_min_range_m: 0.18
+    clip_max_range_m: 5.0
+
+    # Sehr wichtig:
+    # Außerhalb des Frontfensters NICHT als künstliches Nah-Hindernis behandeln.
+    outside_window_as_obstacle: false
+
+    enable_moving_average: false
+    moving_average_window: 3
+EOF
+root@67aa178ad2eb:/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config# cat > /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config/scan_front_window_check.yaml <<'EOF'
+/**:
+  ros__parameters:
+    scan_topic: "/scan"
+    base_frame: "base_link"
+    diagnostic_topic: "/autonomous/ftg/scan_check"
+    marker_topic: "/autonomous/ftg/scan_check_markers"
+
+    front_center_deg: 90.0
+    front_fov_deg: 100.0
+
+    clip_min_range_m: 0.18
+    clip_max_range_m: 5.0
+
+    beam_stride: 1
+    log_every_n_scans: 10
+    publish_markers: true
+EOF
+root@67aa178ad2eb:/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config# cd /mxck2_ws
+root@67aa178ad2eb:/mxck2_ws# rm -rf build/mxck_ftg_perception install/mxck_ftg_perception
+root@67aa178ad2eb:/mxck2_ws# colcon build --symlink-install --packages-select mxck_ftg_perception
+Starting >>> mxck_ftg_perception
+Finished <<< mxck_ftg_perception [6.95s]          
+
+Summary: 1 package finished [9.55s]
+root@67aa178ad2eb:/mxck2_ws# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/mxck2_ws# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_vehicle_control:=false record_bag:=false
+[INFO] [launch]: All log files can be found below /root/.ros/log/2000-01-01-02-28-13-796018-67aa178ad2eb-1487
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: Starting MXCK full CTU-FTG system...
+[INFO] [launch.user]: vehicle_control must be started separately via manual_control_launch.py
+[INFO] [robot_state_publisher-1]: process started with pid [1512]
+[INFO] [scan_preprocessor_node-2]: process started with pid [1514]
+[INFO] [obstacle_substitution_node-3]: process started with pid [1516]
+[INFO] [follow_the_gap-4]: process started with pid [1518]
+[INFO] [ctu_ftg_adapter_node-5]: process started with pid [1520]
+[INFO] [ftg_command_node-6]: process started with pid [1522]
+[follow_the_gap-4] Warning: FilterLoneObstacleGroups is disabled.
+[robot_state_publisher-1] [INFO] [0946693701.820567680] [robot_state_publisher]: got segment USS_BC
+[robot_state_publisher-1] [INFO] [0946693701.823409024] [robot_state_publisher]: got segment USS_BL
+[robot_state_publisher-1] [INFO] [0946693701.825441024] [robot_state_publisher]: got segment USS_BR
+[robot_state_publisher-1] [INFO] [0946693701.835382272] [robot_state_publisher]: got segment USS_FC
+[robot_state_publisher-1] [INFO] [0946693701.837469952] [robot_state_publisher]: got segment USS_FL
+[robot_state_publisher-1] [INFO] [0946693701.837586080] [robot_state_publisher]: got segment USS_FR
+[robot_state_publisher-1] [INFO] [0946693701.837644000] [robot_state_publisher]: got segment USS_SLB
+[robot_state_publisher-1] [INFO] [0946693701.837695744] [robot_state_publisher]: got segment USS_SLF
+[robot_state_publisher-1] [INFO] [0946693701.837744512] [robot_state_publisher]: got segment USS_SRB
+[robot_state_publisher-1] [INFO] [0946693701.837791168] [robot_state_publisher]: got segment USS_SRF
+[robot_state_publisher-1] [INFO] [0946693701.837837024] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-1] [INFO] [0946693701.837883072] [robot_state_publisher]: got segment camera_rgb
+[robot_state_publisher-1] [INFO] [0946693701.837928992] [robot_state_publisher]: got segment front_axle
+[robot_state_publisher-1] [INFO] [0946693701.837975040] [robot_state_publisher]: got segment laser
+[ftg_command_node-6] [INFO] [0946693705.010225536] [ftg_command_node]: FTG command node listening on /autonomous/ftg/gap_angle and /autonomous/ftg/target_speed, publishing to /autonomous/ackermann_cmd
+[scan_preprocessor_node-2] [INFO] [0946693705.204647680] [scan_preprocessor_node]: Listening on /scan, publishing filtered scan to /autonomous/ftg/scan_filtered
+[ctu_ftg_adapter_node-5] [INFO] [0946693705.337615904] [ctu_ftg_adapter_node]: CTU FTG adapter started. Inputs: /final_heading_angle, /gap_found, /scan | Outputs: /autonomous/ftg/gap_angle, /autonomous/ftg/target_speed, /autonomous/ftg/planner_status
+
+T2:
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/scan_filtered --once
+header:
+  stamp:
+    sec: 946693792
+    nanosec: 778198304
+  frame_id: laser
+angle_min: -3.1241390705108643
+angle_max: 3.1415927410125732
+angle_increment: 0.0034828970674425364
+time_increment: 4.678608092945069e-05
+scan_time: 0.08416815847158432
+range_min: 0.15000000596046448
+range_max: 16.0
+ranges:
+- 0.7760000228881836
+- 0.777999997138977
+- 0.777999997138977
+- 0.777999997138977
+- 0.777999997138977
+- 0.7739999890327454
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- 1.190000057220459
+- 1.190000057220459
+- 1.190000057220459
+- 1.190000057220459
+- 1.190000057220459
+- 1.1820000410079956
+- 1.1820000410079956
+- 1.1820000410079956
+- 1.1820000410079956
+- 1.184000015258789
+- 1.1859999895095825
+- 1.1859999895095825
+- 1.187999963760376
+- 1.190000057220459
+- 1.1920000314712524
+- 1.1920000314712524
+- 1.194000005722046
+- 1.1959999799728394
+- 1.1979999542236328
+- 1.1979999542236328
+- 1.2020000219345093
+- 1.2039999961853027
+- 1.2079999446868896
+- 1.2079999446868896
+- 1.2120000123977661
+- 1.2200000286102295
+- 1.2200000286102295
+- 1.2239999771118164
+- 1.2300000190734863
+- 1.2300000190734863
+- 1.2339999675750732
+- 1.2380000352859497
+- 1.2419999837875366
+- 1.2419999837875366
+- 1.2480000257492065
+- 1.253999948501587
+- 1.2580000162124634
+- 1.2580000162124634
+- 1.2640000581741333
+- 1.2699999809265137
+- 1.2740000486373901
+- 1.2740000486373901
+- 1.2799999713897705
+- 1.2879999876022339
+- 1.2940000295639038
+- 1.2940000295639038
+- 1.2979999780654907
+- 1.3040000200271606
+- 1.3040000200271606
+- 1.309999942779541
+- .inf
+- .inf
+- .inf
+- .inf
+- 1.0440000295639038
+- 1.0440000295639038
+- 1.0440000295639038
+- 1.0440000295639038
+- 1.0440000295639038
+- 1.0420000553131104
+- 1.0420000553131104
+- 1.0420000553131104
+- 1.0420000553131104
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.0399999618530273
+- 1.031999945640564
+- 1.031999945640564
+- 1.0180000066757202
+- 1.003999948501587
+- 0.9919999837875366
+- 0.9819999933242798
+- 0.9779999852180481
+- 0.9779999852180481
+- 0.9760000109672546
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- 0.7760000228881836
+- 0.7760000228881836
+- 0.7760000228881836
+- 0.7760000228881836
+- 0.7760000228881836
+- 0.7739999890327454
+- 0.7680000066757202
+- 0.7680000066757202
+- 0.7680000066757202
+- 0.7699999809265137
+- 0.7699999809265137
+- 0.7699999809265137
+- 0.7699999809265137
+- 0.7699999809265137
+- 0.7720000147819519
+- 0.7720000147819519
+- 0.7760000228881836
+- '...'
+intensities:
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+
+T3:
+---
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -1.8364609479904175
+---
+root@67aa178ad2eb:/# ros2 topic echo /gap_found --once
+data: true
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.6000, front_clearance_m=1.146, target_spee...
+---
+Test 3:
+Hindernis vorne in der Mitte:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -1.8106712102890015
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+Hindernis rechts:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -1.8088914155960083
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+Hindernis links:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -1.8088507652282715
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# 
+
+######################################-----Opti 3-------------------------##########################################
+Das Fahrzeug linkt jetzt viel links und rechts und manchmal bevegt sich kurz nach vorne, wenn es viele freien gibt.
+Test1:
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/scan_filtered --once
+header:
+  stamp:
+    sec: 946696933
+    nanosec: 766115488
+  frame_id: laser
+angle_min: -3.1241390705108643
+angle_max: 3.1415927410125732
+angle_increment: 0.0034828970674425364
+time_increment: 4.6208835556171834e-05
+scan_time: 0.08312969654798508
+range_min: 0.15000000596046448
+range_max: 16.0
+ranges:
+- 1.1100000143051147
+- .inf
+- .inf
+- 1.0019999742507935
+- 1.0019999742507935
+- 1.0019999742507935
+- 1.0019999742507935
+- 1.0019999742507935
+- 1.003999948501587
+- 1.003999948501587
+- 0.9980000257492065
+- 0.9959999918937683
+- 0.9940000176429749
+- 0.9940000176429749
+- 0.9919999837875366
+- 0.9900000095367432
+- 0.9879999756813049
+- 0.9879999756813049
+- 0.9980000257492065
+- 1.0240000486373901
+- .inf
+- .inf
+- .inf
+- 1.781999945640564
+- 1.781999945640564
+- 1.781999945640564
+- 1.781999945640564
+- 1.781999945640564
+- 1.649999976158142
+- 1.649999976158142
+- 1.6460000276565552
+- 1.6399999856948853
+- 1.6399999856948853
+- 1.6339999437332153
+- 1.6299999952316284
+- 1.6260000467300415
+- 1.6239999532699585
+- 1.6239999532699585
+- 1.6200000047683716
+- 1.6180000305175781
+- 1.6160000562667847
+- 1.6139999628067017
+- 1.6139999628067017
+- 1.6119999885559082
+- 1.6100000143051147
+- 1.6059999465942383
+- 1.6059999465942383
+- 1.6039999723434448
+- 1.6039999723434448
+- 1.1059999465942383
+- 1.1059999465942383
+- 1.1059999465942383
+- 1.1059999465942383
+- 1.1059999465942383
+- 1.1019999980926514
+- 1.1019999980926514
+- 1.100000023841858
+- 1.100000023841858
+- 1.0980000495910645
+- 1.0980000495910645
+- 1.0980000495910645
+- 1.0959999561309814
+- 1.0959999561309814
+- 1.0959999561309814
+- 1.0959999561309814
+- 1.093999981880188
+- 1.093999981880188
+- 1.093999981880188
+- 1.093999981880188
+- 1.093999981880188
+- 1.0920000076293945
+- 1.0920000076293945
+- 1.090000033378601
+- 1.090000033378601
+- 1.090000033378601
+- 1.090000033378601
+- 1.090000033378601
+- 1.0880000591278076
+- 1.0880000591278076
+- 1.0880000591278076
+- 1.0880000591278076
+- 1.0859999656677246
+- 1.0859999656677246
+- 1.0859999656677246
+- 1.0859999656677246
+- 1.0859999656677246
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.9200000166893005
+- 0.9200000166893005
+- 0.9200000166893005
+- 0.9200000166893005
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.921999990940094
+- 0.9240000247955322
+- 0.9240000247955322
+- 0.9240000247955322
+- 0.9259999990463257
+- 0.9259999990463257
+- 0.9259999990463257
+- 0.9240000247955322
+- 0.9240000247955322
+- 0.9240000247955322
+- 0.9240000247955322
+- 0.9259999990463257
+- 0.9279999732971191
+- 0.9279999732971191
+- 0.9279999732971191
+- 0.9259999990463257
+- 0.9300000071525574
+- 0.9319999814033508
+- 0.9319999814033508
+- 0.9300000071525574
+- 0.9319999814033508
+- 0.9319999814033508
+- 0.9319999814033508
+- 0.9340000152587891
+- 0.9359999895095825
+- 0.9359999895095825
+- 0.9340000152587891
+- '...'
+intensities:
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+---
+Test 2:
+Hinderniss vorne mittig:
+  - center:
+      x: 0.7955626187245555
+      y: -0.29357129066905613
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.7984590288112584
+      y: -0.29148451046486346
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.799469394427982
+      y: -0.28870179754222974
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8004700620334725
+      y: -0.2859155825051998
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8014610194890714
+      y: -0.28312589915212133
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8043303298354179
+      y: -0.28099237935703164
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8053041169022722
+      y: -0.27818928097633355
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8081607590212326
+      y: -0.2760292381991981
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8091172367806265
+      y: -0.27321282895773413
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8100638994950593
+      y: -0.27039310549173223
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8110007356809823
+      y: -0.2675701020060164
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.81002628829016
+      y: -0.264123851684668
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+Hinderniss rechts:
+  - center:
+      x: 0.7976894306833499
+      y: -0.2817935393169135
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8043303298354179
+      y: -0.28099237935703164
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8053041169022722
+      y: -0.27818928097633355
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8043755113376551
+      y: -0.2747363778087003
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.8053275091650766
+      y: -0.2719331600101989
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+Hinderniss links:
+  - center:
+      x: 0.7946947616622789
+      y: -0.2530142712772837
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.7955711624979775
+      y: -0.2502449022159248
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.7964379126101782
+      y: -0.24747249754383502
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.7972950014847167
+      y: -0.24469709089183472
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.7981424187246254
+      y: -0.24191871592716008
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+Test 3:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: 0.5077387690544128
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: 0.5093909502029419
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.6000, front_clearance_m=0.684, target_spee...
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.6000, front_clearance_m=0.686, target_spee...
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.6000, front_clearance_m=0.688, target_spee...
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.6000, front_clearance_m=0.686, target_spee...
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.6000000238418579
+---
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -0.6977130770683289
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.6000, front_clearance_m=0.696, target_spee...
+---
+Alle Patch:
+Hindernis vorne mittig:
+  - center:
+      x: 0.6130091328191122
+      y: -0.6003197227578029
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.613662489927439
+      y: -0.5967866947817652
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6157373103195181
+      y: -0.5946457561380333
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6149177179733062
+      y: -0.589728918124573
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.612623117345098
+      y: -0.5834457495937855
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6117453195959036
+      y: -0.5785600027658377
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6122987910642275
+      y: -0.5750566462545519
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6142979363582449
+      y: -0.5729205890228147
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6133549550428826
+      y: -0.5680596283663765
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6123855568503769
+      y: -0.5632121787794607
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6113898684435449
+      y: -0.5583784055349823
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6103679734436221
+      y: -0.5535584328379265
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6122922545355064
+      y: -0.5514292308243026
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6112275045281791
+      y: -0.5466268617421401
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6116322244823487
+      y: -0.5431666893310857
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6105201993056868
+      y: -0.5383875029364483
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6093823392019561
+      y: -0.5336226836737108
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6112371922500658
+      y: -0.5314970354316543
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6115708609313244
+      y: -0.5280578827394603
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6103696481214049
+      y: -0.5233210533275219
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6091428951330298
+      y: -0.5185990285205297
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6109454238947498
+      y: -0.5164743053585057
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.609676832675669
+      y: -0.5117715953152953
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6099192782365248
+      y: -0.5083645551992357
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6086046082626719
+      y: -0.5036868716817643
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6103552028869348
+      y: -0.5015641137601166
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6105487511853516
+      y: -0.4981708571234656
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6091720950726593
+      y: -0.4935233798256359
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6077705096555136
+      y: -0.48889156564735314
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.609469578915001
+      y: -0.48677180253709657
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6095941949444779
+      y: -0.48340346816943935
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6097027601140486
+      y: -0.4800401856425901
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6097952642183029
+      y: -0.4766819891286225
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6098718381014785
+      y: -0.47332902289428436
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6099324250689607
+      y: -0.46998128417664464
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6115656187851057
+      y: -0.46785410604890715
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6131913938679896
+      y: -0.4657212525889961
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6132128427248975
+      y: -0.46237865410414036
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6132184177856499
+      y: -0.45904153455775326
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6132082530835156
+      y: -0.45571003518075137
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6147917217400626
+      y: -0.4535715342634146
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6147542253035395
+      y: -0.4502457990177553
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6163186532497013
+      y: -0.44810194679131476
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6162538567575733
+      y: -0.4447821596417361
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.617799246352963
+      y: -0.4426331175023638
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6177073280773072
+      y: -0.4393195663952252
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6175997936617732
+      y: -0.4360120046429426
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6191146296083084
+      y: -0.4338583279467957
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6206219553478558
+      y: -0.4316993883062917
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6204759490043258
+      y: -0.42839888997449427
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6219642518650293
+      y: -0.42623524212126307
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6217912816839896
+      y: -0.42294156014155854
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6232605692871894
+      y: -0.42077336422948936
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6230608222559126
+      y: -0.41748678035332576
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.624511103760876
+      y: -0.4153141958558272
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6242846209280938
+      y: -0.4120348900196194
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6257159066759104
+      y: -0.4098580762331725
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6271396021395534
+      y: -0.4076762906388551
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6268750314701231
+      y: -0.4044053447035963
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6282797286390919
+      y: -0.4022195550774371
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6296768044232915
+      y: -0.40002888630294464
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.629374397038936
+      y: -0.3967668012883923
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6307524748418802
+      y: -0.39457235297672616
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6304236174291175
+      y: -0.3913183340047976
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.631782712455888
+      y: -0.38912026442037845
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6331341436047353
+      y: -0.3869174745893535
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6327677334586094
+      y: -0.3836730504062467
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6341001865856699
+      y: -0.3814668628942735
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6337075539500396
+      y: -0.37823101429187994
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6350210473635228
+      y: -0.3760215864959631
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6363268376162677
+      y: -0.3738075973477354
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6358969502755937
+      y: -0.37058207017597605
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6371837899786058
+      y: -0.36836506334642105
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6384629002856012
+      y: -0.36614358804246644
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6379958797342992
+      y: -0.36292877723030514
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6392560511290514
+      y: -0.360704506479637
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6405084679900991
+      y: -0.3584758601814118
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6417531151249246
+      y: -0.35624286537035654
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.642989977435262
+      y: -0.35400554913394816
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6424636450365684
+      y: -0.35080543757626104
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6436815650743125
+      y: -0.34856567962183155
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6448916768943909
+      y: -0.3463216933706092
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6443287044690923
+      y: -0.34313342659156876
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6437513148824465
+      y: -0.33995326600078346
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6449314301899736
+      y: -0.3377090890553489
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.6461037221182714
+      y: -0.33546081550964163
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5494666515647924
+      y: -0.28286103101445687
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.550448492759401
+      y: -0.28094558346286574
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5514236567056956
+      y: -0.2790267278840964
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5523921315743916
+      y: -0.27710448755494105
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5533539056173468
+      y: -0.2751788857932508
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.593774358900468
+      y: -0.29270464865401535
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.594790215594127
+      y: -0.29063482252618034
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5957988571495549
+      y: -0.28856147083527406
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5949972725780879
+      y: -0.28561911743266594
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5959884437284143
+      y: -0.2835450750067105
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5951633474269553
+      y: -0.280614646515926
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5961370875481509
+      y: -0.27854005602305254
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5952887149902388
+      y: -0.27562178719844316
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5926094168648656
+      y: -0.2718788187792365
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+---
+data: -1.8451547622680664
+---
+data: 0.4778859615325928
+---
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=+0.4788, front_clearance_m=0.408, target_spee...
+Hinderniss rechts:
+  - center:
+      x: -0.6594017722267493
+      y: -0.2738344093030777
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6602884499510246
+      y: -0.27690285701487183
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6593200229179588
+      y: -0.2792008895780736
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6583435979639803
+      y: -0.2814955352782105
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6573591869336707
+      y: -0.28378676627994587
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6563668017684866
+      y: -0.2860745547893651
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6553664545066156
+      y: -0.28835887305431324
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6543581572828296
+      y: -0.290639693364731
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6533419223283388
+      y: -0.29291698805299143
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6523177619706415
+      y: -0.29519072949423536
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6512856886333763
+      y: -0.2974608901067064
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6502457148361706
+      y: -0.2997274423520857
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6510112316202955
+      y: -0.3028338963394063
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6499525458979315
+      y: -0.3050994600924058
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6488859758873945
+      y: -0.307361322818184
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6478115345267756
+      y: -0.3096194570790803
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.64672923484965
+      y: -0.311873835482662
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6438406755493911
+      y: -0.31324944352676665
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6409503475629708
+      y: -0.3146086980568882
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.639850712523226
+      y: -0.3168391494396853
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: -0.6369541417750991
+      y: -0.31817202725878657
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+---
+data: -1.8369508981704712
+---
+data: -0.6000000238418579
+---
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=+0.4923, front_clearance_m=0.518, target_spee...
+Hinderniss links:
+  - center:
+      x: 0.543276446701984
+      y: -0.3921106027927953
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5446388296857936
+      y: -0.3902160524147515
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.545994605895754
+      y: -0.3883167684975802
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.545709869301861
+      y: -0.3852592836163537
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.547048375135058
+      y: -0.3833562994501763
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5483802449652706
+      y: -0.38144866495751445
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.548059659044788
+      y: -0.3784000813429597
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5477244603181536
+      y: -0.3753583381350166
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5490284700280287
+      y: -0.37344839742188757
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5503258197152602
+      y: -0.37153392657067136
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5516164936422703
+      y: -0.36961494880497087
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5512351346499867
+      y: -0.36658399713945977
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5525085630019025
+      y: -0.3646618823525501
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5521022735293557
+      y: -0.36163948095042775
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5533584754157141
+      y: -0.3597143760040385
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5546079647540401
+      y: -0.3577849075209291
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.554166301800709
+      y: -0.35477274403234854
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5553985750786362
+      y: -0.3528404919511611
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.55662411106098
+      y: -0.3509039597173144
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5561473455823872
+      y: -0.34790250613477697
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5573556785616807
+      y: -0.34596339596587705
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5585572505046301
+      y: -0.3440200890673415
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5597520468354954
+      y: -0.3420726090125707
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5592298410698684
+      y: -0.3390840076953953
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5604074414927065
+      y: -0.3371342150203682
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5598609012685554
+      y: -0.33415532958262045
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5610213318199971
+      y: -0.3322033688881338
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5621749568686691
+      y: -0.3302473783808417
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5633217624204538
+      y: -0.3282873817880039
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.564461734563958
+      y: -0.32632340288547595
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5655948594706814
+      y: -0.3243554654974214
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.564982685640623
+      y: -0.3213946700427595
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5660986411531743
+      y: -0.3194249481335401
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.567207729572352
+      y: -0.31745135142091135
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5683099374442924
+      y: -0.31547390384570606
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5676532577326979
+      y: -0.31252804907300563
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5687383155817436
+      y: -0.31054907963342104
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.568057804142371
+      y: -0.30761399006745094
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5691257444106325
+      y: -0.30563364144235416
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5701867808650634
+      y: -0.3036495853101175
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5712409006346975
+      y: -0.3016618457384523
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.572288090932472
+      y: -0.29967044683975214
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5733283390553826
+      y: -0.29767541277080034
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5743616323846371
+      y: -0.29567676773247686
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.48631859755988477
+      y: -0.24821407259266393
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5283030909876345
+      y: -0.25814694166724245
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5291989840898754
+      y: -0.2563053543675655
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.530088457712236
+      y: -0.25446065794048095
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5309715010649037
+      y: -0.2526128747631889
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.531848103436068
+      y: -0.2507620272503335
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5290943131430147
+      y: -0.2472148817824226
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5281372450813712
+      y: -0.24453030556404315
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5271678629026804
+      y: -0.241855380264803
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.528007021173683
+      y: -0.2400178456525795
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5233690340661555
+      y: -0.23571350253109702
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5205339466438204
+      y: -0.23225934262692854
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5121934208819692
+      y: -0.22640208098759626
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - '...'
+---
+data: 0.48274552822113037
+---
+data: 0.4714447557926178
+---
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=+0.4730, front_clearance_m=0.373, target_spee...
+---
+root@67aa178ad2eb:/# 
+
+###########################------------Opt 4---####################
+T1:
+mxck@mxck0021:~$ cd /mxck2_ws
+-bash: cd: /mxck2_ws: No such file or directory
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash
+[sudo] password for mxck: 
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# cd /mxck2_ws
+root@67aa178ad2eb:/mxck2_ws# rm -rf build/mxck_ftg_perception install/mxck_ftg_perception
+root@67aa178ad2eb:/mxck2_ws# colcon build --symlink-install --packages-select mxck_ftg_perception
+Starting >>> mxck_ftg_perception
+Finished <<< mxck_ftg_perception [6.18s]          
+
+Summary: 1 package finished [8.38s]
+root@67aa178ad2eb:/mxck2_ws# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/mxck2_ws# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+  use_vehicle_control:=false \
+  start_control:=false \
+  record_bag:=false
+[INFO] [launch]: All log files can be found below /root/.ros/log/2000-01-01-01-19-59-304892-67aa178ad2eb-197
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: Starting MXCK full CTU-FTG system...
+[INFO] [launch.user]: vehicle_control must be started separately via manual_control_launch.py
+[INFO] [robot_state_publisher-1]: process started with pid [246]
+[INFO] [scan_preprocessor_node-2]: process started with pid [248]
+[INFO] [obstacle_substitution_node-3]: process started with pid [250]
+[INFO] [follow_the_gap-4]: process started with pid [252]
+[INFO] [ctu_ftg_adapter_node-5]: process started with pid [254]
+[INFO] [ftg_command_node-6]: process started with pid [256]
+[follow_the_gap-4] Warning: FilterLoneObstacleGroups is disabled.
+[robot_state_publisher-1] [INFO] [0946689607.281455488] [robot_state_publisher]: got segment USS_BC
+[robot_state_publisher-1] [INFO] [0946689607.282296224] [robot_state_publisher]: got segment USS_BL
+[robot_state_publisher-1] [INFO] [0946689607.282428224] [robot_state_publisher]: got segment USS_BR
+[robot_state_publisher-1] [INFO] [0946689607.282489664] [robot_state_publisher]: got segment USS_FC
+[robot_state_publisher-1] [INFO] [0946689607.282541632] [robot_state_publisher]: got segment USS_FL
+[robot_state_publisher-1] [INFO] [0946689607.283099456] [robot_state_publisher]: got segment USS_FR
+[robot_state_publisher-1] [INFO] [0946689607.283176128] [robot_state_publisher]: got segment USS_SLB
+[robot_state_publisher-1] [INFO] [0946689607.283230176] [robot_state_publisher]: got segment USS_SLF
+[robot_state_publisher-1] [INFO] [0946689607.283556512] [robot_state_publisher]: got segment USS_SRB
+[robot_state_publisher-1] [INFO] [0946689607.283892608] [robot_state_publisher]: got segment USS_SRF
+[robot_state_publisher-1] [INFO] [0946689607.284670880] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-1] [INFO] [0946689607.287966112] [robot_state_publisher]: got segment camera_rgb
+[robot_state_publisher-1] [INFO] [0946689607.288677728] [robot_state_publisher]: got segment front_axle
+[robot_state_publisher-1] [INFO] [0946689607.288960128] [robot_state_publisher]: got segment laser
+[ftg_command_node-6] [INFO] [0946689608.360530624] [ftg_command_node]: FTG command node listening on /autonomous/ftg/gap_angle and /autonomous/ftg/target_speed, publishing to /autonomous/ackermann_cmd
+[ctu_ftg_adapter_node-5] [INFO] [0946689609.172175776] [ctu_ftg_adapter_node]: CTU FTG adapter started. Inputs: /final_heading_angle, /gap_found, /scan | Outputs: /autonomous/ftg/gap_angle, /autonomous/ftg/target_speed, /autonomous/ftg/planner_status
+[scan_preprocessor_node-2] [INFO] [0946689609.181962400] [scan_preprocessor_node]: Listening on /scan, publishing recentered front scan to /autonomous/ftg/scan_filtered
+
+T2:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash
+[sudo] password for mxck: 
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# source /opt/ros/humble/setup.bash
+root@67aa178ad2eb:/# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/scan_filtered --once
+header:
+  stamp:
+    sec: 946689727
+    nanosec: 766272608
+  frame_id: laser
+angle_min: -0.8706857562065125
+angle_max: 0.870762825012207
+angle_increment: 0.0034828970674425364
+time_increment: 4.9976137233898044e-05
+scan_time: 0.08990707248449326
+range_min: 0.18000000715255737
+range_max: 5.0
+ranges:
+- 0.7319999933242798
+- 0.7279999852180481
+- 0.7260000109672546
+- 0.7239999771118164
+- 0.7200000286102295
+- 0.7200000286102295
+- 0.7179999947547913
+- 0.7179999947547913
+- 0.7160000205039978
+- 0.7120000123977661
+- 0.7099999785423279
+- 0.7080000042915344
+- 0.7080000042915344
+- 0.7059999704360962
+- 0.7020000219345093
+- 0.7020000219345093
+- 0.699999988079071
+- 0.6980000138282776
+- 0.6980000138282776
+- 0.6959999799728394
+- 0.6940000057220459
+- 0.6919999718666077
+- 0.6880000233650208
+- 0.6880000233650208
+- 0.6859999895095825
+- 0.6840000152587891
+- 0.6819999814033508
+- 0.6800000071525574
+- 0.6779999732971191
+- 0.6779999732971191
+- 0.6759999990463257
+- 0.6740000247955322
+- 0.6740000247955322
+- 0.671999990940094
+- 0.671999990940094
+- 0.6700000166893005
+- 0.6660000085830688
+- 0.6660000085830688
+- 0.6639999747276306
+- 0.6620000004768372
+- 0.6620000004768372
+- 0.6600000262260437
+- 0.6600000262260437
+- 0.6579999923706055
+- 0.656000018119812
+- 0.656000018119812
+- 0.6539999842643738
+- 0.6520000100135803
+- 0.6499999761581421
+- 0.6480000019073486
+- 0.6480000019073486
+- 0.6480000019073486
+- 0.6460000276565552
+- 0.6439999938011169
+- 0.6420000195503235
+- 0.6420000195503235
+- 0.6399999856948853
+- 0.6399999856948853
+- 0.6380000114440918
+- 0.6380000114440918
+- 0.6359999775886536
+- 0.6340000033378601
+- 0.6340000033378601
+- 0.6320000290870667
+- 0.6320000290870667
+- 0.6320000290870667
+- 0.6299999952316284
+- 0.628000020980835
+- 0.628000020980835
+- 0.6259999871253967
+- 0.6240000128746033
+- 0.6240000128746033
+- 0.621999979019165
+- 0.621999979019165
+- 0.6200000047683716
+- 0.6200000047683716
+- 0.6179999709129333
+- 0.6179999709129333
+- 0.6179999709129333
+- 0.6159999966621399
+- 0.6159999966621399
+- 0.6159999966621399
+- 0.6140000224113464
+- 0.6140000224113464
+- 0.6140000224113464
+- 0.6119999885559082
+- 0.6100000143051147
+- 0.6100000143051147
+- 0.6079999804496765
+- 0.6079999804496765
+- 0.6079999804496765
+- 0.6060000061988831
+- 0.6039999723434448
+- 0.6039999723434448
+- 0.6039999723434448
+- 0.6039999723434448
+- 0.6039999723434448
+- 0.6060000061988831
+- 0.6039999723434448
+- 0.6039999723434448
+- 0.6019999980926514
+- 0.6019999980926514
+- 0.6039999723434448
+- 0.6060000061988831
+- 0.6060000061988831
+- 0.6079999804496765
+- 0.6140000224113464
+- 0.6200000047683716
+- 0.6200000047683716
+- 0.6299999952316284
+- 0.6420000195503235
+- 0.6520000100135803
+- 0.6520000100135803
+- 0.6600000262260437
+- 0.6700000166893005
+- 0.6700000166893005
+- 0.6840000152587891
+- 0.6940000057220459
+- 0.7020000219345093
+- 0.7020000219345093
+- 0.7139999866485596
+- 0.7279999852180481
+- 0.7279999852180481
+- 0.7940000295639038
+- 0.7940000295639038
+- 0.7940000295639038
+- 0.7940000295639038
+- 0.8119999766349792
+- '...'
+intensities:
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+---
+Hindernis vorne mittig:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -0.2533930540084839
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.25128278136253357
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.2592, front_clearance_m=1.190, target_spee...
+---
+root@67aa178ad2eb:/# 
+Hindernis vorne rechts:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -0.25136804580688477
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.2524200677871704
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.2537, front_clearance_m=0.702, target_spee...
+---
+Hindernis vorne links:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: -0.2534099519252777
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: -0.258039653301239
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=-0.2515, front_clearance_m=0.644, target_spee...
+---
+############################## Opti test #############################################
+T1:
+root@67aa178ad2eb:/# ros2 run tf2_ros tf2_echo base_link laser
+[INFO] [0946690623.712262176] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946690625.632659872] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946690626.632683712] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946690627.632686048] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946690628.632702336] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+^C[INFO] [0946690629.014245824] [rclcpp]: signal_handler(signum=2)
+root@67aa178ad2eb:/# source /opt/ros/humble/setup.bash
+root@67aa178ad2eb:/# source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+  use_vehicle_control:=false \
+  record_bag:=false
+[INFO] [launch]: All log files can be found below /root/.ros/log/2000-01-01-01-37-33-950218-67aa178ad2eb-226
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: Starting MXCK full CTU-FTG system...
+[INFO] [launch.user]: vehicle_control must be started separately via manual_control_launch.py
+[INFO] [robot_state_publisher-1]: process started with pid [275]
+[INFO] [scan_preprocessor_node-2]: process started with pid [277]
+[INFO] [obstacle_substitution_node-3]: process started with pid [279]
+[INFO] [follow_the_gap-4]: process started with pid [281]
+[INFO] [ctu_ftg_adapter_node-5]: process started with pid [283]
+[INFO] [ftg_command_node-6]: process started with pid [285]
+[follow_the_gap-4] Warning: FilterLoneObstacleGroups is disabled.
+[robot_state_publisher-1] [INFO] [0946690661.737150816] [robot_state_publisher]: got segment USS_BC
+[robot_state_publisher-1] [INFO] [0946690661.737518624] [robot_state_publisher]: got segment USS_BL
+[robot_state_publisher-1] [INFO] [0946690661.737596672] [robot_state_publisher]: got segment USS_BR
+[robot_state_publisher-1] [INFO] [0946690661.737650240] [robot_state_publisher]: got segment USS_FC
+[robot_state_publisher-1] [INFO] [0946690661.737699456] [robot_state_publisher]: got segment USS_FL
+[robot_state_publisher-1] [INFO] [0946690661.737747808] [robot_state_publisher]: got segment USS_FR
+[robot_state_publisher-1] [INFO] [0946690661.737802176] [robot_state_publisher]: got segment USS_SLB
+[robot_state_publisher-1] [INFO] [0946690661.737880256] [robot_state_publisher]: got segment USS_SLF
+[robot_state_publisher-1] [INFO] [0946690661.738542304] [robot_state_publisher]: got segment USS_SRB
+[robot_state_publisher-1] [INFO] [0946690661.739753216] [robot_state_publisher]: got segment USS_SRF
+[robot_state_publisher-1] [INFO] [0946690661.741592992] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-1] [INFO] [0946690661.742088224] [robot_state_publisher]: got segment camera_rgb
+[robot_state_publisher-1] [INFO] [0946690661.742146496] [robot_state_publisher]: got segment front_axle
+[robot_state_publisher-1] [INFO] [0946690661.742748672] [robot_state_publisher]: got segment laser
+[ftg_command_node-6] [INFO] [0946690663.247961888] [ftg_command_node]: FTG command node listening on /autonomous/ftg/gap_angle and /autonomous/ftg/target_speed, publishing to /autonomous/ackermann_cmd
+[ctu_ftg_adapter_node-5] [INFO] [0946690663.396200320] [ctu_ftg_adapter_node]: CTU FTG adapter started. Inputs: /final_heading_angle, /gap_found, /scan | Outputs: /autonomous/ftg/gap_angle, /autonomous/ftg/target_speed, /autonomous/ftg/planner_status
+[scan_preprocessor_node-2] [INFO] [0946690663.689040320] [scan_preprocessor_node]: Listening on /scan, publishing recentered front scan to /autonomous/ftg/scan_filtered
+T2, Test D:
+- Linke seite vom Fahrzeug ist ein Wand circa 54 cm entfernt.
+- Rechte Seite unterschiedlich flächen (Möbel).
+- Vorne ist ein ein Karton circa 20*25 cm und 0.6 m entfernt.
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/scan_filtered --once
+header:
+  stamp:
+    sec: 946691399
+    nanosec: 875498624
+  frame_id: laser
+angle_min: -0.5223960280418396
+angle_max: 0.5224730968475342
+angle_increment: 0.0034828970674425364
+time_increment: 4.8721893108449876e-05
+scan_time: 0.08765068650245667
+range_min: 0.18000000715255737
+range_max: 2.0
+ranges:
+- 0.5699999928474426
+- 0.5699999928474426
+- 0.5699999928474426
+- 0.5720000267028809
+- 0.5720000267028809
+- 0.5720000267028809
+- 0.5740000009536743
+- 0.5740000009536743
+- 0.5740000009536743
+- 0.5759999752044678
+- 0.5759999752044678
+- 0.578000009059906
+- 0.578000009059906
+- 0.578000009059906
+- 0.5799999833106995
+- 0.5820000171661377
+- 0.5820000171661377
+- 0.5820000171661377
+- 0.5839999914169312
+- 0.5839999914169312
+- 0.5839999914169312
+- 0.5839999914169312
+- 0.5860000252723694
+- 0.5879999995231628
+- 0.5879999995231628
+- 0.5899999737739563
+- 0.5899999737739563
+- 0.5920000076293945
+- 0.5920000076293945
+- 0.5920000076293945
+- 0.5920000076293945
+- 0.593999981880188
+- 0.5960000157356262
+- 0.5960000157356262
+- 0.5960000157356262
+- 0.5979999899864197
+- 0.5979999899864197
+- 0.5979999899864197
+- 0.5979999899864197
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6019999980926514
+- 0.6019999980926514
+- 0.6019999980926514
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6880000233650208
+- 0.6880000233650208
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6919999718666077
+- 0.6919999718666077
+- 0.6959999799728394
+- 0.6959999799728394
+- 0.6980000138282776
+- 0.699999988079071
+- 0.7020000219345093
+- 0.7020000219345093
+- 0.7039999961853027
+- 0.7039999961853027
+- 0.7080000042915344
+- 0.7080000042915344
+- 0.7099999785423279
+- 0.7120000123977661
+- 0.7160000205039978
+- 0.7160000205039978
+- 0.7200000286102295
+- 0.722000002861023
+- 0.7239999771118164
+- 0.7239999771118164
+- 0.7279999852180481
+- 0.7319999933242798
+- 0.7360000014305115
+- 0.7360000014305115
+- 0.7379999756813049
+- 0.7400000095367432
+- 0.7440000176429749
+- '...'
+intensities:
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 0.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+---
+root@67aa178ad2eb:/# 
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: 0.17928190529346466
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: 0.18167240917682648
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=+0.1807, front_clearance_m=0.906, target_spee...
+---
+Dann Hindernis ist weg und jetzt nächste Hinderniss vorne ist ein Wand 2 m entfernet :
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/scan_filtered --once
+header:
+  stamp:
+    sec: 946691698
+    nanosec: 810366528
+  frame_id: laser
+angle_min: -0.5223960280418396
+angle_max: 0.5224730968475342
+angle_increment: 0.0034828970674425364
+time_increment: 4.650110349757597e-05
+scan_time: 0.08365549147129059
+range_min: 0.18000000715255737
+range_max: 2.0
+ranges:
+- 0.5699999928474426
+- 0.5699999928474426
+- 0.5699999928474426
+- 0.5720000267028809
+- 0.5720000267028809
+- 0.5720000267028809
+- 0.5740000009536743
+- 0.5740000009536743
+- 0.5740000009536743
+- 0.5759999752044678
+- 0.5759999752044678
+- 0.578000009059906
+- 0.578000009059906
+- 0.578000009059906
+- 0.5799999833106995
+- 0.5820000171661377
+- 0.5820000171661377
+- 0.5820000171661377
+- 0.5820000171661377
+- 0.5839999914169312
+- 0.5839999914169312
+- 0.5839999914169312
+- 0.5860000252723694
+- 0.5879999995231628
+- 0.5879999995231628
+- 0.5899999737739563
+- 0.5899999737739563
+- 0.5899999737739563
+- 0.5920000076293945
+- 0.5920000076293945
+- 0.5920000076293945
+- 0.593999981880188
+- 0.5960000157356262
+- 0.5960000157356262
+- 0.5960000157356262
+- 0.5979999899864197
+- 0.5979999899864197
+- 0.5979999899864197
+- 0.5979999899864197
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6000000238418579
+- 0.6019999980926514
+- 0.6019999980926514
+- 0.6019999980926514
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- .inf
+- 0.6880000233650208
+- 0.6880000233650208
+- 0.6880000233650208
+- 0.6880000233650208
+- 0.6880000233650208
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6880000233650208
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6899999976158142
+- 0.6919999718666077
+- 0.6919999718666077
+- 0.6940000057220459
+- 0.6940000057220459
+- 0.6959999799728394
+- 0.699999988079071
+- 0.7020000219345093
+- 0.7020000219345093
+- 0.7039999961853027
+- 0.7059999704360962
+- 0.7059999704360962
+- 0.7080000042915344
+- 0.7099999785423279
+- 0.7120000123977661
+- 0.7179999947547913
+- 0.7179999947547913
+- 0.722000002861023
+- 0.722000002861023
+- 0.7239999771118164
+- 0.7239999771118164
+- 0.7279999852180481
+- 0.7319999933242798
+- 0.7319999933242798
+- 0.7360000014305115
+- 0.7379999756813049
+- 0.7419999837875366
+- 0.7440000176429749
+- '...'
+intensities:
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+---
+2. Hindernis vorne links:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: 0.17939749360084534
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: 0.1793111264705658
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=+0.1789, front_clearance_m=0.910, target_spee...
+---
+3. Hindernis vorne rechts:
+root@67aa178ad2eb:/# ros2 topic echo /final_heading_angle --once
+data: 0.18073974549770355
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/gap_angle --once
+data: 0.1778191477060318
+---
+root@67aa178ad2eb:/# ros2 topic echo /autonomous/ftg/planner_status --once
+data: gap_found=True, heading_fresh=True, gap_fresh=True, scan_fresh=True, gap_angle_rad=+0.1830, front_clearance_m=0.910, target_spee...
+---
+    x: 0.511588704009632
+      y: -0.2690000156189523
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5125224985523239
+      y: -0.26721657686403855
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5134500759102393
+      y: -0.26542989662248095
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5161512338086498
+      y: -0.26455223393163824
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5188525380860181
+      y: -0.2636589913184865
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5197676863712595
+      y: -0.2618502858231258
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5206765295835408
+      y: -0.26003840393723515
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5233714014616277
+      y: -0.2591107217138404
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5242706812158573
+      y: -0.25728630510082856
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5269621372281202
+      y: -0.25633364107582396
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5278517229370772
+      y: -0.25449673516879673
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5287349055091858
+      y: -0.2526567420739251
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5314191992577408
+      y: -0.25166969245322535
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5322925139132305
+      y: -0.24981729137746417
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5349728154666037
+      y: -0.24880525670693582
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5358361320537262
+      y: -0.24694049615032954
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5366929486486485
+      y: -0.24507274006728746
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5375432548577062
+      y: -0.24320201111473627
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5402121121559138
+      y: -0.24214640801227996
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.54288006044146
+      y: -0.24107513029912572
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5437164058887642
+      y: -0.2391828765632445
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5463796755843544
+      y: -0.23808668351086393
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5472055913740018
+      y: -0.2361822591260733
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5480248692535441
+      y: -0.23427496971828357
+      z: 0.0
+    radius: 0.01
+    velocity:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  - center:
+      x: 0.5506792120992098
+      y: -0.23314457614439907
+
+Dann habe ich eine kurze Bag aufgenommen währen ein Hinderniss vor dem Fahrzeug vom links nach rechts sich bewegt:
+root@67aa178ad2eb:/# mkdir -p /mxck2_ws/bags
+timeout 15s ros2 bag record -s mcap -o /mxck2_ws/bags/ftg_diag_small \
+  /scan \
+  /autonomous/ftg/scan_filtered \
+  /obstacles \
+  /final_heading_angle \
+  /gap_found \
+  /autonomous/ftg/gap_angle \
+  /autonomous/ftg/planner_status \
+  /tf_static
+[INFO] [0946692339.662871904] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[INFO] [0946692339.775424064] [rosbag2_recorder]: Listening for topics...
+[INFO] [0946692339.779562304] [rosbag2_recorder]: Event publisher thread: Starting
+[INFO] [0946692339.815690400] [rosbag2_recorder]: Subscribed to topic '/tf_static'
+[INFO] [0946692339.833982656] [rosbag2_recorder]: Subscribed to topic '/obstacles'
+[INFO] [0946692339.844670080] [rosbag2_recorder]: Subscribed to topic '/gap_found'
+[INFO] [0946692339.853922816] [rosbag2_recorder]: Subscribed to topic '/final_heading_angle'
+[INFO] [0946692339.866636864] [rosbag2_recorder]: Subscribed to topic '/scan'
+[INFO] [0946692339.872399968] [rosbag2_recorder]: Subscribed to topic '/autonomous/ftg/scan_filtered'
+[INFO] [0946692339.883944224] [rosbag2_recorder]: Subscribed to topic '/autonomous/ftg/planner_status'
+[INFO] [0946692339.893039456] [rosbag2_recorder]: Subscribed to topic '/autonomous/ftg/gap_angle'
+[INFO] [0946692339.893837760] [rosbag2_recorder]: Recording...
+[INFO] [0946692339.904977280] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[INFO] [0946692353.038210496] [rosbag2_cpp]: Writing remaining messages from cache to the bag. It may take a while
+[INFO] [0946692353.045159552] [rosbag2_recorder]: Event publisher thread: Exiting
+[INFO] [0946692353.046057728] [rosbag2_recorder]: Recording stopped
+root@67aa178ad2eb:/# 

@@ -6,13 +6,20 @@
     front_clearance_topic: "/autonomous/ftg/front_clearance"
     status_topic: "/autonomous/ftg/status"
 
-    front_center_deg: 0.0
-    front_fov_deg: 140.0
+    # WICHTIG:
+    # Erster Test: Front liegt in deinem Stack sehr wahrscheinlich nicht bei 0°, sondern etwa bei +135°.
+    front_center_deg: 135.0
 
-    clip_min_range_m: 0.05
-    clip_max_range_m: 8.0
+    # Erstmal enger als bisher, damit CTU wirklich nur den Frontbereich sieht.
+    front_fov_deg: 100.0
 
-    outside_window_as_obstacle: true
+    # Nicht unter dem echten LiDAR-Minimum arbeiten.
+    clip_min_range_m: 0.18
+    clip_max_range_m: 5.0
+
+    # Sehr wichtig:
+    # Außerhalb des Frontfensters NICHT als künstliches Nah-Hindernis behandeln.
+    outside_window_as_obstacle: false
 
     enable_moving_average: false
     moving_average_window: 3

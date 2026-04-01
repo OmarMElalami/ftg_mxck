@@ -68,28 +68,73 @@ rm -rf /home/mxck/development_ws/log
 rm -rf /home/mxck/development_ws/src/log
 
 ########  #########################  #########################   ######################
-5) Was du nach dem Merge praktisch machen sollst
+Sauberer Zielablauf
 
-Wenn der technische Fix-PR gemerged ist, dann kommt dein echter Plattform-Test.
+Du brauchst für einen kompletten Test nur 2 laufende Terminal-Fenster:
 
-Terminal A — vehicle_control wie bisher starten
+Terminal A
 
-Nutze deine bekannte funktionierende Reihenfolge im Container.
-Minimal:
+vehicle_control/manual_control_launch.py
 
-source /opt/ros/$ROS_DISTRO/setup.bash
-source /mxck2_ws/install/setup.bash
-ros2 launch vehicle_control manual_control_launch.py
+Terminal B
 
-Dann:
+mxck_ftg_bringup/ftg_full_system.launch.py
 
-Deadman prüfen
-Kalibrierung abschließen
-Manual testen
-Terminal B — echten Build des FTG-Stacks
-source /opt/ros/$ROS_DISTRO/setup.bash
-source /mxck2_ws/install/setup.bash
+Mehr brauchst du für den normalen Test nicht.
+
+1) Neue Dateien vom PC auf den Jetson kopieren
+Variante A — PowerShell auf Windows
+
+Ersetze <JETSON_HOST> z. B. durch mxck0021 oder die IP.
+
+Zuerst auf dem Jetson altes Paket sichern:
+
+ssh mxck@<JETSON_HOST> "mv /home/mxck/mxck2_ws/src/FTG_MXCK /home/mxck/mxck2_ws/src/FTG_MXCK_backup_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true"
+
+Dann den neuen Ordner komplett kopieren:
+
+scp -r "C:\Users\Omar\Desktop\ftg_mxck\FTG_MXCK" mxck@<JETSON_HOST>:/home/mxck/mxck2_ws/src/
+Variante B — Git Bash auf Windows
+ssh mxck@<JETSON_HOST> 'mv /home/mxck/mxck2_ws/src/FTG_MXCK /home/mxck/mxck2_ws/src/FTG_MXCK_backup_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true'
+scp -r /c/Users/Omar/Desktop/ftg_mxck/FTG_MXCK mxck@<JETSON_HOST>:/home/mxck/mxck2_ws/src/
+2) Container sauber neu starten
+
+Damit keine alten Nodes doppelt laufen:
+
+sudo docker restart mxck2_control mxck2_lidar
+
+Danach kurz prüfen:
+
+sudo docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "mxck2_(control|lidar)"
+3) FTG-Workspace neu bauen
+Terminal 1 — in den Control-Container
+sudo docker exec -it mxck2_control bash
+
+Dann im Container:
+
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash || true
 cd /mxck2_ws
+
+Optionaler sauberer FTG-Cleanup, falls du sehr viele Änderungen gemacht hast:
+
+rm -rf build/obstacle_msgs \
+       build/obstacle_substitution \
+       build/follow_the_gap_v0 \
+       build/mxck_ftg_perception \
+       build/mxck_ftg_planner \
+       build/mxck_ftg_control \
+       build/mxck_ftg_bringup
+
+rm -rf install/obstacle_msgs \
+       install/obstacle_substitution \
+       install/follow_the_gap_v0 \
+       install/mxck_ftg_perception \
+       install/mxck_ftg_planner \
+       install/mxck_ftg_control \
+       install/mxck_ftg_bringup
+
+Dann bauen:
 
 colcon build --symlink-install --packages-select \
   obstacle_msgs \
@@ -100,39 +145,1891 @@ colcon build --symlink-install --packages-select \
   mxck_ftg_control \
   mxck_ftg_bringup
 
-Dann:
+Danach erneut sourcen:
 
 source /mxck2_ws/install/setup.bash
-Terminal C — FTG-Stack starten
-source /opt/ros/$ROS_DISTRO/setup.bash
+
+Prüfen:
+
+ros2 pkg executables mxck_ftg_perception
+ros2 pkg executables mxck_ftg_planner
+ros2 pkg executables mxck_ftg_control
+ros2 pkg executables mxck_ftg_bringup
+
+Wichtig:
+Wenn bei mxck_ftg_bringup nichts erscheint, ist das normal, wenn das Paket nur Launch-Dateien enthält.
+
+4) Vehicle Control wie bisher starten
+Terminal 2
+sudo docker exec -it mxck2_control bash
+
+Dann im Container:
+
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+ros2 launch vehicle_control manual_control_launch.py
+
+Danach genau wie bisher:
+
+Deadman prüfen
+Remote-Kalibrierung abschließen
+Manual testen
+auf Autonomous umstellen, wenn alles bereit ist
+5) Einmal prüfen, welche Launch-Argumente dein aktuelles Bringup wirklich hat
+
+Bevor du den FTG-Stack startest, prüfe zuerst die echten Args deiner aktuellen Launch-Datei:
+
+Terminal 3
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_bringup ftg_full_system.launch.py --show-args"
+
+Das ist wichtig, weil deine Launch-Datei sich inzwischen geändert haben kann.
+
+6) FTG-Stack starten
+Terminal 3 — wenn --show-args okay aussieht
+
+Falls deine Launch-Datei die erwarteten Argumente hat, starte so:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_vehicle_control:=false use_tf:=true record_bag:=true bag_name:=ctu_ftg_test_01"
+Warum use_vehicle_control:=false?
+
+Weil du manual_control_launch.py bereits in Terminal 2 gestartet hast.
+Sonst bekommst du wieder doppelte Nodes wie:
+
+/ackermann_to_vesc
+/joy_to_ackermann
+/rc_to_joy
+/vesc_driver_node
+
+und genau das hat dir vorher schon Chaos gemacht.
+
+7) Wenn ftg_full_system.launch.py noch nicht sauber geht
+
+Dann nimm vorerst die sichere Zwischenlösung:
+
+Terminal 3
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_run broadcast_tf_launch.py
+Terminal 4
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_ftg_perception scan_preprocessor.launch.py
+Terminal 5
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_ftg_planner ctu_ftg_adapter.launch.py
+Terminal 6
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_ftg_control ftg_command.launch.py
+
+Aber das ist nur der Fallback, falls dein neues Bringup-Launch noch nicht stimmt.
+
+8) Wichtige Checks vor Bewegung
+8.1 Nodes prüfen
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 node list | sort"
+
+Erwartet:
+
+/robot_state_publisher
+/rplidar_node
+/obstacle_substitution_node
+/follow_the_gap oder der CTU-Node-Name
+/ctu_ftg_adapter_node
+/ftg_command_node
+/ackermann_to_vesc
+/vesc_driver_node
+
+Wichtig:
+Es darf nicht doppelt geben:
+
+/ackermann_to_vesc
+/joy_to_ackermann
+/rc_to_joy
+/vesc_driver_node
+8.2 Topic-Kette prüfen
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic list | grep -E 'scan|obstacles|final_heading_angle|gap_found|autonomous/ftg|ackermann|commands'"
+8.3 CTU-Ausgänge prüfen
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /gap_found"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /final_heading_angle"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ftg/gap_angle"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ftg/target_speed"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ackermann_cmd"
+8.4 Ganz wichtiger Endketten-Check
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic info /autonomous/ackermann_cmd -v"
+
+Du willst hier:
+
+Publisher count: 1 → ftg_command_node
+Subscription count: 1 → ackermann_to_vesc
+
+Wenn dort 0 Publisher oder mehrere Publisher stehen, nicht fahren.
+
+8.5 Servo- und Motor-Kommandos prüfen
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /commands/servo/position"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /commands/motor/speed"
+
+/commands/motor/brake ist nur interessant, wenn wirklich gebremst wird. Wenn dort nichts kommt, ist das erstmal nicht schlimm.
+
+9) LiDAR separat prüfen
+
+Wenn du unsicher bist, ob /scan sauber kommt:
+
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic hz /scan"
+
+Oder direkt im LiDAR-Container:
+
+sudo docker exec -it mxck2_lidar bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+ros2 topic echo /scan
+10) Was an der alten ChatGPT-Anleitung konkret falsch war
+
+Das hier war falsch oder unsauber:
+
+FOXY in mxck2_control
+Nein — in mxck2_control nimmst du Humble.
+zu viele einzelne Launches
+Wenn ftg_full_system.launch.py sauber ist, dann brauchst du nicht:
+separat broadcast_tf
+separat perception
+separat planner
+separat control
+Das soll dann alles ein Launch übernehmen.
+vehicle_control im FTG-Launch noch einmal starten
+Falsch für deinen Ablauf.
+Du startest manual_control_launch.py bereits manuell nach RC-Kalibrierung.
+Also im FTG-Launch:
+use_vehicle_control:=false
+ros2 auf dem Host
+Auf dem Host ist ros2 oft nicht da.
+Deshalb immer entweder:
+erst in den Container rein
+oder sudo docker exec -it mxck2_control bash -lc "source ... && ros2 ..."
+11) Mein klarer Empfehlungsablauf für dich ab jetzt
+Immer so:
+Schritt 1
+
+Neue Dateien rüberkopieren
+
+Schritt 2
+
+Container neu starten
+
+sudo docker restart mxck2_control mxck2_lidar
+Schritt 3
+
+Im Control-Container bauen
+
+Schritt 4
+
+manual_control_launch.py starten
+
+Schritt 5
+
+ftg_full_system.launch.py --show-args prüfen
+
+Schritt 6
+
+ftg_full_system.launch.py use_vehicle_control:=false ... starten
+
+Schritt 7
+
+Nodes + Topics + /autonomous/ackermann_cmd prüfen
+
+Schritt 8
+
+Erst dann in Autonomous Mode fahren
+
+--------------------------------####---------------------------------------------
+2) Diese zwei Topics während des Fahrversuchs parallel beobachten
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ftg/planner_status"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ftg/control_status"
+
+Damit sehen wir:
+
+was der Adapter denkt
+ob gap_found sauber kommt
+ob Timeout greift
+welche Zielgeschwindigkeit und welcher Lenkwinkel intern wirklich benutzt werden
+3) Diese drei Endtopics sind für die Wahrheit entscheidend
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /autonomous/ackermann_cmd"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /commands/motor/speed"
+sudo docker exec -it mxck2_control bash -lc "source /opt/ros/humble/setup.bash && source /mxck2_ws/install/setup.bash && ros2 topic echo /commands/motor/brake"
+
+Wenn wieder gilt:
+
+ackermann_cmd.speed > 0
+aber motor/speed bleibt leer
+und motor/brake = -20
+
+dann sitzt der Blocker eindeutig hinter FTG, also in ackermann_to_vesc / Safety / Mode.
+
+Ja, schick mir den Bag — so machst du das richtig
+
+Am besten den kompletten Ordner ctu_ftg_test_01 schicken, nicht nur eine .db3.
+
+Auf dem Jetson-Host:
+sudo docker cp mxck2_control:/mxck2_ws/bags/ctu_ftg_test_01 /home/mxck/ctu_ftg_test_01
+
+Dann packen:
+
+tar -C /home/mxck -czf /home/mxck/ctu_ftg_test_01.tar.gz ctu_ftg_test_01
+
+Prüfen:
+
+ls -lh /home/mxck/ctu_ftg_test_01.tar.gz
+Dann von deinem Laptop holen
+
+In PowerShell auf deinem Laptop:
+
+scp mxck@<JETSON_IP>:/home/mxck/ctu_ftg_test_01.tar.gz C:\Users\Omar\Desktop\
+
+Danach die ctu_ftg_test_01.tar.gz hier hochladen.
+----------------------------------------#################---------Optimiren 2 ----------##################-----------------------####################----------
+Schritt C — Scan-Preprocessor korrigieren
+1) Dateien sichern
+
+Im Container:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+cd /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config
+
+cp scan_preprocessor.yaml scan_preprocessor.yaml.bak_$(date +%Y%m%d_%H%M%S)
+cp scan_front_window_check.yaml scan_front_window_check.yaml.bak_$(date +%Y%m%d_%H%M%S)
+2) scan_preprocessor.yaml komplett ersetzen
+cat > /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config/scan_preprocessor.yaml <<'EOF'
+/**:
+  ros__parameters:
+    scan_topic: "/scan"
+    base_frame: "base_link"
+    filtered_scan_topic: "/autonomous/ftg/scan_filtered"
+    front_clearance_topic: "/autonomous/ftg/front_clearance"
+    status_topic: "/autonomous/ftg/status"
+
+    # WICHTIG:
+    # Erster Test: Front liegt in deinem Stack sehr wahrscheinlich nicht bei 0°, sondern etwa bei +90°.
+    front_center_deg: 90.0
+
+    # Erstmal enger als bisher, damit CTU wirklich nur den Frontbereich sieht.
+    front_fov_deg: 100.0
+
+    # Nicht unter dem echten LiDAR-Minimum arbeiten.
+    clip_min_range_m: 0.18
+    clip_max_range_m: 5.0
+
+    # Sehr wichtig:
+    # Außerhalb des Frontfensters NICHT als künstliches Nah-Hindernis behandeln.
+    outside_window_as_obstacle: false
+
+    enable_moving_average: false
+    moving_average_window: 3
+EOF
+3) scan_front_window_check.yaml auch ersetzen
+cat > /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config/scan_front_window_check.yaml <<'EOF'
+/**:
+  ros__parameters:
+    scan_topic: "/scan"
+    base_frame: "base_link"
+    diagnostic_topic: "/autonomous/ftg/scan_check"
+    marker_topic: "/autonomous/ftg/scan_check_markers"
+
+    front_center_deg: 90.0
+    front_fov_deg: 100.0
+
+    clip_min_range_m: 0.18
+    clip_max_range_m: 5.0
+
+    beam_stride: 1
+    log_every_n_scans: 10
+    publish_markers: true
+EOF
+4) Nur Perception neu bauen
+cd /mxck2_ws
+
+rm -rf build/mxck_ftg_perception install/mxck_ftg_perception
+
+colcon build --symlink-install --packages-select mxck_ftg_perception
+
+source /mxck2_ws/install/setup.bash
+5) FTG-Stack neu starten
+
+Erst laufenden FTG-Launch mit Ctrl+C beenden.
+
+Dann neu starten:
+
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_vehicle_control:=false record_bag:=false
+
+Vehicle control separat wie bisher in anderem Terminal.
+
+Was du direkt danach prüfen sollst
+Test 1: scan_filtered
+
+In einem zweiten Terminal im Container:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+Was jetzt besser sein muss
+
+Du darfst dich nicht nur auf angle_min/angle_max konzentrieren.
+Wichtiger ist:
+
+Vorher schlecht:
+viele lange Blöcke mit 0.050000...
+Nachher besser:
+außerhalb des Frontfensters keine künstlichen 0.05-Blöcke
+idealerweise dort inf, große Werte oder sauber ignorierte Bereiche
+der echte Frontbereich bleibt mit sinnvollen Messungen erhalten
+
+Wenn du wieder viele 0.05 siehst, dann arbeitet der Node noch falsch.
+
+Test 2: FTG-Ausgang bei Hindernis vorne mittig
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /gap_found --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+Erwartung
+
+Bei Hindernis mittig vorne:
+
+/gap_found sollte true sein
+/final_heading_angle sollte nicht mehr bei ~1.3 rad / 75° liegen
+der Winkel sollte deutlich kleiner und plausibler werden
+Test 3: links/rechts unterscheiden
+
+Mach nacheinander:
+
+Hindernis vorne mittig
+Hindernis vorne rechts
+Hindernis vorne links
+
+Und jedes Mal:
+
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+Erwartung
+vorne rechts und vorne links müssen entgegengesetzte Vorzeichen liefern
+vorne mittig darf nicht mehr wie “extrem links” aussehen
+
+######### -------------------Opti 3-------------------#####################
+Was du jetzt konkret ändern sollst
+1) Datei sichern
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+cp /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/mxck_ftg_perception/scan_preprocessor_node.py \
+   /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/mxck_ftg_perception/scan_preprocessor_node.py.bak_$(date +%Y%m%d_%H%M%S)
+2) Datei komplett ersetzen
+cat > /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/mxck_ftg_perception/scan_preprocessor_node.py <<'EOF'
+#!/usr/bin/env python3
+import math
+
+import rclpy
+from rclpy.node import Node
+from rclpy.time import Time
+
+from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Float32, String
+from tf2_ros import Buffer, TransformListener, TransformException
+
+from mxck_ftg_perception.common import (
+    compute_front_center_in_scan,
+    transform_to_2d,
+    range_is_valid,
+)
+
+
+def wrap_to_pi(angle: float) -> float:
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
+class ScanPreprocessorNode(Node):
+    def __init__(self) -> None:
+        super().__init__('scan_preprocessor_node')
+
+        self.declare_parameter('scan_topic', '/scan')
+        self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter('filtered_scan_topic', '/autonomous/ftg/scan_filtered')
+        self.declare_parameter('front_clearance_topic', '/autonomous/ftg/front_clearance')
+        self.declare_parameter('status_topic', '/autonomous/ftg/status')
+
+        self.declare_parameter('front_center_deg', 0.0)
+        self.declare_parameter('front_fov_deg', 120.0)
+
+        self.declare_parameter('clip_min_range_m', 0.05)
+        self.declare_parameter('clip_max_range_m', 8.0)
+
+        self.declare_parameter('enable_moving_average', False)
+        self.declare_parameter('moving_average_window', 3)
+
+        self.scan_topic = str(self.get_parameter('scan_topic').value)
+        self.base_frame = str(self.get_parameter('base_frame').value)
+        self.filtered_scan_topic = str(self.get_parameter('filtered_scan_topic').value)
+        self.front_clearance_topic = str(self.get_parameter('front_clearance_topic').value)
+        self.status_topic = str(self.get_parameter('status_topic').value)
+
+        self.front_center_base_rad = math.radians(float(self.get_parameter('front_center_deg').value))
+        self.front_half_fov_rad = math.radians(float(self.get_parameter('front_fov_deg').value)) / 2.0
+
+        self.clip_min = float(self.get_parameter('clip_min_range_m').value)
+        self.clip_max = float(self.get_parameter('clip_max_range_m').value)
+
+        self.enable_moving_average = bool(self.get_parameter('enable_moving_average').value)
+        self.moving_average_window = max(1, int(self.get_parameter('moving_average_window').value))
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        self.filtered_pub = self.create_publisher(LaserScan, self.filtered_scan_topic, 10)
+        self.clearance_pub = self.create_publisher(Float32, self.front_clearance_topic, 10)
+        self.status_pub = self.create_publisher(String, self.status_topic, 10)
+
+        self.sub = self.create_subscription(LaserScan, self.scan_topic, self.scan_cb, 10)
+
+        self.get_logger().info(
+            f"Listening on {self.scan_topic}, publishing recentered front scan to {self.filtered_scan_topic}"
+        )
+
+    def _moving_average(self, values):
+        if self.moving_average_window <= 1:
+            return values[:]
+
+        output = values[:]
+        half = self.moving_average_window // 2
+
+        for i in range(len(values)):
+            if not math.isfinite(values[i]):
+                continue
+
+            acc = 0.0
+            cnt = 0
+            for j in range(max(0, i - half), min(len(values), i + half + 1)):
+                if math.isfinite(values[j]):
+                    acc += values[j]
+                    cnt += 1
+
+            if cnt > 0:
+                output[i] = acc / cnt
+
+        return output
+
+    def scan_cb(self, msg: LaserScan) -> None:
+        scan_frame = msg.header.frame_id or 'laser'
+
+        try:
+            tf_msg = self.tf_buffer.lookup_transform(self.base_frame, scan_frame, Time())
+        except TransformException as exc:
+            text = f"[PREPROCESSOR] TF lookup failed {self.base_frame} <- {scan_frame}: {exc}"
+            self.get_logger().warn(text)
+            self.status_pub.publish(String(data=text))
+            return
+
+        _, _, yaw_base_from_laser = transform_to_2d(tf_msg)
+        front_center_in_scan = compute_front_center_in_scan(
+            yaw_base_from_laser=yaw_base_from_laser,
+            base_front_center_rad=self.front_center_base_rad,
+        )
+
+        effective_min = max(self.clip_min, float(msg.range_min))
+        effective_max = min(self.clip_max, float(msg.range_max))
+
+        selected = []
+        front_valid_ranges = []
+
+        intensities = list(msg.intensities) if msg.intensities else []
+
+        for i, raw_r in enumerate(msg.ranges):
+            theta = msg.angle_min + i * msg.angle_increment
+            rel_theta = wrap_to_pi(theta - front_center_in_scan)
+
+            if abs(rel_theta) > self.front_half_fov_rad:
+                continue
+
+            if range_is_valid(float(raw_r)):
+                r = min(max(float(raw_r), effective_min), effective_max)
+                front_valid_ranges.append(r)
+            else:
+                r = float('inf')
+
+            inten = float(intensities[i]) if i < len(intensities) else 0.0
+            selected.append((rel_theta, r, inten))
+
+        if not selected:
+            text = f"[PREPROCESSOR] no beams selected in front window"
+            self.get_logger().warn(text)
+            self.status_pub.publish(String(data=text))
+            return
+
+        selected.sort(key=lambda x: x[0])
+
+        rel_angles = [a for a, _, _ in selected]
+        filtered_ranges = [r for _, r, _ in selected]
+        filtered_intensities = [it for _, _, it in selected]
+
+        if self.enable_moving_average:
+            filtered_ranges = self._moving_average(filtered_ranges)
+
+        out = LaserScan()
+        out.header = msg.header
+        out.angle_min = rel_angles[0]
+        out.angle_increment = msg.angle_increment
+        out.angle_max = out.angle_min + (len(filtered_ranges) - 1) * out.angle_increment
+        out.time_increment = msg.time_increment
+        out.scan_time = msg.scan_time
+        out.range_min = effective_min
+        out.range_max = effective_max
+        out.ranges = filtered_ranges
+        out.intensities = filtered_intensities
+
+        clearance = min(front_valid_ranges) if front_valid_ranges else float('nan')
+
+        self.filtered_pub.publish(out)
+        self.clearance_pub.publish(Float32(data=float(clearance)))
+
+        if front_valid_ranges:
+            status = (
+                f"[PREPROCESSOR] recentered_front_scan=true, "
+                f"scan_frame={scan_frame}, "
+                f"front_center_in_scan={math.degrees(front_center_in_scan):+.1f} deg, "
+                f"published_angle_min={math.degrees(out.angle_min):+.1f} deg, "
+                f"published_angle_max={math.degrees(out.angle_max):+.1f} deg, "
+                f"front_clearance={clearance:.2f} m"
+            )
+        else:
+            status = (
+                f"[PREPROCESSOR] recentered_front_scan=true, "
+                f"scan_frame={scan_frame}, no valid front points"
+            )
+
+        self.status_pub.publish(String(data=status))
+
+
+def main() -> None:
+    rclpy.init()
+    node = ScanPreprocessorNode()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF
+3) Nur Perception neu bauen
+cd /mxck2_ws
+rm -rf build/mxck_ftg_perception install/mxck_ftg_perception
+colcon build --symlink-install --packages-select mxck_ftg_perception
+source /mxck2_ws/install/setup.bash
+4) FTG-Launch neu starten
+
+Vorher alten Launch mit Ctrl+C beenden, dann:
+
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py use_vehicle_control:=false record_bag:=false
+Danach genau diese Tests
+Test A — Scan muss jetzt wirklich umzentriert sein
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+
+Jetzt muss gelten:
+
+angle_min ungefähr negativ, z. B. etwa -0.87 rad
+angle_max ungefähr positiv, z. B. etwa +0.87 rad
+also kein voller 360°-Scan mehr
+sondern nur noch dein Frontausschnitt
+
+Wenn da immer noch -3.12 ... +3.14 steht, ist die Rotation noch nicht aktiv.
+
+Test B — Obstacle-Koordinaten prüfen
+
+Mit Hindernis vorne mittig:
+
+ros2 topic echo /obstacles --once
+
+Erwartung nach Fix:
+
+vorne mittig: x deutlich positiv, y nahe 0
+vorne rechts: x positiv, y negativ
+vorne links: x positiv, y positiv
+
+Solange vorne mittig eher wie x≈0.33, y≈0.86 aussieht, ist CTU noch nicht korrekt ausgerichtet.
+
+Test C — CTU-Ausgang prüfen
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+
+Erwartung nach Fix:
+
+Mitte / rechts / links dürfen nicht mehr fast identisch sein
+/final_heading_angle darf nicht mehr dauernd bei etwa -1.81 rad kleben
+/autonomous/ftg/gap_angle sollte nicht mehr ständig auf -0.6 saturieren
+Sehr wichtige Interpretation deiner jetzigen Messungen
+
+Deine letzten Werte zeigen ziemlich klar diese Kette:
+
+CTU liefert fast konstant falschen Winkel
+Adapter begrenzt auf -0.6
+ftg_command_node begrenzt weiter auf Lenkgrenze
+dadurch volle Lenkung
+
+Also: nicht vehicle_control zuerst ändern.
+Zuerst Scan/Obstacle-Ausrichtung reparieren.
+
+Was du mir nach dem Patch schicken sollst
+
+Bitte nur diese 5 Ausgaben:
+
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+ros2 topic echo /obstacles --once
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+
+Einmal mit Hindernis:
+
+vorne mittig
+vorne rechts
+vorne links
+#############################---------Opti 4 ------------######################################
+Was du jetzt exakt tun sollst
+Schritt A — aktuellen Stack stoppen
+
+Im Terminal mit dem laufenden FTG-Launch:
+
+Ctrl + C
+
+Dann zur Sicherheit im Container prüfen:
+
+ros2 node list | sort
+
+Wenn noch alte FTG-Nodes laufen, Container sauber neu starten.
+
+Am einfachsten auf dem Host:
+
+exit
+sudo docker restart mxck2_control
+
+Dann wieder rein:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+Schritt B — YAML jetzt korrekt setzen
+cd /mxck2_ws/src/ftg_mxck/mxck_ftg_perception/config
+scan_preprocessor.yaml
+
+Öffnen:
+
+nano scan_preprocessor.yaml
+
+Setze die wichtigen Werte auf:
+
+front_center_deg: 135.0
+front_fov_deg: 100.0
+clip_min_range_m: 0.18
+clip_max_range_m: 5.0
+outside_window_as_obstacle: false
+enable_moving_average: false
+scan_front_window_check.yaml
+
+Dann:
+
+nano scan_front_window_check.yaml
+
+Auch dort:
+
+front_center_deg: 135.0
+front_fov_deg: 100.0
+clip_min_range_m: 0.18
+clip_max_range_m: 5.0
+
+Speichern mit:
+
+Ctrl+O
+Enter
+Ctrl+X
+Schritt C — Perception neu bauen
+cd /mxck2_ws
+rm -rf build/mxck_ftg_perception install/mxck_ftg_perception
+colcon build --symlink-install --packages-select mxck_ftg_perception
+source /mxck2_ws/install/setup.bash
+Schritt D — Nur Diagnose-Stack starten, noch ohne Fahrzeugbewegung
+
+Wichtig: erstmal ohne Control-Ausgabe testen.
+
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+  use_vehicle_control:=false \
+  start_control:=false \
+  record_bag:=false
+
+Falls start_control:=false wieder ignoriert wird oder alte Nodes doppelt laufen, dann war noch ein alter Stack aktiv. In dem Fall nochmal Container neu starten und direkt nur diesen Launch ausführen.
+
+Schritt E — Jetzt gezielt prüfen
+
+In einem zweiten Terminal:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+1. Recentered Scan prüfen
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+Was du sehen willst
+Winkelbereich weiter ungefähr -0.87 ... +0.87
+das Hindernis vorne mittig muss jetzt ungefähr in der Mitte des Arrays liegen
+nicht mehr deutlich am Anfang
+2. Heading prüfen bei Hindernis vorne mittig
+
+Stell ein Hindernis mittig vor das Fahrzeug.
+
+Dann:
+
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+Erwartung
+
+Bei Hindernis vorne mittig sollte jetzt gelten:
+
+/final_heading_angle nicht mehr ungefähr -1.8 rad
+/autonomous/ftg/gap_angle nicht mehr dauerhaft -0.6
+das Ergebnis sollte deutlich plausibler und kleiner sein
+3. Seiten-Test
+
+Mach drei Fälle:
+
+Hindernis vorne mittig
+Hindernis vorne rechts
+Hindernis vorne links
+
+Und jeweils:
+
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+Was gelten sollte
+vorne mittig → kleiner oder symmetrischer Lenkwinkel
+Hindernis rechts → Fahrzeug soll eher nach links ausweichen
+Hindernis links → Fahrzeug soll eher nach rechts ausweichen
+Ganz wichtige Interpretation deiner TF
+Wenn der LiDAR mechanisch eigentlich nach vorne zeigt:
+
+Dann ist deine URDF / TF falsch.
+
+Denn yaw = -135° ist für einen normal nach vorne montierten LiDAR extrem verdächtig.
+
+Dann muss später zusätzlich die laser-Ausrichtung in der URDF korrigiert werden.
+
+Wenn der LiDAR wirklich so schräg montiert ist:
+
+Dann ist die TF korrekt, und dein recentered Ansatz mit front_center_deg ≈ 135° ist für den Soforttest richtig.
+
+Meine Empfehlung jetzt
+Soforttest
+
+Mach jetzt zuerst nur diese eine Änderung:
+
+front_center_deg: 135.0
+
+Und teste nochmal.
+
+Noch nicht sofort ändern
+front_fov_deg
+adapter logic
+control logic
+ftg_command_node
+
+Die sind aktuell nicht der Hauptfehler.
+
+Was ich aus deinen Logs jetzt sicher sagen kann
+Sicher:
+der Preprocessor re-centert jetzt wirklich
+der bisherige Wert 90° ist falsch
+die Geometrie passt viel besser zu 135°
+TF bestätigt die starke Verdrehung
+Sehr wahrscheinlich:
+Hauptproblem aktuell = falsche Frontausrichtung
+danach wird das Verhalten deutlich stabiler
+Noch offen:
+ob die URDF/TF selbst falsch ist oder der LiDAR wirklich so montiert ist
+Danach
+
+Wenn du den Test mit 135.0 gemacht hast, schick mir bitte genau diese 4 Ausgaben:
+
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+
+am besten für:
+
+Hindernis vorne mittig
+Hindernis vorne rechts
+Hindernis vorne links
+#######################-------Opt 5-------###############################
+Test A — TF prüfen
+
+Du hast bereits den entscheidenden Wert gemessen:
+
+ros2 run tf2_ros tf2_echo base_link laser
+
+Relevant ist:
+
+yaw ≈ -135°
+Translation ≈ x 0.192 / y 0 / z 0.086
+
+Das bedeutet:
+
+der LiDAR ist nicht nach Fahrzeug-vorne ausgerichtet
+deshalb musste dein Preprocessor den Frontsektor re-zentrieren
+
+Das ist korrekt und erklärt, warum der Rohscan allein nicht reicht.
+
+Test B — nur Perception/CTU ohne Fahrbewegung starten
+
+Im mxck2_control-Container:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
 source /mxck2_ws/install/setup.bash
 
 ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
-  use_tf:=true \
-  use_ftg_stack:=true \
-  use_scan_preprocessor:=true \
-  record_bag:=true \
-  bag_name:=ftg_vehicle_pretest_01
-6) Was du vor dem echten Fahrzeugtest prüfen musst
-Nodes
-ros2 node list | sort
+  use_vehicle_control:=false \
+  record_bag:=false
 
-Erwartet ungefähr:
+Wichtig:
 
-/follow_the_gap
-/obstacle_substitution
-/scan_preprocessor_node
-/ctu_ftg_adapter_node
-/ftg_command_node
-Wichtige Topics
-ros2 topic list | grep -E "scan|obstacles|final_heading_angle|gap_found|autonomous/ftg|ackermann"
-Einzeltests
-ros2 topic echo /gap_found
-ros2 topic echo /final_heading_angle
-ros2 topic echo /autonomous/ftg/gap_angle
-ros2 topic echo /autonomous/ftg/target_speed
-ros2 topic echo /autonomous/ackermann_cmd
-Ganz wichtig: nur ein Publisher auf Final Command
+vehicle_control nicht starten
+RC nicht auf Autonomous für Fahrtest benutzen
+es geht hier nur um Wahrnehmung und Winkelprüfung
+Test C — prüfen, ob scan_filtered wirklich Front-Scan ist
+
+In zweitem Terminal:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+Was hier richtig aussieht
+
+Du hast jetzt Werte wie:
+
+angle_min: -0.522...
+angle_max:  0.522...
+
+Das ist gut, denn das ist ungefähr:
+
+-30° bis +30°
+
+Also wirklich ein Frontfenster statt voller 360°.
+
+Das heißt:
+
+dein Recentering funktioniert grundsätzlich
+das Problem ist jetzt eher:
+Frontfenster noch nicht optimal
+Testszene zu symmetrisch
+Hindernis dominiert den Scan nicht genug
+oder CTU wählt im Fenster noch systematisch dieselbe Seite
+Test D — der richtige physische LiDAR-Test
+
+Nimm kein kleines Hindernis und nicht direkt 35 cm vor den LiDAR.
+
+Für die Diagnose besser:
+
+offener Bereich
+ein breites flaches Hindernis
+Karton
+Kiste
+A3/A2-Pappe
+mindestens 25–35 cm breit
+Abstand:
+0.6 m bis 0.9 m vor dem LiDAR
+
+Warum?
+
+Weil ein kleines Objekt sonst nur wenige Strahlen trifft und die Raumwände stärker wirken als dein Testobjekt.
+
+Test E — drei Positionen messen
+
+Führe denselben Test drei Mal aus.
+
+1. Hindernis vorne mittig
+
+Objekt mittig vor dem Fahrzeug, etwa 0.7 m entfernt.
+
+Dann:
+
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+Erwartung
+
+Bei freiem Raum links und rechts darf der Winkel leicht nach links oder rechts kippen, aber nicht immer fast derselbe feste Wert.
+
+Gut wäre ungefähr:
+
+nahe 0 rad
+oder kleine Abweichung, z. B. ±0.1 bis ±0.2 rad
+
+Wenn er immer etwa -0.25 ... -0.30 rad bleibt, steckt noch ein systematischer Bias drin.
+
+2. Hindernis vorne links
+
+Objekt etwas links von der Fahrzeugmitte.
+
+Dann wieder:
+
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+Erwartung
+
+Wenn das Hindernis links ist, sollte die freie Seite eher rechts sein.
+Dann sollte der Gap-Winkel nach rechts gehen.
+
+Bei Standardkonvention heißt das typischerweise:
+
+negativer Winkel = rechts
+positiver Winkel = links
+3. Hindernis vorne rechts
+
+Objekt etwas rechts von der Fahrzeugmitte.
+
+Dann wieder dieselben drei Befehle.
+
+Erwartung
+
+Jetzt sollte der Gap-Winkel auf die linke freie Seite zeigen, also eher:
+
+positiver Winkel
+Was deine aktuellen Ergebnisse sagen
+
+Deine letzten Messungen sind sehr wichtig:
+
+vorne mitte: etwa -0.276
+links: etwa -0.276
+rechts: etwa -0.309
+
+Das heißt:
+
+das System unterscheidet die drei Fälle kaum
+also ist die Geometrie zwar besser als vorher
+aber die Szene ist für CTU noch zu ähnlich oder zu breit/zu symmetrisch
+
+Das ist kein Totalausfall mehr, aber noch nicht testreif fürs Fahren.
+
+Was du jetzt als Nächstes ändern solltest
+1. Noch engeres Frontfenster
+
+Dein aktuelles ±30°-Fenster ist schon deutlich besser.
+
+Als nächsten Test würde ich noch enger gehen:
+
+front_fov_deg: 40.0
+clip_max_range_m: 1.5
+
+Das bedeutet:
+
+nur -20° bis +20°
+nur bis 1.5 m
+weniger Einfluss von Wänden und Seitenszene
+
+Das ist für den Diagnose-Test besser.
+
+2. Großes Testobjekt verwenden
+
+Kein kleines Hindernis, sondern eine breite flache Fläche.
+
+Sonst erkennt CTU oft eher die allgemeine Umgebung als dein Testobjekt.
+
+3. Nur auf Wahrnehmung testen, noch nicht fahren
+
+Solange links / mitte / rechts nicht klar unterscheidbar sind, noch nicht in den echten Fahrzeugtest gehen.
+
+Der wichtigste Praxistest überhaupt
+
+Mach genau diesen Kurztest:
+
+Objekt mittig bei ca. 0.7 m
+
+Dann in Terminal:
+
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /autonomous/ftg/gap_angle --once
+Dann dasselbe mit Objekt links
+Dann dasselbe mit Objekt rechts
+
+Und notiere nur diese 3 Werte pro Fall:
+
+final_heading_angle
+gap_angle
+front_clearance_m aus planner_status
+
+Dann sieht man sofort, ob die Orientierung logisch ist.
+
+Wie du zusätzlich die Umgebungserkennung direkt prüfen kannst
+
+Du kannst auch /obstacles anschauen:
+
+ros2 topic echo /obstacles --once
+
+Wichtige Interpretation:
+
+vorne sollte ungefähr sein: x > 0, y ≈ 0
+vorne links sollte sein: x > 0, y > 0
+vorne rechts sollte sein: x > 0, y < 0
+
+Wenn ein frontales Hindernis dort dauerhaft mit starkem falschen y landet, ist die Orientierung noch nicht sauber.
+
+Kleiner, nützlicher Bag statt riesiger Datei
+
+Für die Diagnose reicht ein 10–15 Sekunden kurzer Bag.
+
+Nutze nur diese Topics:
+
+mkdir -p /mxck2_ws/bags
+timeout 15s ros2 bag record -s mcap -o /mxck2_ws/bags/ftg_diag_small \
+  /scan \
+  /autonomous/ftg/scan_filtered \
+  /obstacles \
+  /final_heading_angle \
+  /gap_found \
+  /autonomous/ftg/gap_angle \
+  /autonomous/ftg/planner_status \
+  /tf_static
+
+Das ist viel nützlicher als ein riesiger Voll-Bag.
+
+Danach die Datei für den Export packen
+
+Im Container oder auf dem Host:
+
+tar -C /mxck2_ws/bags -czf /home/mxck/ftg_diag_small.tar.gz ftg_diag_small
+ls -lh /home/mxck/ftg_diag_small.tar.gz
+
+Dann vom Windows-PC holen, ohne das >:
+
+scp mxck@mxck0021:/home/mxck/ftg_diag_small.tar.gz C:\Users\Omar\Desktop\
+
+Dein früherer Fehler war genau dieses falsche mxck@mxck0021>.
+
+Richtig ist nur:
+
+scp mxck@mxck0021:/pfad/zur/datei C:\Ziel\
+Meine klare Einschätzung
+
+Im Moment ist es nicht mehr das alte grob falsche 360°-Problem.
+Jetzt bist du in Phase 2:
+
+Frontscan ist grundsätzlich recentered
+aber CTU reagiert noch zu ähnlich auf links / mitte / rechts
+also musst du jetzt die Diagnose-Szene vereinfachen:
+engeres FOV
+kürzere Max-Range
+größeres Hindernis
+offene Umgebung
+
+Schick mir danach am besten nur diese 9 Werte:
+
+Mitte: final_heading_angle, gap_angle, planner_status
+Links: final_heading_angle, gap_angle, planner_status
+Rechts: final_heading_angle, gap_angle, planner_status
+
+Dann kann ich dir sehr genau sagen, ob der Fehler noch in der Orientierung, im CTU-Verhalten oder nur in der Testszene steckt.
+
+###################### Opti 6 ##################################
+Ziel: Fehlerstelle im Datenfluss eindeutig finden
+
+Dein Datenfluss ist aktuell:
+
+/scan
+-> scan_preprocessor_node
+-> /autonomous/ftg/scan_filtered
+-> obstacle_substitution
+-> /obstacles
+-> follow_the_gap_v0
+-> /final_heading_angle + /gap_found
+-> ctu_ftg_adapter_node
+-> /autonomous/ftg/gap_angle + /autonomous/ftg/target_speed
+-> ftg_command_node
+-> /autonomous/ackermann_cmd
+-> ackermann_to_vesc
+-> /commands/servo/position + /commands/motor/speed + /commands/motor/brake
+
+Dein kurzer Diagnose-Bag enthält genau die wichtigen Wahrnehmungs- und FTG-Themen dafür: /scan, /autonomous/ftg/scan_filtered, /obstacles, /final_heading_angle, /gap_found, /autonomous/ftg/gap_angle, /autonomous/ftg/planner_status und /tf_static.
+
+Wichtig: Wir testen in 6 Stufen
+Stufe 0 — Sicherheit
+
+Vorerst nicht fahren.
+
+Starte erstmal nur Wahrnehmung/FTG, ohne Vehicle-Control-Testfahrt.
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+  use_vehicle_control:=false \
+  start_control:=false \
+  record_bag:=false
+
+Falls dein Launch start_control:=false ignoriert, ist das nicht schlimm — wir beobachten erstmal nur Topics und schalten nicht auf autonomes Fahren.
+
+Stufe 1 — Rohscan prüfen: Ist /scan überhaupt logisch?
+Was wir hier prüfen
+
+Noch kein TF, kein FTG, kein Adapter.
+Nur: Sieht der LiDAR roh plausibel aus?
+
+Befehl
+
+Neues Terminal:
+
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 topic echo /scan --once
+Was du praktisch tun sollst
+
+Stelle das Fahrzeug in eine einfache Szene:
+
+möglichst freier Bereich
+ein größerer Karton oder Hindernis vorne
+zuerst mittig
+dann links
+dann rechts
+Was hier wichtig ist
+
+Auf /scan achten wir nur auf:
+
+kommen stabile Werte?
+ändern sich die Messungen sichtbar, wenn du das Hindernis bewegst?
+gibt es viele 0.05 oder kaputte Werte?
+passt range_min / range_max grundsätzlich?
+Fehlerentscheidung
+Wenn schon /scan unlogisch ist → Fehler ist vor FTG:
+LiDAR-Treiber
+Montage
+Sensor
+Kabel
+Hardware
+Wenn /scan plausibel ist → weiter zu Stufe 2
+Stufe 2 — Preprocessor prüfen: Ist /scan_filtered geometrisch richtig?
+Was wir hier prüfen
+
+Hier entscheidet sich, ob dein Frontfenster korrekt erzeugt wird.
+
+Befehl
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+Was richtig aussehen muss
+
+Ein guter re-zentrierter Frontscan sollte:
+
+kein 360°-Scan mehr sein
+angle_min ungefähr negativ, angle_max positiv
+symmetrisch um 0 sein
+nur den Frontbereich enthalten
+links/rechts sinnvoll unterscheiden
+
+Beispiel:
+
+Hindernis vorne links → Messungen eher auf einer Seite dichter
+Hindernis vorne rechts → auf der anderen Seite dichter
+Hindernis mittig → mittig dichter
+Fehlerentscheidung
+Wenn /scan gut ist, aber /scan_filtered falsch → Fehler sitzt im
+scan_preprocessor_node
+front_center_deg
+front_fov_deg
+Rezentrierung
+Clipping
+Outside-window-Handling
+Wenn /scan_filtered logisch aussieht → weiter zu Stufe 3
+Stufe 3 — Obstacles prüfen: Werden die Scanpunkte auf der richtigen Seite erzeugt?
+Was wir hier prüfen
+
+Das ist der wichtigste Wahrnehmungstest.
+
+obstacle_substitution macht aus Scanstrahlen echte Punkte.
+Hier sehen wir, ob links/rechts und vorne wirklich stimmen.
+
+Befehl
+ros2 topic echo /obstacles --once
+So musst du die Punkte lesen
+
+Für ein Hindernis:
+
+vorne mittig → x > 0, y ≈ 0
+vorne links → x > 0, y > 0
+vorne rechts → x > 0, y < 0
+Fehlerentscheidung
+Wenn /scan_filtered gut aussieht, aber /obstacles falsch links/rechts ist → Fehler sitzt in
+Geometrie / Winkelinterpretation zwischen Preprocessor und obstacle_substitution
+Wenn /obstacles sauber zu deiner Szene passt → weiter zu Stufe 4
+Stufe 4 — CTU-FTG prüfen: Reagiert /final_heading_angle auf die Hindernisse?
+Befehl
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /gap_found --once
+Was wir erwarten
+
+Wenn du Mitte / links / rechts testest, dann muss sich final_heading_angle sichtbar ändern.
+
+Nicht exakt perfekt, aber:
+
+Mitte ≠ Links ≠ Rechts
+bei freier Szene eher kleiner Winkel
+bei Hindernis links sollte der Gap eher nach rechts gewählt werden
+bei Hindernis rechts eher nach links
+Fehlerentscheidung
+Wenn /obstacles korrekt sind, aber /final_heading_angle bleibt fast gleich → Fehler sitzt in
+follow_the_gap_v0
+CTU-Parameter
+Gap-Auswahl
+Obstacle-Gruppierung
+Zu enger/zu breiter Frontscan
+Wenn /final_heading_angle sinnvoll reagiert → weiter zu Stufe 5
+Stufe 5 — Adapter prüfen: Übersetzt ctu_ftg_adapter_node korrekt?
+Befehl
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/target_speed --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+Was wir prüfen
+
+gap_angle muss ungefähr dem final_heading_angle folgen.
+
+gleiche Richtung
+ähnlicher Betrag
+nicht immer hart auf +0.6 oder -0.6 geklemmt
+target_speed muss logisch zur Clearance passen
+Fehlerentscheidung
+Wenn final_heading_angle gut ist, aber gap_angle falsch → Fehler sitzt im
+ctu_ftg_adapter_node
+Wenn gap_angle und target_speed gut sind → weiter zu Stufe 6
+Stufe 6 — Command/Vehicle-Control prüfen
+Befehl
+ros2 topic echo /autonomous/ackermann_cmd --once
 ros2 topic info /autonomous/ackermann_cmd -v
+ros2 topic echo /commands/servo/position
+ros2 topic echo /commands/motor/speed
+ros2 topic echo /commands/motor/brake
+Was wir prüfen
 
-Da darf vor deinem Test kein Chaos sein.
+Hier trennen wir zwei Fälle:
+
+Fall A: /autonomous/ackermann_cmd ist korrekt, aber Fahrzeug fährt nicht
+
+Dann ist FTG wahrscheinlich nicht das Hauptproblem.
+
+Dann liegt es eher an:
+
+ackermann_to_vesc
+Modusumschaltung
+Safety
+Brake aktiv
+Motor-Speed-Umsetzung
+Fall B: /autonomous/ackermann_cmd ist schon falsch
+
+Dann liegt der Fehler vor vehicle_control.
+
+Jetzt die eigentliche Diagnose-Logik
+Fehlerort-Tabelle
+Wenn schon /scan falsch ist
+
+Fehler in:
+
+LiDAR
+Treiber
+Hardware
+Montage
+Stromversorgung
+Wenn /scan gut ist, aber /scan_filtered falsch
+
+Fehler in:
+
+scan_preprocessor_node.py
+falsches Frontfenster
+falsche Rezentrierung
+Wenn /scan_filtered gut ist, aber /obstacles falsch
+
+Fehler in:
+
+Winkelinterpretation
+obstacle_substitution
+Frame-/Vorwärtsrichtungsannahme
+Wenn /obstacles gut sind, aber /final_heading_angle falsch
+
+Fehler in:
+
+follow_the_gap_v0
+Wenn /final_heading_angle gut ist, aber /gap_angle falsch
+
+Fehler in:
+
+ctu_ftg_adapter_node.py
+Wenn /autonomous/ackermann_cmd gut ist, aber /commands/... falsch
+
+Fehler in:
+
+ftg_command_node oder ackermann_to_vesc
+Wenn /commands/... gut sind, aber Fahrzeug fährt nicht
+
+Fehler in:
+
+Modus
+Safety/Brake
+VESC-Ansteuerung
+Kalibrierung
+Meine aktuelle Vermutung aus deinen bisherigen Tests
+
+Nach allem, was du bisher geschickt hast, liegt das Problem am ehesten zwischen Stufe 2 und Stufe 4, also:
+
+Preprocessor / Frontfenster
+oder Geometrie in /obstacles
+oder CTU bekommt zwar Daten, aber keine saubere Szene
+
+Noch nicht primär im ftg_command_node.
+##################################------Opt 7 -------##########################################
+Ja. Wir machen jetzt **einen sauberen Komplett-Audit** des ganzen Stacks, aber so, dass du am Ende klar weißt:
+
+1. **Was funktioniert bereits**
+2. **Wo es aktuell klemmt**
+3. **Ob das Problem in Perception, FTG oder Vehicle-Control sitzt**
+
+---
+
+# Mein aktuelles Fazit aus deinen bisherigen Logs
+
+Dein Stack ist **nicht komplett kaputt**. Im Gegenteil: viel ist schon richtig verkabelt.
+
+## Was bereits stimmt
+
+Diese Teile sehen nach deinen Logs gut aus:
+
+* Die relevanten Pakete bauen erfolgreich.
+* Die Executables sind da:
+
+  * `mxck_ftg_perception`: `scan_preprocessor_node`, `scan_front_window_check`
+  * `mxck_ftg_planner`: `ctu_ftg_adapter_node`
+  * `mxck_ftg_control`: `ftg_command_node`
+* Die wichtigen Nodes laufen:
+
+  * `/scan_preprocessor_node`
+  * `/obstacle_substitution`
+  * `/follow_the_gap`
+  * `/ctu_ftg_adapter_node`
+  * `/ftg_command_node`
+  * `/ackermann_to_vesc`
+  * `/vesc_driver_node`
+  * `/rplidar_node`
+  * `/robot_state_publisher`
+* Die Endkette lebt:
+
+  * `/autonomous/ackermann_cmd` wird publiziert
+  * `ackermann_to_vesc` subscribed darauf
+* TF läuft grundsätzlich:
+
+  * `base_link -> laser` existiert
+  * Yaw ist etwa **-135°**
+* Der Preprocessor publiziert inzwischen **einen echten Frontscan** und nicht mehr den alten vollen 360°-Scan.
+
+## Was noch nicht sauber ist
+
+Die Hauptprobleme sind im Moment sehr wahrscheinlich diese:
+
+### 1. Geometrie / Wahrnehmung ist noch nicht konsistent
+
+Obwohl `scan_filtered` jetzt recentered aussieht, reagieren
+
+* `/obstacles`
+* `/final_heading_angle`
+* `/autonomous/ftg/gap_angle`
+
+noch **nicht sauber unterschiedlich** auf:
+
+* Hindernis vorne mittig
+* Hindernis vorne links
+* Hindernis vorne rechts
+
+Das ist ein starkes Zeichen, dass der Fehler **vor oder in `follow_the_gap_v0`** liegt.
+
+### 2. `start_control:=false` scheint nicht sauber zu greifen
+
+Du hast mehrfach gezeigt, dass `ftg_command_node` trotzdem startet.
+Das ist kein LiDAR-Problem, aber ein **Launch-Problem**, das wir später bereinigen sollten.
+
+### 3. Doppelt gestartete Nodes gab es zeitweise
+
+Die Warnungen mit gleichen Node-Namen bedeuten:
+Du hattest zeitweise mehrfach denselben Stack aktiv.
+Das verfälscht Diagnosen massiv.
+
+### 4. Die `Ctrl-C` Shutdown-Fehler sind nervig, aber nicht die Hauptursache
+
+Diese `rclpy.shutdown already called` und `std::system_error` beim Beenden sind **Cleanup-Probleme**, nicht dein Haupt-FTG-Fehler.
+
+---
+
+# Die wichtigste technische Einordnung
+
+Das Entscheidende ist:
+
+**URDF/TF allein korrigiert deinen CTU-Stack nicht automatisch.**
+
+Warum?
+
+Weil dein aktueller Pfad
+
+```text id="89712"
+scan_preprocessor -> obstacle_substitution -> follow_the_gap_v0
+```
+
+die Scan-Geometrie **nicht über TF in `base_link` transformiert**, sondern mit Winkeln direkt weiterarbeitet.
+
+Das heißt:
+
+* Dass `laser` im URDF schon relativ zu `base_link` definiert ist, ist korrekt und wichtig.
+* Aber `obstacle_substitution` benutzt diese TF-Info **nicht automatisch**.
+* Deshalb brauchst du aktuell trotzdem entweder:
+
+  * einen **korrekt recentered Frontscan**
+  * oder später einen **TF-basierten Obstacle-/Perception-Node**
+
+Also nein: das ist **keine doppelte Berechnung**, solange dein CTU-Pfad TF nicht selbst auswertet.
+
+---
+
+# Jetzt machen wir den Komplett-Audit
+
+## Ziel
+
+Wir prüfen den Stack in 5 Blöcken:
+
+1. **Pakete / Executables**
+2. **Nodes / Graph**
+3. **Topics / Subscriptions / Bridges**
+4. **TF / Frames**
+5. **Datenfluss Schritt für Schritt**
+
+---
+
+# Schritt 1 — Saubere Ausgangslage
+
+Mach zuerst einen wirklich sauberen Neustart.
+
+## Host-Terminal
+
+```bash id="54128"
+sudo docker restart mxck2_control mxck2_lidar
+sudo docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "mxck2_(control|lidar)"
+```
+
+Dann **nur diese zwei Sessions** starten, nicht mehr.
+
+---
+
+# Schritt 2 — Vehicle-Control separat starten
+
+## Terminal A
+
+```bash id="70231"
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch vehicle_control manual_control_launch.py
+```
+
+Danach:
+
+* Deadman
+* Kalibrierung
+* Manual kurz testen
+
+Wichtig: dieses Terminal offen lassen.
+
+---
+
+# Schritt 3 — FTG-Stack separat starten
+
+## Terminal B
+
+```bash id="11854"
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+  use_vehicle_control:=false \
+  record_bag:=false
+```
+
+Auch dieses Terminal offen lassen.
+
+---
+
+# Schritt 4 — Pakete und Executables prüfen
+
+## Terminal C
+
+```bash id="22041"
+sudo docker exec -it mxck2_control bash
+source /opt/ros/humble/setup.bash
+source /mxck2_ws/install/setup.bash
+
+for p in obstacle_msgs obstacle_substitution follow_the_gap_v0 mxck_ftg_perception mxck_ftg_planner mxck_ftg_control mxck_ftg_bringup vehicle_control mxck_run; do
+  echo "===== $p ====="
+  ros2 pkg prefix $p
+  ros2 pkg executables $p || true
+  echo
+done
+```
+
+## Erwartung
+
+Hier muss für alle Pakete etwas Sinnvolles kommen.
+Vor allem müssen sichtbar sein:
+
+* `obstacle_substitution_node`
+* `follow_the_gap`
+* `scan_preprocessor_node`
+* `ctu_ftg_adapter_node`
+* `ftg_command_node`
+
+Wenn das passt, ist die Paket-/Installationsseite okay.
+
+---
+
+# Schritt 5 — Node-Graph prüfen
+
+```bash id="32590"
+ros2 node list | sort
+```
+
+## Erwartete Nodes
+
+Mindestens ungefähr:
+
+```text id="96124"
+/ackermann_to_vesc
+/ctu_ftg_adapter_node
+/follow_the_gap
+/ftg_command_node
+/joy_to_ackermann
+/obstacle_substitution
+/rc_to_joy
+/robot_state_publisher
+/rplidar_node
+/scan_preprocessor_node
+/vesc_driver_node
+```
+
+## Ganz wichtig
+
+Prüfe, ob etwas doppelt läuft:
+
+```bash id="43615"
+ros2 node list | sort | uniq -c
+```
+
+Wenn irgendwo `2` oder mehr steht, läuft etwas doppelt.
+Dann zuerst aufräumen, sonst sind alle weiteren Tests unsauber.
+
+---
+
+# Schritt 6 — Topic-Graph und Subscriptions prüfen
+
+```bash id="51584"
+for t in \
+/scan \
+/autonomous/ftg/scan_filtered \
+/obstacles \
+/final_heading_angle \
+/gap_found \
+/autonomous/ftg/gap_angle \
+/autonomous/ftg/target_speed \
+/autonomous/ackermann_cmd \
+/commands/servo/position \
+/commands/motor/speed \
+/commands/motor/brake
+do
+  echo "===== $t ====="
+  ros2 topic info $t -v
+  echo
+done
+```
+
+## Was hier wichtig ist
+
+### `/scan`
+
+Publisher sollte der LiDAR-Node sein.
+
+### `/autonomous/ftg/scan_filtered`
+
+Publisher sollte `scan_preprocessor_node` sein.
+
+### `/obstacles`
+
+Publisher sollte `obstacle_substitution` sein.
+
+### `/final_heading_angle` und `/gap_found`
+
+Publisher sollte `follow_the_gap` sein.
+
+### `/autonomous/ftg/gap_angle` und `/autonomous/ftg/target_speed`
+
+Publisher sollte `ctu_ftg_adapter_node` sein.
+
+### `/autonomous/ackermann_cmd`
+
+Publisher sollte **nur** `ftg_command_node` sein.
+Subscriber sollte `ackermann_to_vesc` sein.
+
+Wenn das alles passt, ist die ROS-Verdrahtung fast sicher korrekt.
+
+---
+
+# Schritt 7 — TF prüfen
+
+## Erst nachdem der Stack läuft
+
+```bash id="66412"
+ros2 run tf2_ros tf2_echo base_link laser
+```
+
+## Was du bereits gezeigt hast
+
+Das Ergebnis ist ungefähr:
+
+* Translation: `x ≈ 0.192`, `y ≈ 0`, `z ≈ 0.086`
+* Rotation yaw: **-135°**
+
+Das ist sehr wichtig.
+Es bedeutet:
+
+* Der LiDAR ist relativ zum Fahrzeug **deutlich verdreht** montiert.
+* Deshalb darf man Rohscan und Fahrzeug-vorne **nicht einfach gleichsetzen**.
+
+Das bestätigt: **Geometrie ist hier wirklich der Kernpunkt.**
+
+---
+
+# Schritt 8 — Datenfluss Schritt für Schritt prüfen
+
+Jetzt kommt der eigentliche Funktionstest.
+
+Wir testen immer dieselbe einfache Szene:
+
+* Fahrzeug steht still
+* ein Hindernis vorne
+* dann links
+* dann rechts
+
+Und prüfen an jeder Stelle, ob sich das Signal logisch ändert.
+
+---
+
+## 8A — Rohscan
+
+```bash id="71734"
+ros2 topic echo /scan --once
+```
+
+### Hier prüfen
+
+* Sind Messwerte stabil?
+* Sieht man das Hindernis überhaupt?
+* Gibt es viele kaputte Werte?
+
+Wenn schon `/scan` unlogisch ist, ist der Fehler ganz vorne.
+
+---
+
+## 8B — Preprocessor
+
+```bash id="81273"
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+```
+
+### Was hier richtig ist
+
+* nicht 360°
+* kleines Frontfenster
+* `angle_min` negativ, `angle_max` positiv
+* plausible Werte im Frontbereich
+
+Das sieht bei dir inzwischen deutlich besser aus als früher.
+
+---
+
+## 8C — Obstacles
+
+```bash id="90456"
+ros2 topic echo /obstacles --once
+```
+
+### Hier ist die wichtigste Plausibilitätsregel
+
+Ein Hindernis muss ungefähr so erscheinen:
+
+* vorne mittig → `x > 0`, `y ≈ 0`
+* vorne links → `x > 0`, `y > 0`
+* vorne rechts → `x > 0`, `y < 0`
+
+Wenn das nicht stimmt, ist der Fehler **zwischen Preprocessor und obstacle_substitution**.
+
+---
+
+## 8D — CTU FTG
+
+```bash id="15837"
+ros2 topic echo /final_heading_angle --once
+ros2 topic echo /gap_found --once
+```
+
+### Erwartung
+
+Bei
+
+* Mitte
+* Links
+* Rechts
+
+muss sich `final_heading_angle` **sichtbar ändern**.
+
+Wenn er fast gleich bleibt, obwohl `/obstacles` sich ändern, sitzt der Fehler in `follow_the_gap_v0`.
+
+---
+
+## 8E — Adapter
+
+```bash id="24681"
+ros2 topic echo /autonomous/ftg/gap_angle --once
+ros2 topic echo /autonomous/ftg/target_speed --once
+ros2 topic echo /autonomous/ftg/planner_status --once
+```
+
+### Erwartung
+
+`gap_angle` muss dem `final_heading_angle` folgen.
+
+Wenn `final_heading_angle` sich ändert, aber `gap_angle` fast gleich bleibt, sitzt der Fehler im Adapter.
+
+---
+
+## 8F — Endkommando
+
+```bash id="37642"
+ros2 topic echo /autonomous/ackermann_cmd --once
+ros2 topic echo /commands/servo/position
+ros2 topic echo /commands/motor/speed
+ros2 topic echo /commands/motor/brake
+```
+
+### Interpretation
+
+* Wenn `/autonomous/ackermann_cmd` logisch ist, aber das Fahrzeug nicht fährt:
+  Fehler eher in `ackermann_to_vesc`, Modus, Safety oder Brake-Verhalten.
+* Wenn `/autonomous/ackermann_cmd` schon unlogisch ist:
+  Fehler liegt davor.
+
+---
+
+# Meine Einschätzung für deinen Stack im Moment
+
+## Wahrscheinlich korrekt
+
+* Pakete
+* Build
+* ROS-Verdrahtung
+* Publisher/Subscriber-Grundstruktur
+* Endtopic `/autonomous/ackermann_cmd`
+
+## Wahrscheinlich noch problematisch
+
+* Wahrnehmungsgeometrie vor `follow_the_gap_v0`
+* insbesondere:
+
+  * Frontfenster
+  * echte Links/Rechts-Trennung
+  * Obstacle-Darstellung für CTU
+
+## Noch separat zu prüfen
+
+* Warum `start_control:=false` nicht sauber wirkt
+* Warum `brake` oft konstant bei `-20.0` steht
+* Ob `ackermann_to_vesc` im Autonomous-Mode die FTG-Kommandos wirklich genauso übernimmt wie deine manuellen Test-Publishes
+
+---
+
+# Was ich dir konkret empfehle
+
+Wir machen jetzt **nicht alles gleichzeitig neu**, sondern:
+
+## Phase 1
+
+Zuerst nur den **Audit bis `/final_heading_angle`** sauber machen.
+
+Also diese Kette:
+
+```text id="68140"
+/scan
+-> /autonomous/ftg/scan_filtered
+-> /obstacles
+-> /final_heading_angle
+```
+
+Sobald diese vier Stufen logisch sind, ist der Rest viel einfacher.
+
+## Phase 2
+
+Erst danach:
+
+* Adapter
+* `/autonomous/ackermann_cmd`
+* Vehicle-Control
+* Fahren
+
+---
+
+# Ganz klare nächste Aktion
+
+Bitte führe jetzt nur diese 4 Befehle in **derselben Szene** aus:
+
+```bash id="74219"
+ros2 topic echo /scan --once
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+ros2 topic echo /obstacles --once
+ros2 topic echo /final_heading_angle --once
+```
+
+Und schreibe dazu nur kurz:
+
+* Hindernis vorne mittig, Abstand ungefähr ...
+* links ist ...
+* rechts ist ...
+
+Dann kann ich dir **genau sagen**, in welchem Schritt der Fehler erstmals sichtbar wird.
