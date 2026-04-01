@@ -1,8 +1,8 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import AndCondition, IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -86,11 +86,10 @@ def generate_launch_description():
         name='ctu_ftg_adapter_node',
         output='screen',
         parameters=[adapter_cfg],
-        condition=IfCondition(
-            PythonExpression([
-                "'", start_adapter, "'.lower() == 'true' and '", use_ftg_planner, "'.lower() != 'true'"
-            ])
-        ),
+        condition=AndCondition([
+            IfCondition(start_adapter),
+            UnlessCondition(use_ftg_planner),
+        ]),
     )
 
     planner_node = Node(
@@ -103,11 +102,10 @@ def generate_launch_description():
             'config',
             'ftg_planner.yaml',
         ])],
-        condition=IfCondition(
-            PythonExpression([
-                "'", start_adapter, "'.lower() == 'true' and '", use_ftg_planner, "'.lower() == 'true'"
-            ])
-        ),
+        condition=AndCondition([
+            IfCondition(start_adapter),
+            IfCondition(use_ftg_planner),
+        ]),
     )
 
     control_node = Node(
