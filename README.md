@@ -70,7 +70,7 @@ This repository integrates FTG into MXCK without bypassing existing safety and a
 -> `follow_the_gap_v0`
 -> `/final_heading_angle` + `/gap_found`
 -> `ctu_ftg_adapter_node`
--> `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed`
+-> `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed` + `/autonomous/ftg/planner_status`
 -> `ftg_command_node`
 -> `/autonomous/ackermann_cmd`
 
