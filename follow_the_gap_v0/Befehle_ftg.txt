@@ -1,0 +1,51 @@
+So würdest du das auf dem Jetson testen
+
+Mach erst ein Backup:
+
+cd /home/mxck/mxck2_ws/src/ftg_mxck
+mv follow_the_gap_v0 follow_the_gap_v0_backup
+
+Dann die neue Version einspielen, so dass am Ende wieder dieser Ordner existiert:
+
+/home/mxck/mxck2_ws/src/ftg_mxck/follow_the_gap_v0
+
+Dann bauen:
+
+sudo docker exec -it mxck2_development bash
+source /opt/ros/foxy/setup.bash
+cd /mxck2_ws
+colcon build --symlink-install --packages-select follow_the_gap_v0
+source /mxck2_ws/install/setup.bash
+
+Dann prüfen:
+
+ros2 pkg executables follow_the_gap_v0
+ros2 launch follow_the_gap_v0 follow_the_gap_v0.launch.py
+Für Foxglove und Logging
+
+Ich habe die bestehenden Debug-Themen bewusst nicht geändert, damit dein Verhalten gleich bleibt:
+
+/visualize_obstacles
+/visualize_final_heading_angle
+/visualize_largest_gap
+/gap_found
+/final_heading_angle
+
+Damit kannst du in Foxglove direkt sehen:
+
+welche Hindernisse FTG wirklich benutzt
+welche Lücke gewählt wurde
+welchen Endwinkel FTG ausgibt
+
+Das ist besonders nützlich, weil der aktuelle Node genau diese Topics bereits published.
+
+Für rosbag:
+
+ros2 bag record -o ftg_debug \
+  /obstacles \
+  /final_heading_angle \
+  /gap_found \
+  /visualize_obstacles \
+  /visualize_final_heading_angle \
+  /visualize_largest_gap \
+  /lsr/angle

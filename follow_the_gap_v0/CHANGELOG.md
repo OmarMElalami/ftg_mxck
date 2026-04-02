@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## Unreleased
+### Changed
+- Introduced a proper `include/follow_the_gap_v0/` header structure.
+- Added a ROS 2 launch file.
+- Updated README to describe the current `/obstacles`-based data path.
+- Aligned `package.xml` license with the source headers and LICENSE file.
+
+### Fixed
+- Removed pedantic warnings caused by extra semicolons.
+- Removed warnings caused by intentionally unused parameters and variables.
+- Added clearer comments to explain legacy code paths.
+
+### Deprecated
+- Legacy LaserScan-only path remains in source as commented-out code.
+- Legacy angle-filter ROS callbacks remain commented-out because they are not part of the active ROS 2 path.
+
 ## 0.2.4 - 2021-01-11
 ### Added
 - Added `/obstacles` remaps to the launch file.
@@ -39,36 +54,3 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Fixed
 - Added variable initialization to avoid segfaults.
-
-## 0.1.0 - 2019-12-10
-### Added
-- Added dynamic reconfigure support for FTGR.
-- Added commentary for FTGR node.
-
-### Changed
-- Changed the name of the package from `follow_the_gap` to `follow_the_gap_v0` to make it clear that this is an older implementation.
-- Changed topics and message types for publishing internal parameters.
-- Split the parameters for left / right turning, as they were different for a long time anyway.
-
-### Removed
-- Removed VESC support.
-- Removed architecture dependent constants.
-- Removed unused publishers.
-- Removed integer publishers of internal parameters (as Drive-API is rather float-based.)
-
-## 0.0.0 - 2019-05-06
-### Added
-- Ported Follow The Gap algorithm from repository v0.
-- Added support for Drive-API.
-- Added launch file for FTG+FTGR.
-
-### Changed
-- Commented out publishing messages for VESC as it is not currently supported.
-- Changed method for retrieving number of measurements from the LiDAR.
-
-### Removed
-- Removed old `CarControlData` message which is not supported in newer repository versions. (It was substituted by multiple messages on multiple topics using basic message types.)
-- Removed direct control of Teensy board. (It is substituted by using Drive-API.)
-
-### Fixed
-- Fixed published steering direction.

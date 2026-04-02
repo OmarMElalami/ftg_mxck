@@ -1,24 +1,5 @@
-/*
- *
- * Corner class
- *
- * Authors: Anders Solberg Pedersen
- * Copyright (C) 2020 Czech Technical University in Prague
- *
- * This file is a part of follow_the_gap_v0.
- *
- * follow_the_gap_v0 is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 3.
- *
- * follow_the_gap_v0 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with follow_the_gap_v0. If not, see <https://www.gnu.org/licenses/>.
- *
- */
+#include "follow_the_gap_v0/corner.hpp"
 
-#include "corner.h"
+// The Corner class is currently implemented inline in the header.
+// This translation unit is intentionally kept so the package layout stays stable
+// during cleanup and future source moves remain simple.

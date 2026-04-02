@@ -13,12 +13,8 @@ from mxck_ftg_perception.common import (
     compute_front_center_in_scan,
     transform_to_2d,
     range_is_valid,
+    wrap_to_pi
 )
-
-
-def wrap_to_pi(angle: float) -> float:
-    return math.atan2(math.sin(angle), math.cos(angle))
-
 
 class ScanPreprocessorNode(Node):
     def __init__(self) -> None:

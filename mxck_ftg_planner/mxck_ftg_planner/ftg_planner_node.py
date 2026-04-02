@@ -30,7 +30,7 @@ class FTGPlannerNode(Node):
         self.declare_parameter('free_space_threshold_m', 1.00)
         self.declare_parameter('min_gap_beams', 5)
         self.declare_parameter('safety_bubble_radius_m', 0.35)
-        self.declare_parameter('steering_limit_deg', 28.0)
+        self.declare_parameter('steering_limit_deg', 22.0)
         self.declare_parameter('center_bias_weight', 0.25)
 
         self.declare_parameter('stop_distance_m', 0.35)

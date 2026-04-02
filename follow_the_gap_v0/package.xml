@@ -1,70 +1,38 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+             schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
+  <name>follow_the_gap_v0</name>
+  <version>0.2.5</version>
+  <description>
+    Legacy CTU Follow-The-Gap implementation ported to ROS 2.
+    This package currently consumes /obstacles and publishes /final_heading_angle,
+    /gap_found, and debug visualization topics.
+  </description>
 
-	<name>follow_the_gap_v0</name>
-	<version>0.2.4</version>
-	<description>
-		Follow The Gap algorithm implementation.
-		See 'README.md' for more information.
+  <maintainer email="klapajar@fel.cvut.cz">Jaroslav Klapálek</maintainer>
+  <author email="anderssp1994@gmail.com">Anders Solberg Pedersen</author>
+  <author email="klapajar@fel.cvut.cz">Jaroslav Klapálek</author>
 
-		Note: Public version is available at https://github.com/CTU-IIG/f1t-ftg/.
-		Note: FTG code was sanitized and checked by BUT. It should be completely
-		safe and free of errors. (v. 0.2.0)
-	</description>
-	<maintainer email="klapajar@fel.cvut.cz">Jaroslav Klapálek</maintainer>
-	<license>Apache License 2.0</license>
-	<author email="anderssp1994@gmail.com">Anders Solberg Pedersen</author>
-	<author email="klapajar@fel.cvut.cz">Jaroslav Klapálek</author>
+  <!--
+    License note:
+    The original source headers, README and LICENSE file in this package state GPLv3.
+    package.xml previously said Apache-2.0, which conflicted with the repository files.
+    This cleanup aligns package.xml with the source tree.
+  -->
+  <license>GPL-3.0-only</license>
 
-	<buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-	<build_depend>std_msgs</build_depend>
-	<build_depend>sensor_msgs</build_depend>
-	<build_depend>visualization_msgs</build_depend>
-	<build_depend>geometry_msgs</build_depend>
-	<build_depend>obstacle_msgs</build_depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>obstacle_msgs</depend>
+  <depend>tf2_geometry_msgs</depend>
 
-	<depend>rclcpp</depend>
-
-	<depend>tf2_geometry_msgs</depend>
-
-	<exec_depend>std_msgs</exec_depend>
-	<exec_depend>sensor_msgs</exec_depend>
-	<exec_depend>visualization_msgs</exec_depend>
-	<exec_depend>geometry_msgs</exec_depend>
-	<exec_depend>obstacle_msgs</exec_depend>
-
-	<!-- ORIGINAL dependencies (ROS 1 version)
-
-	// libs
-	<build_depend>roscpp</build_depend>
-	<build_depend>tf</build_depend>
-	<build_depend>dynamic_reconfigure</build_depend>
-
-	// messages
-	<build_depend>std_msgs</build_depend>
-	<build_depend>sensor_msgs</build_depend>
-	<build_depend>visualization_msgs</build_depend>
-	<build_depend>geometry_msgs</build_depend>
-	<build_depend>obstacle_msgs</build_depend>
-
-	// libs
-	<run_depend>roscpp</run_depend>
-	<run_depend>tf</run_depend>
-
-	// messages
-	<run_depend>std_msgs</run_depend>
-	<run_depend>sensor_msgs</run_depend>
-	<run_depend>visualization_msgs</run_depend>
-	<run_depend>geometry_msgs</run_depend>
-	<run_depend>drive_api</run_depend>
-	<run_depend>obstacle_msgs</run_depend>
-
-	-->
-
-	<export>
-		<build_type>ament_cmake</build_type>
-	</export>
-
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 </package>

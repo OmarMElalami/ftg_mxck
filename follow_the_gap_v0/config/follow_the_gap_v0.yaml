@@ -1,0 +1,3 @@
+# Reserved for future ROS parameters.
+# This package currently keeps the original hard-coded constants to avoid
+# behavior changes during the cleanup pass.

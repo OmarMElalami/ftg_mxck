@@ -4971,3 +4971,904 @@ timeout 15s ros2 bag record -s mcap -o /mxck2_ws/bags/ftg_diag_small \
 [INFO] [0946692353.045159552] [rosbag2_recorder]: Event publisher thread: Exiting
 [INFO] [0946692353.046057728] [rosbag2_recorder]: Recording stopped
 root@67aa178ad2eb:/# 
+
+################################################# opt 1.4.26 #################################
+mxck@mxck0021:~$ sudo docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "mxck2_(control|lidar|development)"
+[sudo] password for mxck: 
+mxck2_development   Up 3 hours
+mxck2_lidar         Up 7 minutes
+mxck2_control       Up 3 hours
+mxck@mxck0021:~$ sudo docker inspect mxck2_development --format '{{range .Mounts}}{{println .Source "->" .Destination}}{{end}}'
+/dev -> /dev
+/home/mxck/development_ws -> /mxck2_ws
+/var/lib/docker/volumes/vscode/_data -> /vscode
+
+mxck@mxck0021:~$ sudo docker exec -it mxck2_development bash
+sourcing /opt/ros/foxy/setup.bash
+sourcing /msgs_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@e844beed2438:/ultralytics# source /opt/ros/foxy/setup.bash
+root@e844beed2438:/ultralytics# source /msgs_ws/install/setup.bash
+root@e844beed2438:/ultralytics# source /mxck2_ws/install/setup.bash 2>/dev/null || true
+root@e844beed2438:/ultralytics# echo $ROS_DISTRO
+foxy
+root@e844beed2438:/ultralytics# pwd
+/ultralytics
+root@e844beed2438:/ultralytics# cd /mxck2_ws
+root@e844beed2438:/mxck2_ws# pwd
+/mxck2_ws
+root@e844beed2438:/mxck2_ws# ls
+Dockerfile  Dockerfile.l4t.ros_foxy.base  README.md  ampelerkennung  build  build.log  install  log  ros_entrypoint.sh  src
+root@e844beed2438:/mxck2_ws# ls src
+LaneFollower_Carkit  Pilotnet_mxcarkit  ampelerkennung  ampelerkennung_nn  build  controller_node.py  ftg_mxck  install  log  parking_detection  pilotnet  projets_robot  speedlab_carkit
+root@e844beed2438:/mxck2_ws# exit
+exit
+mxck@mxck0021:~$ ls -la /home/mxck/ftg_mxck
+total 368
+drwx------ 11 mxck mxck   4096 Jan  1 05:33  .
+drwxr-xr-x 39 mxck mxck   4096 Jan  1 05:33  ..
+-rw-rw-r--  1 mxck mxck   5959 Jan  1 05:33  AGENTS.md
+-rw-rw-r--  1 mxck mxck    744 Jan  1 05:33  ARCHITECTURE_CHECKLIST.md
+-rw-rw-r--  1 mxck mxck   5610 Jan  1 05:33  ARCHITECTURE.md
+-rw-rw-r--  1 mxck mxck  17439 Jan  1 05:33  AUDIT_MXCK_FTG.md
+-rw-rw-r--  1 mxck mxck   2820 Jan  1 05:33  AUDIT_REPORT.md
+-rw-rw-r--  1 mxck mxck    877 Jan  1 05:33  DEPENDENCY_CHECKLIST.md
+drwx------  3 mxck mxck   4096 Jan  1 05:33  follow_the_gap_v0
+-rw-rw-r--  1 mxck mxck   5740 Jan  1 05:33  GEOMETRY_TF_ANALYSIS.md
+drwx------  7 mxck mxck   4096 Jan  1 05:33  .git
+drwx------  2 mxck mxck   4096 Jan  1 05:33  .github
+-rw-rw-r--  1 mxck mxck     21 Jan  1 05:33  .gitignore
+-rw-rw-r--  1 mxck mxck   7126 Jan  1 05:33  JETSON_TEST_RUNBOOK.md
+-rw-rw-r--  1 mxck mxck   1183 Jan  1 05:33 'Kopieren auf den Jetson.txt'
+-rw-rw-r--  1 mxck mxck   1050 Jan  1 05:33  LAUNCH_GRAPH_CHECK.md
+-rw-rw-r--  1 mxck mxck 148608 Jan  1 05:33  Logs280326.txt
+drwx------  5 mxck mxck   4096 Jan  1 05:33  mxck_ftg_bringup
+drwx------  6 mxck mxck   4096 Jan  1 05:33  mxck_ftg_control
+drwx------  6 mxck mxck   4096 Jan  1 05:33  mxck_ftg_perception
+drwx------  6 mxck mxck   4096 Jan  1 05:33  mxck_ftg_planner
+drwx------  3 mxck mxck   4096 Jan  1 05:33  obstacle_msgs
+drwx------  6 mxck mxck   4096 Jan  1 05:33  obstacle_substitution
+-rw-rw-r--  1 mxck mxck  60675 Jan  1 05:33 'Optimierung Schritte.txt'
+-rw-rw-r--  1 mxck mxck   5147 Jan  1 05:33  README.md
+-rw-rw-r--  1 mxck mxck   1218 Jan  1 05:33  RISK_REGISTER.md
+-rw-rw-r--  1 mxck mxck  15802 Jan  1 05:33 'Sauper Plan.txt'
+-rw-rw-r--  1 mxck mxck   3389 Jan  1 05:33  TECHNICAL_FIX_SUMMARY.md
+-rw-rw-r--  1 mxck mxck   2161 Jan  1 05:33  TEST_READINESS_CHECKLIST.md
+-rw-rw-r--  1 mxck mxck   1172 Jan  1 05:33  TOPIC_INTERFACE_CHECK.md
+mxck@mxck0021:~$ mv /home/mxck/ftg_mxck /home/mxck/development_ws$(date +%Y%m%d_%H%M%S)
+mxck@mxck0021:~$ ls
+ ampelerkennung_nn                  development_ws20000101_053741   MXcarkit               Root
+ backup_old_ftg_ws                  docker_analysis                 mxck2_ws               setup.py
+ best_model_5frames.pth             Documents                       mxck_fix               snap
+ bilder_ampel                       Downloads                       Pictures               speedlab_carkit
+ container_mxck2_development.json   foxglove_ws                     pilotnet_launch_1.py   steering_predictor_1.py
+ Desktop                            Image_run_backup                projets_robot          Templates
+ deve                               logs_since_yesterday.txt        Public                'udo ufw status'
+ development_ws                     Music                           pure_pursuit_logs      Videos
+mxck@mxck0021:~$ cd /home/mxck/development_ws
+mxck@mxck0021:~/development_ws$ ls
+ampelerkennung  build  build.log  Dockerfile  Dockerfile.l4t.ros_foxy.base  install  README.md  ros_entrypoint.sh  src
+mxck@mxck0021:~/development_ws$ cd src/
+mxck@mxck0021:~/development_ws/src$ ls
+ampelerkennung     build               install              log                pilotnet           projets_robot
+ampelerkennung_nn  controller_node.py  LaneFollower_Carkit  parking_detection  Pilotnet_mxcarkit  speedlab_carkit
+mxck@mxck0021:~/development_ws/src$ cd ..
+mxck@mxck0021:~/development_ws$ cd ..
+mxck@mxck0021:~$ ls
+ ampelerkennung_nn                  development_ws20000101_053741   MXcarkit               Root
+ backup_old_ftg_ws                  docker_analysis                 mxck2_ws               setup.py
+ best_model_5frames.pth             Documents                       mxck_fix               snap
+ bilder_ampel                       Downloads                       Pictures               speedlab_carkit
+ container_mxck2_development.json   foxglove_ws                     pilotnet_launch_1.py   steering_predictor_1.py
+ Desktop                            Image_run_backup                projets_robot          Templates
+ deve                               logs_since_yesterday.txt        Public                'udo ufw status'
+ development_ws                     Music                           pure_pursuit_logs      Videos
+mxck@mxck0021:~$ ls
+ ampelerkennung_nn                  development_ws20000101_053741   MXcarkit               Root
+ backup_old_ftg_ws                  docker_analysis                 mxck2_ws               setup.py
+ best_model_5frames.pth             Documents                       mxck_fix               snap
+ bilder_ampel                       Downloads                       Pictures               speedlab_carkit
+ container_mxck2_development.json   foxglove_ws                     pilotnet_launch_1.py   steering_predictor_1.py
+ Desktop                            Image_run_backup                projets_robot          Templates
+ deve                               logs_since_yesterday.txt        Public                'udo ufw status'
+ development_ws                     Music                           pure_pursuit_logs      Videos
+mxck@mxck0021:~$ mv /home/mxck/ftg_mxck /home/mxck/development_ws/src
+mv: cannot stat '/home/mxck/ftg_mxck': No such file or directory
+mxck@mxck0021:~$ ls
+ ampelerkennung_nn                  development_ws20000101_053741   MXcarkit               Root
+ backup_old_ftg_ws                  docker_analysis                 mxck2_ws               setup.py
+ best_model_5frames.pth             Documents                       mxck_fix               snap
+ bilder_ampel                       Downloads                       Pictures               speedlab_carkit
+ container_mxck2_development.json   foxglove_ws                     pilotnet_launch_1.py   steering_predictor_1.py
+ Desktop                            Image_run_backup                projets_robot          Templates
+ deve                               logs_since_yesterday.txt        Public                'udo ufw status'
+ development_ws                     Music                           pure_pursuit_logs      Videos
+mxck@mxck0021:~$ cd desktop
+-bash: cd: desktop: No such file or directory
+mxck@mxck0021:~$ cd desktop/
+-bash: cd: desktop/: No such file or directory
+mxck@mxck0021:~$ cd Desktop/
+mxck@mxck0021:~/Desktop$ ls
+chromium-browser.desktop  nv_devzone.desktop  nv_jetson_projects.desktop  nv_l4t_readme.desktop
+gnome-terminal.desktop    nv_forums.desktop   nv_jetson_zoo.desktop       parking_detection
+mxck@mxck0021:~/Desktop$ cd ..
+mxck@mxck0021:~$ cd development_ws
+mxck@mxck0021:~/development_ws$ ls
+ampelerkennung  build  build.log  Dockerfile  Dockerfile.l4t.ros_foxy.base  install  README.md  ros_entrypoint.sh  src
+mxck@mxck0021:~/development_ws$ cd ..
+mxck@mxck0021:~$ ls
+ ampelerkennung_nn                  development_ws20000101_053741   MXcarkit               Root
+ backup_old_ftg_ws                  docker_analysis                 mxck2_ws               setup.py
+ best_model_5frames.pth             Documents                       mxck_fix               snap
+ bilder_ampel                       Downloads                       Pictures               speedlab_carkit
+ container_mxck2_development.json   foxglove_ws                     pilotnet_launch_1.py   steering_predictor_1.py
+ Desktop                            Image_run_backup                projets_robot          Templates
+ deve                               logs_since_yesterday.txt        Public                'udo ufw status'
+ development_ws                     Music                           pure_pursuit_logs      Videos
+mxck@mxck0021:~$ cd mxck
+-bash: cd: mxck: No such file or directory
+mxck@mxck0021:~$ cd mxck/
+-bash: cd: mxck/: No such file or directory
+mxck@mxck0021:~$ cd mxck
+mxck2_ws/ mxck_fix/ 
+mxck@mxck0021:~$ cd mxck
+mxck2_ws/ mxck_fix/ 
+mxck@mxck0021:~$ ls
+ ampelerkennung_nn                  development_ws20000101_053741   MXcarkit               Root
+ backup_old_ftg_ws                  docker_analysis                 mxck2_ws               setup.py
+ best_model_5frames.pth             Documents                       mxck_fix               snap
+ bilder_ampel                       Downloads                       Pictures               speedlab_carkit
+ container_mxck2_development.json   foxglove_ws                     pilotnet_launch_1.py   steering_predictor_1.py
+ Desktop                            Image_run_backup                projets_robot          Templates
+ deve                               logs_since_yesterday.txt        Public                'udo ufw status'
+ development_ws                     Music                           pure_pursuit_logs      Videos
+mxck@mxck0021:~$ development_ws
+-bash: development_ws: command not found
+mxck@mxck0021:~$ cd development_ws/
+mxck@mxck0021:~/development_ws$ ls
+ampelerkennung  build  build.log  Dockerfile  Dockerfile.l4t.ros_foxy.base  install  README.md  ros_entrypoint.sh  src
+mxck@mxck0021:~/development_ws$ cd src/
+mxck@mxck0021:~/development_ws/src$ ls
+ampelerkennung     build               install              log                pilotnet           projets_robot
+ampelerkennung_nn  controller_node.py  LaneFollower_Carkit  parking_detection  Pilotnet_mxcarkit  speedlab_carkit
+mxck@mxck0021:~/development_ws/src$ cd ..
+mxck@mxck0021:~/development_ws$ mv /home/mxck/ftg_mxck /home/mxck/development_ws/src
+mv: cannot stat '/home/mxck/ftg_mxck': No such file or directory
+mxck@mxck0021:~/development_ws$ cd ..
+mxck@mxck0021:~$ mv /home/mxck/ftg_mxck /home/mxck/development_ws/src
+mv: cannot stat '/home/mxck/ftg_mxck': No such file or directory
+mxck@mxck0021:~$ mv /home/mxck/ftg_mxck /home/mxck/development_ws/src
+mv: cannot stat '/home/mxck/ftg_mxck': No such file or directory
+mxck@mxck0021:~$ mv /home/mxck/ftg_mxck /home/mxck/development_ws
+mv: cannot stat '/home/mxck/ftg_mxck': No such file or directory
+mxck@mxck0021:~$ cd /home/mxck/development_ws
+mxck@mxck0021:~/development_ws$ ls
+ampelerkennung  build  build.log  Dockerfile  Dockerfile.l4t.ros_foxy.base  install  README.md  ros_entrypoint.sh  src
+mxck@mxck0021:~/development_ws$ ls
+ampelerkennung  build  build.log  Dockerfile  Dockerfile.l4t.ros_foxy.base  install  README.md  ros_entrypoint.sh  src
+mxck@mxck0021:~/development_ws$ cd src/
+mxck@mxck0021:~/development_ws/src$ ls
+ampelerkennung     build               ftg_mxck  LaneFollower_Carkit  parking_detection  Pilotnet_mxcarkit  speedlab_carkit
+ampelerkennung_nn  controller_node.py  install   log                  pilotnet           projets_robot
+mxck@mxck0021:~/development_ws/src$ 
+
+Terminal 2:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_development bash
+[sudo] password for mxck: 
+sourcing /opt/ros/foxy/setup.bash
+sourcing /msgs_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@e844beed2438:/ultralytics# source /opt/ros/foxy/setup.bash
+root@e844beed2438:/ultralytics# source /msgs_ws/install/setup.bash
+root@e844beed2438:/ultralytics# source /mxck2_ws/install/setup.bash 2>/dev/null || true
+root@e844beed2438:/ultralytics# cd /mxck2_ws
+root@e844beed2438:/mxck2_ws# rm -rf build/obstacle_msgs
+root@e844beed2438:/mxck2_ws# rm -rf build/obstacle_substitution
+root@e844beed2438:/mxck2_ws# rm -rf build/follow_the_gap_v0
+root@e844beed2438:/mxck2_ws# rm -rf build/mxck_ftg_perception
+root@e844beed2438:/mxck2_ws# rm -rf build/mxck_ftg_planner
+root@e844beed2438:/mxck2_ws# rm -rf build/mxck_ftg_control
+root@e844beed2438:/mxck2_ws# rm -rf build/mxck_ftg_bringup
+root@e844beed2438:/mxck2_ws# 
+root@e844beed2438:/mxck2_ws# rm -rf install/obstacle_msgs
+root@e844beed2438:/mxck2_ws# rm -rf install/obstacle_substitution
+root@e844beed2438:/mxck2_ws# rm -rf install/follow_the_gap_v0
+root@e844beed2438:/mxck2_ws# rm -rf install/mxck_ftg_perception
+root@e844beed2438:/mxck2_ws# rm -rf install/mxck_ftg_planner
+root@e844beed2438:/mxck2_ws# rm -rf install/mxck_ftg_control
+root@e844beed2438:/mxck2_ws# rm -rf install/mxck_ftg_bringup
+root@e844beed2438:/mxck2_ws# 
+root@e844beed2438:/mxck2_ws# rm -rf log
+root@e844beed2438:/mxck2_ws# cd /mxck2_ws/src
+root@e844beed2438:/mxck2_ws/src# rm -rf ftg_mxck
+root@e844beed2438:/mxck2_ws/src# ls
+LaneFollower_Carkit  ampelerkennung     build               install  parking_detection  projets_robot
+Pilotnet_mxcarkit    ampelerkennung_nn  controller_node.py  log      pilotnet           speedlab_carkit
+root@e844beed2438:/mxck2_ws/src# ls -la /home/mxck/ftg_mxck
+ls: cannot access '/home/mxck/ftg_mxck': No such file or directory
+root@e844beed2438:/mxck2_ws/src# mv /home/mxck/ftg_mxck /home/mxck/development_ws/src
+mv: cannot stat '/home/mxck/ftg_mxck': No such file or directory
+root@e844beed2438:/mxck2_ws/src# cd ..
+root@e844beed2438:/mxck2_ws# cd ..
+root@e844beed2438:/# source /opt/ros/foxy/setup.bash
+root@e844beed2438:/# source /msgs_ws/install/setup.bash
+root@e844beed2438:/# source /mxck2_ws/install/setup.bash 2>/dev/null || true
+root@e844beed2438:/# cd /mxck2_ws
+root@e844beed2438:/mxck2_ws# colcon list | grep -E "obstacle_msgs|obstacle_substitution|follow_the_gap_v0|mxck_ftg"
+follow_the_gap_v0       src/ftg_mxck/follow_the_gap_v0  (ros.ament_cmake)
+mxck_ftg_bringup        src/ftg_mxck/mxck_ftg_bringup   (ros.ament_python)
+mxck_ftg_control        src/ftg_mxck/mxck_ftg_control   (ros.ament_python)
+mxck_ftg_perception     src/ftg_mxck/mxck_ftg_perception        (ros.ament_python)
+mxck_ftg_planner        src/ftg_mxck/mxck_ftg_planner   (ros.ament_python)
+obstacle_msgs   src/ftg_mxck/obstacle_msgs      (ros.ament_cmake)
+obstacle_substitution   src/ftg_mxck/obstacle_substitution      (ros.ament_python)
+root@e844beed2438:/mxck2_ws# colcon build --symlink-install --packages-select \
+>   obstacle_msgs \
+>   obstacle_substitution \
+>   follow_the_gap_v0 \
+>   mxck_ftg_perception \
+>   mxck_ftg_planner \
+>   mxck_ftg_control \
+>   mxck_ftg_bringup
+[5.182s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/mxck_ftg_bringup' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.183s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/obstacle_substitution' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.183s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/follow_the_gap_v0' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.185s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/obstacle_msgs' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.186s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/mxck_ftg_planner' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.186s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/mxck_ftg_perception' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.187s] colcon.colcon_ros.prefix_path.ament WARNING The path '/mxck2_ws/install/mxck_ftg_control' in the environment variable AMENT_PREFIX_PATH doesn't exist
+[5.190s] colcon.colcon_ros.prefix_path.catkin WARNING The path '/mxck2_ws/install/follow_the_gap_v0' in the environment variable CMAKE_PREFIX_PATH doesn't exist
+[5.190s] colcon.colcon_ros.prefix_path.catkin WARNING The path '/mxck2_ws/install/obstacle_msgs' in the environment variable CMAKE_PREFIX_PATH doesn't exist
+Starting >>> obstacle_msgs
+Starting >>> mxck_ftg_control
+Starting >>> mxck_ftg_perception                                                  
+Starting >>> mxck_ftg_planner                                                                                  
+Finished <<< mxck_ftg_perception [13.4s]                                                                                   
+Finished <<< mxck_ftg_control [13.5s]
+Finished <<< mxck_ftg_planner [13.7s]                                                      
+[Processing: obstacle_msgs]                            
+[Processing: obstacle_msgs]                                       
+[Processing: obstacle_msgs]                                       
+--- stderr: obstacle_msgs                                         
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464059 s in the future
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464059 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464054 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464047 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464044 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464030 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464028 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464024 s in the future
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464024 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464021 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464021 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464005 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738464002 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738463994 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738463992 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/std_msgs/msg/Bool.idl' has modification time 738463224 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/share/geometry_msgs/msg/WrenchStamped.idl' has modification time 738463982 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/include/geometry_msgs/msg/detail/point__struct.h' has modification time 738463977 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/include/builtin_interfaces/msg/detail/time__struct.h' has modification time 738462676 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/include/builtin_interfaces/msg/detail/time__struct.h' has modification time 738462675 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+make[2]: Warning: File '/opt/ros/foxy/include/builtin_interfaces/msg/detail/time__struct.h' has modification time 738462673 s in the future
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+---
+Finished <<< obstacle_msgs [2min 12s]
+Starting >>> follow_the_gap_v0
+Starting >>> obstacle_substitution
+Finished <<< obstacle_substitution [7.63s]                                                             
+[Processing: follow_the_gap_v0]                                  
+                                                                     e_gap_v0:build 85% - 1min 7.7s]
+--- stderr: follow_the_gap_v0                                          
+make[2]: Warning: File '/opt/ros/foxy/include/builtin_interfaces/msg/detail/duration__builder.hpp' has modification time 738462637 s in the future
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.h:27,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/corner.h:27,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/corner.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.h:50:2: warning: extra ‘;’ [-Wpedantic]
+   50 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/corner.h:27,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/corner.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.h:43:2: warning: extra ‘;’ [-Wpedantic]
+   43 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.h:27,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.h:50:2: warning: extra ‘;’ [-Wpedantic]
+   50 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.h:28,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.h:43:2: warning: extra ‘;’ [-Wpedantic]
+   43 | };
+      |  ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.cpp: In function ‘float FollowTheGap::FollowTheGapMethod(std::vector<FollowTheGap::Obstacle>, LidarData*, std::vector<FollowTheGap::Obstacle>&)’:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.cpp:50:85: warning: unused parameter ‘lidar_data’ [-Wunused-parameter]
+   50 | float FollowTheGap::FollowTheGapMethod(std::vector<Obstacle> obstacles, LidarData * lidar_data, std::vector<Obstacle> & gap_borders_out) {
+      |                                                                         ~~~~~~~~~~~~^~~~~~~~~~
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.h:50:2: warning: extra ‘;’ [-Wpedantic]
+   50 | };
+      |  ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp: In constructor ‘FollowTheGap::Obstacle::Obstacle(float, float, float, float)’:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:28:86: warning: unused parameter ‘car_radius’ [-Wunused-parameter]
+   28 |     Obstacle::Obstacle(float const x, float const y, float const radius, float const car_radius)
+      |                                                                          ~~~~~~~~~~~~^~~~~~~~~~
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp: At global scope:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:41:6: warning: extra ‘;’ [-Wpedantic]
+   41 |     };
+      |      ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:55:10: warning: extra ‘;’ [-Wpedantic]
+   55 |         };
+      |          ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:58:6: warning: extra ‘;’ [-Wpedantic]
+   58 |     };
+      |      ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:61:6: warning: extra ‘;’ [-Wpedantic]
+   61 |     };
+      |      ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:64:6: warning: extra ‘;’ [-Wpedantic]
+   64 |     };
+      |      ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.cpp:73:2: warning: extra ‘;’ [-Wpedantic]
+   73 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.h:27,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/main.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.h:50:2: warning: extra ‘;’ [-Wpedantic]
+   50 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/follow_the_gap.h:28,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/main.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.h:43:2: warning: extra ‘;’ [-Wpedantic]
+   43 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.h:27,
+                 from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/obstacle.h:50:2: warning: extra ‘;’ [-Wpedantic]
+   50 | };
+      |  ^
+In file included from /mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.cpp:24:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.h:43:2: warning: extra ‘;’ [-Wpedantic]
+   43 | };
+      |  ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.cpp:33:6: warning: extra ‘;’ [-Wpedantic]
+   33 |     };
+      |      ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/gap.cpp:39:6: warning: extra ‘;’ [-Wpedantic]
+   39 |     };
+      |      ^
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/main.cpp: In function ‘std::vector<FollowTheGap::Obstacle> CreateObstaclesWithAngleFilter(const ConstSharedPtr&)’:
+/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/src/main.cpp:134:15: warning: unused variable ‘data_size’ [-Wunused-variable]
+  134 |  size_t const data_size = lidar_data->scan_time / lidar_data->time_increment;
+      |               ^~~~~~~~~
+make[2]: warning:  Clock skew detected.  Your build may be incomplete.
+---
+Finished <<< follow_the_gap_v0 [1min 26s]
+Starting >>> mxck_ftg_bringup
+Finished <<< mxck_ftg_bringup [6.96s]                
+
+Summary: 7 packages finished [3min 50s]
+  2 packages had stderr output: follow_the_gap_v0 obstacle_msgs
+root@e844beed2438:/mxck2_ws# source /mxck2_ws/install/setup.bash
+root@e844beed2438:/mxck2_ws# ros2 pkg executables obstacle_substitution
+obstacle_substitution obstacle_substitution_node
+root@e844beed2438:/mxck2_ws# ros2 pkg executables follow_the_gap_v0
+follow_the_gap_v0 follow_the_gap
+root@e844beed2438:/mxck2_ws# ros2 pkg executables mxck_ftg_perception
+mxck_ftg_perception scan_front_window_check
+mxck_ftg_perception scan_preprocessor_node
+root@e844beed2438:/mxck2_ws# ros2 pkg executables mxck_ftg_planner
+mxck_ftg_planner ctu_ftg_adapter_node
+mxck_ftg_planner ftg_planner_node
+root@e844beed2438:/mxck2_ws# ros2 pkg executables mxck_ftg_control
+mxck_ftg_control ftg_command_node
+root@e844beed2438:/mxck2_ws# ros2 pkg list | grep mxck_ftg
+
+Terminal 3:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash
+[sudo] password for mxck: 
+mSorry, try again.
+[sudo] password for mxck: 
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# source /opt/ros/humble/setup.bash
+source /microros_ws/install/setup.bash
+source /vesc_ws/install/setup.bash
+source /rplidar_ws/install/setup.bash
+source /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# ros2 launch vehicle_control manual_control_launch.py
+root@67aa178ad2eb:/# ros2 node list | sort
+/MXcarkit
+/ackermann_to_vesc
+/camera/camera
+/joy_to_ackermann
+/rc_to_joy
+/rplidar_node
+/vesc_driver_node
+root@67aa178ad2eb:/# ros2 topic list | grep -E "ackermann|commands"
+/autonomous/ackermann_cmd
+/commands/motor/brake
+/commands/motor/current
+/commands/motor/duty_cycle
+/commands/motor/position
+/commands/motor/speed
+/commands/servo/position
+/rc/ackermann_cmd
+root@67aa178ad2eb:/# ros2 topic list | grep tf
+/tf_static
+root@67aa178ad2eb:/# ros2 topic echo /tf_static --qos-durability transient_local --once
+root@67aa178ad2eb:/# ros2 run tf2_ros tf2_echo base_link laserer
+[INFO] [0946703033.493868704] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703034.546869856] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703036.546640160] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703038.546759168] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703039.546913824] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703041.546823584] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703043.546694368] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703045.546646208] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703046.546743840] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+^C[INFO] [0946703047.087565760] [rclcpp]: signal_handler(signum=2)
+root@67aa178ad2eb:/# ros2 topic echo /tf_static --qos-durability transient_local --once
+^Croot@67aa178ad2eb:/# ros2 topic echo /tf_static --qos-durability transient_local 
+
+terminal 4:
+mxck@mxck0021:~$ sudo docker exec -it mxck2_control bash
+sourcing /opt/ros/humble/setup.bash
+sourcing /microros_ws/install/setup.bash
+sourcing /vesc_ws/install/setup.bash
+sourcing /rplidar_ws/install/setup.bash
+sourcing /mxck2_ws/install/setup.bash
+root@67aa178ad2eb:/# ros2 topic hz /scan
+ros2 topic echo /scan --once
+ros2 topic echo /tf_static --once
+ros2 run tf2_ros tf2_echo base_link laser
+average rate: 11.231
+        min: 0.078s max: 0.096s std dev: 0.00468s window: 13
+average rate: 11.201
+        min: 0.078s max: 0.096s std dev: 0.00428s window: 25
+average rate: 11.166
+        min: 0.078s max: 0.097s std dev: 0.00414s window: 37
+average rate: 11.167
+        min: 0.078s max: 0.097s std dev: 0.00383s window: 49
+average rate: 11.154
+        min: 0.078s max: 0.097s std dev: 0.00366s window: 61
+average rate: 11.153
+        min: 0.078s max: 0.101s std dev: 0.00384s window: 73
+^Cheader:
+  stamp:
+    sec: 946703415
+    nanosec: 149741024
+  frame_id: laser
+angle_min: -3.1241390705108643
+angle_max: 3.1415927410125732
+angle_increment: 0.0034828970674425364
+time_increment: 4.7181449190247804e-05
+scan_time: 0.08487942069768906
+range_min: 0.15000000596046448
+range_max: 16.0
+ranges:
+- 3.9600000381469727
+- 3.9679999351501465
+- 3.9800000190734863
+- 3.9839999675750732
+- 3.9839999675750732
+- 3.98799991607666
+- 3.992000102996826
+- 3.996000051498413
+- 3.996000051498413
+- 4.004000186920166
+- 3.992000102996826
+- 3.936000108718872
+- 3.947999954223633
+- 3.947999954223633
+- .inf
+- 3.252000093460083
+- 3.252000093460083
+- 3.252000093460083
+- 3.252000093460083
+- 3.252000093460083
+- .inf
+- .inf
+- 2.640000104904175
+- 2.640000104904175
+- 2.640000104904175
+- 2.640000104904175
+- 2.640000104904175
+- 2.624000072479248
+- 2.624000072479248
+- 2.624000072479248
+- 2.611999988555908
+- 2.5999999046325684
+- 4.119999885559082
+- 4.119999885559082
+- 4.119999885559082
+- 4.119999885559082
+- 4.127999782562256
+- 4.144000053405762
+- 4.159999847412109
+- 4.159999847412109
+- 2.7320001125335693
+- 3.135999917984009
+- 3.135999917984009
+- 3.135999917984009
+- 3.135999917984009
+- 3.140000104904175
+- 3.140000104904175
+- 3.140000104904175
+- 3.1480000019073486
+- 3.1559998989105225
+- 3.1600000858306885
+- 3.1600000858306885
+- 3.171999931335449
+- 3.187999963760376
+- 3.2079999446868896
+- 3.2079999446868896
+- 3.2200000286102295
+- 3.247999906539917
+- 4.4079999923706055
+- 4.4079999923706055
+- 4.4079999923706055
+- 4.415999889373779
+- 4.447999954223633
+- 4.447999954223633
+- 4.464000225067139
+- 4.480000019073486
+- 4.495999813079834
+- 4.495999813079834
+- 4.504000186920166
+- 4.519999980926514
+- 4.535999774932861
+- 4.535999774932861
+- 4.552000045776367
+- 4.535999774932861
+- 4.5279998779296875
+- 4.535999774932861
+- 4.535999774932861
+- 4.559999942779541
+- 4.567999839782715
+- 3.3919999599456787
+- 3.3919999599456787
+- 3.3919999599456787
+- 3.3919999599456787
+- 3.3919999599456787
+- 3.319999933242798
+- 3.319999933242798
+- .inf
+- .inf
+- .inf
+- .inf
+- 2.680000066757202
+- 2.680000066757202
+- 2.680000066757202
+- 2.680000066757202
+- 2.680000066757202
+- 3.940000057220459
+- 3.940000057220459
+- 3.940000057220459
+- 3.940000057220459
+- 3.9600000381469727
+- 3.9600000381469727
+- 3.9600000381469727
+- 3.9800000190734863
+- 3.7720000743865967
+- 3.7720000743865967
+- 3.7720000743865967
+- 3.747999906539917
+- 3.7279999256134033
+- 3.624000072479248
+- 3.624000072479248
+- 3.624000072479248
+- 3.6519999504089355
+- 3.6519999504089355
+- 3.6519999504089355
+- 3.6519999504089355
+- 3.6519999504089355
+- 3.6519999504089355
+- 3.6559998989105225
+- 3.6559998989105225
+- 3.6600000858306885
+- 3.6679999828338623
+- 3.6760001182556152
+- 3.6760001182556152
+- 3.696000099182129
+- 3.7320001125335693
+- 3.7679998874664307
+- 3.7639999389648438
+- 3.7639999389648438
+- '...'
+intensities:
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- 47.0
+- '...'
+---
+transforms:
+- header:
+    stamp:
+      sec: 946700837
+      nanosec: 138442400
+    frame_id: camera_link
+  child_frame_id: camera_depth_frame
+  transform:
+    translation:
+      x: 0.0
+      y: -0.0
+      z: -0.0
+    rotation:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      w: 1.0
+- header:
+    stamp:
+      sec: 946700837
+      nanosec: 138442400
+    frame_id: camera_depth_frame
+  child_frame_id: camera_depth_optical_frame
+  transform:
+    translation:
+      x: 0.0
+      y: -0.0
+      z: -0.0
+    rotation:
+      x: -0.5
+      y: 0.4999999999999999
+      z: -0.5
+      w: 0.5000000000000001
+- header:
+    stamp:
+      sec: 946700837
+      nanosec: 170402144
+    frame_id: camera_link
+  child_frame_id: camera_color_frame
+  transform:
+    translation:
+      x: -0.0006786937592551112
+      y: 0.01441264245659113
+      z: 0.00010906391980824992
+    rotation:
+      x: -0.004781716503202915
+      y: -0.002418486401438713
+      z: 0.0030514965765178204
+      w: 0.9999809861183167
+- header:
+    stamp:
+      sec: 946700837
+      nanosec: 170402144
+    frame_id: camera_color_frame
+  child_frame_id: camera_color_optical_frame
+  transform:
+    translation:
+      x: 0.0
+      y: -0.0
+      z: -0.0
+    rotation:
+      x: -0.5
+      y: 0.4999999999999999
+      z: -0.5
+      w: 0.5000000000000001
+---
+[INFO] [0946703423.981624960] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703425.313610560] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703427.313575584] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703428.313584896] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703429.313693216] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703431.313578240] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703432.313578688] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703433.313621440] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703435.313584416] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703437.313600192] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703438.313757664] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703440.313609152] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703441.313618944] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+[INFO] [0946703443.313651392] [tf2_echo]: Waiting for transform base_link ->  laser: Invalid frame ID "base_link" passed to canTransform argument target_frame - frame does not exist
+^C[INFO] [0946703444.727359808] [rclcpp]: signal_handler(signum=2)
+
+root@e844beed2438:/mxck2_ws# ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
+>   use_ftg_planner:=true \
+>   start_ctu_ftg:=false \
+>   use_scan_preprocessor:=true
+[INFO] [launch]: All log files can be found below /root/.ros/log/2000-01-01-05-11-46-730314-e844beed2438-2756
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: Starting MXCK full FTG system (primary planner path by default)...
+[INFO] [launch.user]: vehicle_control must be started separately via manual_control_launch.py
+Task exception was never retrieved
+future: <Task finished name='Task-2' coro=<LaunchService._process_one_event() done, defined at /opt/ros/foxy/lib/python3.8/site-packages/launch/launch_service.py:226> exception=PackageNotFoundError("package 'mxck_run' not found, searching: ['/mxck2_ws/install/vehicle_control', '/mxck2_ws/install/mxck_ftg_bringup', '/mxck2_ws/install/obstacle_substitution', '/mxck2_ws/install/follow_the_gap_v0', '/mxck2_ws/install/obstacle_msgs', '/mxck2_ws/install/mxck_run', '/mxck2_ws/install/mxck_ftg_planner', '/mxck2_ws/install/mxck_ftg_perception', '/mxck2_ws/install/mxck_ftg_control', '/msgs_ws/install/vision_msgs', '/msgs_ws/install/ackermann_msgs', '/opt/ros/foxy']")>
+Traceback (most recent call last):
+  File "/opt/ros/foxy/lib/python3.8/site-packages/ament_index_python/packages.py", line 50, in get_package_prefix
+    content, package_prefix = get_resource('packages', package_name)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/ament_index_python/resources.py", line 48, in get_resource
+    raise LookupError(
+LookupError: Could not find the resource 'mxck_run' of type 'packages'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/launch_service.py", line 228, in _process_one_event
+    await self.__process_event(next_event)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/launch_service.py", line 248, in __process_event
+    visit_all_entities_and_collect_futures(entity, self.__context))
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/utilities/visit_all_entities_and_collect_futures_impl.py", line 45, in visit_all_entities_and_collect_futures
+    futures_to_return += visit_all_entities_and_collect_futures(sub_entity, context)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/utilities/visit_all_entities_and_collect_futures_impl.py", line 45, in visit_all_entities_and_collect_futures
+    futures_to_return += visit_all_entities_and_collect_futures(sub_entity, context)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/utilities/visit_all_entities_and_collect_futures_impl.py", line 45, in visit_all_entities_and_collect_futures
+    futures_to_return += visit_all_entities_and_collect_futures(sub_entity, context)
+  [Previous line repeated 1 more time]
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/utilities/visit_all_entities_and_collect_futures_impl.py", line 38, in visit_all_entities_and_collect_futures
+    sub_entities = entity.visit(context)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/action.py", line 108, in visit
+    return self.execute(context)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/actions/include_launch_description.py", line 130, in execute
+    launch_description = self.__launch_description_source.get_launch_description(context)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/launch_description_source.py", line 81, in get_launch_description
+    perform_substitutions(context, self.__location)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/utilities/perform_substitutions_impl.py", line 26, in perform_substitutions
+    return ''.join([context.perform_substitution(sub) for sub in subs])
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/utilities/perform_substitutions_impl.py", line 26, in <listcomp>
+    return ''.join([context.perform_substitution(sub) for sub in subs])
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/launch_context.py", line 232, in perform_substitution
+    return substitution.perform(self)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/substitutions/path_join_substitution.py", line 45, in perform
+    performed_substitutions = [sub.perform(context) for sub in self.__substitutions]
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch/substitutions/path_join_substitution.py", line 45, in <listcomp>
+    performed_substitutions = [sub.perform(context) for sub in self.__substitutions]
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch_ros/substitutions/find_package.py", line 79, in perform
+    result = self.find(package)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/launch_ros/substitutions/find_package.py", line 112, in find
+    return get_package_share_directory(package_name)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/ament_index_python/packages.py", line 70, in get_package_share_directory
+    return os.path.join(get_package_prefix(package_name), 'share', package_name)
+  File "/opt/ros/foxy/lib/python3.8/site-packages/ament_index_python/packages.py", line 52, in get_package_prefix
+    raise PackageNotFoundError(
+ament_index_python.packages.PackageNotFoundError: "package 'mxck_run' not found, searching: ['/mxck2_ws/install/vehicle_control', '/mxck2_ws/install/mxck_ftg_bringup', '/mxck2_ws/install/obstacle_substitution', '/mxck2_ws/install/follow_the_gap_v0', '/mxck2_ws/install/obstacle_msgs', '/mxck2_ws/install/mxck_run', '/mxck2_ws/install/mxck_ftg_planner', '/mxck2_ws/install/mxck_ftg_perception', '/mxck2_ws/install/mxck_ftg_control', '/msgs_ws/install/vision_msgs', '/msgs_ws/install/ackermann_msgs', '/opt/ros/foxy']"
+root@e844beed2438:/mxck2_ws# 

@@ -1,73 +1,79 @@
-/*
- *
- * Obstacle class
- *
- * Authors: Anders Solberg Pedersen
- * Copyright (C) 2020 Czech Technical University in Prague
- *
- * This file is a part of follow_the_gap_v0.
- *
- * follow_the_gap_v0 is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 3.
- *
- * follow_the_gap_v0 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with follow_the_gap_v0. If not, see <https://www.gnu.org/licenses/>.
- *
- */
+#include "follow_the_gap_v0/obstacle.hpp"
 
-#include "obstacle.h"
 #include <cmath>
 
-namespace FollowTheGap{
-    Obstacle::Obstacle(float const x, float const y, float const radius, float const car_radius)
-        : distance_to_center(std::hypot(x, y)), angle(std::atan2(y, x)),
-        x(x), y(y), distance(distance_to_center) {
-            if ( radius > (distance-0.01) ) {
-                // We make this adjustment to avoid nan during calculation of theta_d
-                this->radius = distance-0.01;
-            } else {
-                this->radius = radius;
-            }
-            float const theta_d = std::asin(this->radius/distance);
-            angle_left = angle+theta_d;
-            angle_right = angle-theta_d;
-            this->distance = std::sqrt(this->distance_to_center*this->distance_to_center-this->radius*this->radius);
-    };
-    Obstacle::Obstacle(float const distance, float const angle, float const radius)
-        : distance_to_center(distance), angle(angle),
-        x(distance*std::cos(this->angle)), y(distance*std::sin(this->angle)) {
-            if ( radius > (distance-0.01) ) {
-                // We make this adjustment to avoid nan during calculation of theta_d
-                this->radius = distance-0.01;
-            } else {
-                this->radius = radius;
-            }
-            float const theta_d = std::asin(this->radius/distance);
-            angle_left = angle+theta_d;
-            angle_right = angle-theta_d;
-            this->distance = std::sqrt(this->distance_to_center*this->distance_to_center-this->radius*this->radius);
-        };
-    float Obstacle::DistanceBetweenObstacleEdges(Obstacle const & o) const {
-        return DistanceBetweenObstacleCentres(o) - radius - o.radius;
-    };
-    float Obstacle::DistanceBetweenObstacleCentres(Obstacle const & o) const {
-        return std::hypot((x-o.x),(y-o.y));
-    };
-    bool Obstacle::Overlaps(Obstacle const & o) const {
-        return DistanceBetweenObstacleEdges(o) < 0.0;
-    };
-    std::ostream & operator<<(std::ostream & os, Obstacle const & o) {
-        os << "angle: " << o.angle << " ";
-        os << "distance: " << o.distance << " ";
-        os << "x: " << o.x << " ";
-        os << "y: " << o.y << " ";
-        os << "radius: " << o.radius;
-        return os;
-    }
-};
+namespace FollowTheGap
+{
+
+Obstacle::Obstacle(float x_in, float y_in, float radius_in, float car_radius)
+: distance_to_center(std::hypot(x_in, y_in)),
+  angle(std::atan2(y_in, x_in)),
+  x(x_in),
+  y(y_in),
+  distance(distance_to_center)
+{
+  // The current implementation intentionally does not use car_radius.
+  // This preserves the behavior described in the historical changelog:
+  // "Use obstacle radius instead of car radius parameter."
+  (void)car_radius;
+
+  if (radius_in > (distance - 0.01f)) {
+    // Avoid asin(radius / distance) producing NaN for very close obstacles.
+    radius = distance - 0.01f;
+  } else {
+    radius = radius_in;
+  }
+
+  const float theta_d = std::asin(radius / distance);
+  angle_left = angle + theta_d;
+  angle_right = angle - theta_d;
+
+  // Perpendicular distance from origin to obstacle boundary tangent line.
+  distance = std::sqrt(distance_to_center * distance_to_center - radius * radius);
+}
+
+Obstacle::Obstacle(float distance_in, float angle_in, float radius_in)
+: distance_to_center(distance_in),
+  angle(angle_in),
+  x(distance_in * std::cos(angle)),
+  y(distance_in * std::sin(angle))
+{
+  if (radius_in > (distance_in - 0.01f)) {
+    radius = distance_in - 0.01f;
+  } else {
+    radius = radius_in;
+  }
+
+  const float theta_d = std::asin(radius / distance_in);
+  angle_left = angle + theta_d;
+  angle_right = angle - theta_d;
+
+  distance = std::sqrt(distance_to_center * distance_to_center - radius * radius);
+}
+
+float Obstacle::DistanceBetweenObstacleEdges(const Obstacle & o) const
+{
+  return DistanceBetweenObstacleCentres(o) - radius - o.radius;
+}
+
+float Obstacle::DistanceBetweenObstacleCentres(const Obstacle & o) const
+{
+  return std::hypot(x - o.x, y - o.y);
+}
+
+bool Obstacle::Overlaps(const Obstacle & o) const
+{
+  return DistanceBetweenObstacleEdges(o) < 0.0f;
+}
+
+std::ostream & operator<<(std::ostream & os, const Obstacle & o)
+{
+  os << "angle: " << o.angle << " ";
+  os << "distance: " << o.distance << " ";
+  os << "x: " << o.x << " ";
+  os << "y: " << o.y << " ";
+  os << "radius: " << o.radius;
+  return os;
+}
+
+}  // namespace FollowTheGap
