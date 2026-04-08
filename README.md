@@ -148,7 +148,8 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 | `goal_angle_topic` | `"/lsr/angle"` | Externer Zielwinkel (optional) |
 
 **Frame-ID der Visualisierungen:** Wird aus dem eingehenden Scan übernommen.
-Da der Preprocessor `frame_id: base_link` setzt, erscheinen alle Marker im `base_link`-Frame.
+Beim Einsatz von `scan_preprocessor_node` entspricht diese dem konfigurierten `base_frame` des Output-Scans (Default: `base_link`).
+Entsprechend erscheinen die Marker im jeweiligen `base_frame`-Frame, nicht zwingend immer in `base_link`.
 
 ### 3.3 mxck_ftg_planner
 
