@@ -1,10 +1,8 @@
 # MXCK Follow-The-Gap Stack – Dokumentation
 
-Die Projektdokumentation befindet sich im Ordner `docs/`.
-
+> **Projektdokumentation:** [PDF herunterladen](docs/pdf/dokumentation.pdf) 
 - LaTeX-/Ausarbeitungsquellen: `docs/projektarbeit/Projektarbeit_MXCK_FTG`
 - PDF-Dateien: `docs/pdf`
-- Doku-Übersicht: `docs/README.md`
 
 ## Inhaltsverzeichnis
 
