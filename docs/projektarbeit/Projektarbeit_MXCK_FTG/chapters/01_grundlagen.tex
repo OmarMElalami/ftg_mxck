@@ -1,0 +1,223 @@
+\chapter{Grundlagen}
+\label{ch:grundlagen}
+
+In diesem Kapitel werden die für das Verständnis der Arbeit notwendigen
+Grundlagen beschrieben. Zunächst wird die verwendete Hardware vorgestellt,
+anschließend die zugrunde liegende Software-Architektur des MXCK-Systems
+und zuletzt der eingesetzte Follow-the-Gap-Algorithmus erläutert.
+
+% ============================================================
+\section{Hardware: Das MXCarkit}
+% ============================================================
+
+Das MXCarkit ist ein miniaturisiertes autonomes Versuchsfahrzeug,
+das im Rahmen von Lehrveranstaltungen an der Technischen Hochschule
+Mittelhessen eingesetzt wird. Es dient als Plattform für die Erprobung
+autonomer Fahrfunktionen in realen Umgebungen.
+
+\begin{table}[H]
+\centering
+\caption{Technische Spezifikationen des MXCarkit}
+\label{tab:specs}
+\begin{tabular}{ll}
+\toprule
+\textbf{Eigenschaft} & \textbf{Wert} \\
+\midrule
+Fahrzeugbreite     & $> 30$\,cm \\
+Fahrzeuglänge      & $> 50$\,cm \\
+Antrieb            & Bürstenloser Elektromotor \\
+Motorcontroller    & VESC (Vedder Electronic Speed Controller) \\
+Lenkung            & Ackermann-Geometrie \\
+Recheneinheit      & NVIDIA Jetson Nano \\
+LiDAR-Sensor       & RPLIDAR A1/A2 \\
+Betriebssystem     & Ubuntu 22.04 (L4T) \\
+Middleware         & ROS~2 (Foxy / Humble) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\bildplatzhalter{Foto des MXCarkit von vorne und seitlich mit beschrifteten
+Komponenten (LiDAR, Jetson Nano, VESC, Räder)}{Das MXCarkit -- Versuchsfahrzeug
+mit RPLIDAR A1/A2 und Jetson Nano}
+
+\subsection{NVIDIA Jetson Nano}
+
+Der Jetson Nano ist ein eingebetteter Einplatinencomputer der Firma NVIDIA
+mit einer quad-core ARM Cortex-A57 CPU und einer integrierten 128-core
+Maxwell-GPU. Im Kontext dieser Arbeit übernimmt er die vollständige
+Verarbeitungskette von der Sensordatenaufnahme über die ROS~2-Middleware
+bis hin zur Ausgabe von Steuerkommandos an den VESC.
+
+\subsection{LiDAR-Sensor: RPLIDAR A1/A2}
+
+Der RPLIDAR A1/A2 ist ein kostengünstiger 2D-LiDAR-Sensor, der per
+Triangulationsverfahren Distanzmessungen in einem vollständigen
+$360°$-Sichtfeld liefert. Relevante Parameter für diese Arbeit:
+
+\begin{table}[H]
+\centering
+\caption{Technische Kenndaten des RPLIDAR A1/A2}
+\label{tab:lidar}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Wert} \\
+\midrule
+Scanrate              & $\approx 11$\,Hz \\
+Messpunkte/Umdrehung  & $\approx 1800$ \\
+Winkelauflösung       & $\approx 0{,}35°$ \\
+Minimalmessreichweite & $0{,}15$\,m \\
+Maximalmessreichweite & $12$--$16$\,m \\
+Sichtfeld             & $360°$ \\
+Schnittstelle         & USB (seriell) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Der Sensor ist auf dem Fahrzeugdach montiert und publiziert Messdaten
+über den ROS~2-Topic \texttt{/scan} im Format
+\texttt{sensor\_msgs/msg/LaserScan}. Der Scan beginnt bei
+\texttt{angle\_min}\,$= -\pi$ und endet bei \texttt{angle\_max}\,$= +\pi$.
+
+\textbf{Wichtige Konvention:} Im Koordinatensystem des RPLIDAR entspricht
+der Winkel $0°$ \emph{nicht} automatisch der Fahrzeugvorderseite.
+Die tatsächliche Zuordnung hängt von der physischen Montageposition
+des Sensors ab und muss kalibriert werden (siehe Abschnitt~\ref{sec:kalibrierung}).
+
+\subsection{Ackermann-Steuermodell}
+
+Das Fahrzeug verwendet die Ackermann-Lenkgeometrie, bei der Vorder- und
+Hinterräder unterschiedliche Lenkwinkel aufweisen, um schlupffreies
+Kurvenfahren zu ermöglichen. Steuerkommandos werden im ROS~2-Format
+\texttt{ackermann\_msgs/msg/AckermannDriveStamped} mit den Feldern
+\texttt{steering\_angle} (Lenkwinkel in Radiant) und
+\texttt{speed} (Geschwindigkeit in m/s) übergeben.
+
+% ============================================================
+\section{Software-Architektur: MXCK2-Stack}
+% ============================================================
+
+\subsection{ROS~2 und Docker-Container}
+
+Das MXCarkit verwendet ROS~2 (Robot Operating System 2) als Middleware.
+Die gesamte Softwareumgebung ist in Docker-Containern gekapselt, was
+eine reproduzierbare Deploymentumgebung gewährleistet. Für diese Arbeit
+relevante Container sind:
+
+\begin{table}[H]
+\centering
+\caption{Docker-Container-Übersicht auf dem Jetson Nano}
+\label{tab:containers}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Container} & \textbf{ROS~2-Version} & \textbf{Inhalt} \\
+\midrule
+\texttt{mxck2\_control}     & Humble & Fahrzeugsteuerung, VESC-Treiber, LiDAR-Treiber \\
+\texttt{mxck2\_development} & Foxy   & Entwicklungsumgebung, FTG-Stack (diese Arbeit) \\
+\texttt{mxck2\_lidar}       & Humble & Alternativer LiDAR-Treiber \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Der Workspace \texttt{/mxck2\_ws} im Entwicklungscontainer ist über ein
+Docker-Volume direkt aus dem Host-Verzeichnis
+\texttt{/home/mxck/development\_ws} eingehängt, sodass Codeänderungen
+ohne Neustart des Containers wirksam werden.
+
+\subsection{Basisstack: mxck2\_ws}
+
+Der vorhandene Basisstack (Repository: \texttt{william-mx/mxck2\_ws})
+stellt die grundlegende Fahrzeugfunktionalität bereit: manuelle
+RC-Steuerung, URDF-Fahrzeugbeschreibung, Kamerabilder und Basistreiber.
+Er definiert außerdem den TF-Baum (Transform Tree) des Fahrzeugs mit
+den Koordinatenrahmen \texttt{base\_link} (Fahrzeugmittelpunkt) und
+\texttt{laser} (LiDAR-Sensor).
+
+\bildplatzhalter{Screenshot des ROS~2-Topic-Graphs (z.B. aus Foxglove)
+mit allen aktiven Knoten und Verbindungen}{ROS~2-Knoten- und Topic-Graph
+des vollständigen FTG-Stacks}
+
+% ============================================================
+\section{Der Follow-the-Gap-Algorithmus}
+% ============================================================
+
+\subsection{Grundprinzip}
+
+Der Follow-the-Gap-Algorithmus (FTG) ist ein reaktives Planungsverfahren
+für autonome Fahrsysteme, das ohne globale Karte oder Pfadplanung auskommt.
+Er operiert ausschließlich auf aktuellen Sensordaten und berechnet in
+Echtzeit eine kollisionsfreie Fahrtrichtung.
+
+Das Grundprinzip lässt sich in drei Schritten zusammenfassen:
+\begin{enumerate}
+    \item Identifiziere alle Hindernisse im Sichtfeld des Sensors.
+    \item Finde die größte \emph{Lücke} (freien Winkelbereich) zwischen benachbarten Hindernissen.
+    \item Steuere das Fahrzeug in Richtung des Mittelpunkts dieser Lücke.
+\end{enumerate}
+
+\begin{equation}
+    \theta_{\text{Ziel}} = \frac{\theta_{\text{links}} + \theta_{\text{rechts}}}{2}
+    \label{eq:gap_center}
+\end{equation}
+
+Dabei sind $\theta_{\text{links}}$ und $\theta_{\text{rechts}}$ die
+Winkel der linken und rechten Begrenzung der gewählten Lücke.
+
+\subsection{Klassisches F1TENTH-FTG vs.\ CTU-FTG}
+
+Im Rahmen dieser Arbeit wurde eine modifizierte Variante des FTG-Algorithmus
+verwendet, die ursprünglich von der Tschechischen Technischen Universität Prag
+(CTU) entwickelt wurde. Im Unterschied zur klassischen F1TENTH-Implementierung
+arbeitet diese Variante nicht direkt auf Laserscan-Rohdaten, sondern auf
+einer vorverarbeiteten Liste kreisförmiger Hindernisse.
+
+\begin{table}[H]
+\centering
+\caption{Vergleich: Klassisches F1TENTH-FTG vs. CTU-FTG}
+\label{tab:ftg_compare}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+\textbf{Merkmal} & \textbf{Klassisches F1TENTH-FTG} & \textbf{CTU-FTG (diese Arbeit)} \\
+\midrule
+Eingabe          & Rohlaserscan (\texttt{LaserScan})   & Kreishindernisliste (\texttt{ObstaclesStamped}) \\
+Sicherheitsradius & Explizit um jeden Messpunkt ($\approx$\,halbe Fahrzeugbreite) & Implizit durch Hindernisradius (0{,}01\,m) \\
+Lückenbewertung  & Tiefster freier Strahl             & Größte Winkelbreite \\
+Implementierung  & Python oder C++                    & C++ \\
+Geschwindigkeit  & Oft direkt integriert              & Separater Adapterknoten \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Algorithmus-Schritte im Detail}
+
+Der CTU-FTG-Kern (\texttt{follow\_the\_gap\_v0}) durchläuft pro
+Planungszyklus folgende Schritte:
+
+\begin{enumerate}[leftmargin=*, label=\textbf{Schritt \arabic*.}]
+    \item \textbf{Eingabe konvertieren:} Kreisförmige Hindernisse aus
+    \texttt{ObstaclesStamped} in interne \texttt{Obstacle}-Objekte umwandeln.
+    \item \textbf{Filtern:} Hindernisse außerhalb des Sichtfelds oder
+    jenseits der maximalen Relevanzreichweite verwerfen.
+    \item \textbf{Lücken konstruieren:} Zwischen je zwei benachbarten,
+    nicht-überlappenden Hindernissen ein \texttt{Gap}-Objekt anlegen.
+    \item \textbf{Beste Lücke wählen:} Die Lücke mit der größten
+    Winkelbreite auswählen, sofern sie breit genug für das Fahrzeug ist.
+    \item \textbf{Zielwinkel berechnen:} Mittelpunktwinkel der Lücke
+    nach Gleichung~\eqref{eq:gap_center} berechnen.
+    \item \textbf{Fallback:} Falls keine Lücke gefunden wird, Corner-Following
+    aktivieren und \texttt{/gap\_found\,=\,false} publizieren.
+\end{enumerate}
+
+\subsection{Hindernisrepräsentation: obstacle\_substitution}
+
+Ein wesentlicher Bestandteil des Systems ist der Knoten
+\texttt{obstacle\_substitution\_node}, der jeden einzelnen
+LiDAR-Messstahl in ein kreisförmiges Hindernis mit Radius~$r = 0{,}01$\,m
+umwandelt. Die kartesischen Koordinaten werden aus den Polarkoordinaten
+des Scans berechnet:
+
+\begin{equation}
+    x = d \cdot \cos(\theta), \quad y = d \cdot \sin(\theta)
+    \label{eq:polar2cart}
+\end{equation}
+
+wobei $d$ die gemessene Distanz und $\theta$ der zugehörige Scanwinkel ist.
