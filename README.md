@@ -56,7 +56,10 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 └────────┬────────────────┘                          │
          │                                           │
          ├──▶ /final_heading_angle (Float32, rad)    │
-         └──▶ /gap_found           (Bool)            │
+         ├──▶ /gap_found           (Bool)            │
+         ├──▶ /visualize_obstacles (Marker)          │
+         ├──▶ /visualize_largest_gap (PointStamped)  │
+         └──▶ /visualize_final_heading_angle (PoseStamped)
                 │                                    │
                 ▼                                    ▼
 ┌─────────────────────────────────────────────────────┐
@@ -120,13 +123,33 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 | `follow_the_gap` | `follow_the_gap` | FTG-Algorithmus, Scan-Modus |
 
 **Was er macht:**
-1. Empfängt `/autonomous/ftg/scan_filtered` (bereits rezentriert)
+1. Empfängt `/autonomous/ftg/scan_filtered` (bereits rezentriert, frame: `base_link`)
 2. Erkennt Hindernisse, findet Gaps
 3. Berechnet den besten Heading-Winkel zur größten Lücke
-4. Publiziert `/final_heading_angle` (rad) und `/gap_found` (bool)
+4. Publiziert Ergebnis-Topics und Visualisierungsdaten
 
-**Wichtig:** Die publish-Topics `/final_heading_angle` und `/gap_found` sind im C++-Code
-hardcoded und können nicht per Parameter geändert werden.
+**Publizierte Topics (alle hardcoded, nicht per Parameter änderbar):**
+
+| Topic | Typ | Beschreibung | Wann publiziert |
+|---|---|---|---|
+| `/final_heading_angle` | `Float32` | Winkel zur besten Lücke (rad) | Nur wenn Gap gefunden |
+| `/gap_found` | `Bool` | Ob eine Lücke existiert | Immer (bei jedem Scan) |
+| `/visualize_obstacles` | `Marker` (POINTS) | Erkannte Hindernisse als grüne Punkte | Immer (bei jedem Scan) |
+| `/visualize_largest_gap` | `PointStamped` | 3 Punkte: Roboterposition + linker/rechter Gap-Rand | Nur wenn Gap gefunden |
+| `/visualize_final_heading_angle` | `PoseStamped` | Orientierung (Quaternion) der gewählten Fahrtrichtung | Nur wenn Gap gefunden |
+
+**Subscriber (per Parameter konfigurierbar):**
+
+| Parameter | Default | Beschreibung |
+|---|---|---|
+| `input_mode` | `"scan"` | `"scan"` oder `"obstacles"` |
+| `scan_topic` | `"/autonomous/ftg/scan_filtered"` | LaserScan-Input (wenn input_mode=scan) |
+| `obstacles_topic` | `"/obstacles"` | ObstaclesStamped-Input (wenn input_mode=obstacles) |
+| `goal_angle_topic` | `"/lsr/angle"` | Externer Zielwinkel (optional) |
+
+**Frame-ID der Visualisierungen:** Wird aus dem eingehenden Scan übernommen.
+Beim Einsatz von `scan_preprocessor_node` entspricht diese dem konfigurierten `base_frame` des Output-Scans (Default: `base_link`).
+Entsprechend erscheinen die Marker im jeweiligen `base_frame`-Frame, nicht zwingend immer in `base_link`.
 
 ### 3.3 mxck_ftg_planner
 
@@ -188,7 +211,7 @@ hardcoded und können nicht per Parameter geändert werden.
 | `/scan` | `sensor_msgs/LaserScan` | LiDAR-Treiber | Roher 360° LiDAR-Scan |
 | `/tf` | TF | `mxck_run` | Transform `base_link → laser` |
 
-### Interne Topics
+### Interne Topics (Datenfluss)
 
 | Topic | Typ | Publisher | Subscriber |
 |---|---|---|---|
@@ -208,12 +231,23 @@ hardcoded und können nicht per Parameter geändert werden.
 | `/autonomous/ackermann_cmd` | `AckermannDriveStamped` | Fahrbefehl für vehicle_control |
 | `/autonomous/ftg/control_status` | `String` | Diagnose-Status |
 
+### Visualisierungstopics (follow_the_gap_v0)
+
+Diese Topics werden von `follow_the_gap_v0` automatisch publiziert (hardcoded).
+Frame: `base_link` (übernommen aus dem eingehenden Scan).
+
+| Topic | Typ | Beschreibung | Wann aktiv |
+|---|---|---|---|
+| `/visualize_obstacles` | `Marker` (POINTS) | Erkannte Hindernisse als grüne Punkte | Immer |
+| `/visualize_largest_gap` | `PointStamped` | Roboterposition + linker/rechter Gap-Rand (3 Messages pro Callback) | Nur wenn Gap gefunden |
+| `/visualize_final_heading_angle` | `PoseStamped` | Orientierung der gewählten Fahrtrichtung als Quaternion | Nur wenn Gap gefunden |
+
 ### Diagnose-Topics (optional)
 
-| Topic | Typ | Beschreibung |
-|---|---|---|
-| `/autonomous/ftg/scan_check` | `String` | Nächster Punkt im Frontfenster |
-| `/autonomous/ftg/scan_check_markers` | `MarkerArray` | RViz/Foxglove Marker |
+| Topic | Typ | Quelle | Beschreibung |
+|---|---|---|---|
+| `/autonomous/ftg/scan_check` | `String` | scan_front_window_check | Nächster Punkt im Frontfenster |
+| `/autonomous/ftg/scan_check_markers` | `MarkerArray` | scan_front_window_check | RViz/Foxglove Marker (Kugel + Pfeil) |
 
 ---
 
@@ -382,7 +416,7 @@ ros2 run follow_the_gap_v0 follow_the_gap \
   -p scan_topic:=/autonomous/ftg/scan_filtered
 ```
 
-**Prüfen:**
+**Prüfen – Funktions-Topics:**
 ```bash
 ros2 topic echo /final_heading_angle
 ```
@@ -398,6 +432,18 @@ ros2 topic echo /gap_found
 | Was prüfen | Erwartung |
 |---|---|
 | `data` | `true` (wenn freier Raum vorhanden) |
+
+**Prüfen – Visualisierungstopics:**
+```bash
+ros2 topic hz /visualize_obstacles
+# ✅ Erwartung: gleiche Rate wie /scan (~10 Hz), publiziert immer
+
+ros2 topic hz /visualize_largest_gap
+# ✅ Erwartung: ~10 Hz wenn gap_found=true, 0 Hz wenn kein Gap
+
+ros2 topic hz /visualize_final_heading_angle
+# ✅ Erwartung: ~10 Hz wenn gap_found=true, 0 Hz wenn kein Gap
+```
 
 **Wenn `gap_found` immer `false`:** Der Preprocessor liefert ungültige Daten →
 zurück zu Schritt 7.2.
@@ -499,6 +545,9 @@ ros2 bag record -o /mxck2_ws/bags/ftg_test \
   /autonomous/ftg/scan_filtered \
   /autonomous/ftg/front_clearance \
   /final_heading_angle /gap_found \
+  /visualize_obstacles \
+  /visualize_largest_gap \
+  /visualize_final_heading_angle \
   /autonomous/ftg/gap_angle \
   /autonomous/ftg/target_speed \
   /autonomous/ftg/planner_status \
@@ -517,46 +566,108 @@ Foxglove Studio → „Open Connection" →
 
 (Der `mxck2_foxglove` Container stellt den Bridge bereit.)
 
-### 8.2 Empfohlene Panel-Konfiguration
+### 8.2 Alle verfügbaren Topics
 
-**Panel 1: 3D-Ansicht (3D Panel)**
-- Topic hinzufügen: `/scan` → Typ: LaserScan → Farbe: Weiß
-- Topic hinzufügen: `/autonomous/ftg/scan_filtered` → Typ: LaserScan → Farbe: Grün
-- Topic hinzufügen: `/autonomous/ftg/scan_check_markers` → Typ: MarkerArray
-- Fixed Frame: `base_link`
-- So siehst du den rohen Scan (weiß) vs. den gefilterten Frontscan (grün)
+| Topic | Typ | Quelle | Panel-Typ |
+|---|---|---|---|
+| `/scan` | LaserScan | LiDAR-Treiber | 3D |
+| `/autonomous/ftg/scan_filtered` | LaserScan | scan_preprocessor | 3D |
+| `/autonomous/ftg/front_clearance` | Float32 | scan_preprocessor | Plot |
+| `/autonomous/ftg/status` | String | scan_preprocessor | Log |
+| `/final_heading_angle` | Float32 | follow_the_gap_v0 | Plot |
+| `/gap_found` | Bool | follow_the_gap_v0 | Log |
+| `/visualize_obstacles` | Marker (POINTS) | follow_the_gap_v0 | 3D |
+| `/visualize_largest_gap` | PointStamped | follow_the_gap_v0 | 3D |
+| `/visualize_final_heading_angle` | PoseStamped | follow_the_gap_v0 | 3D |
+| `/autonomous/ftg/gap_angle` | Float32 | ftg_planner | Plot |
+| `/autonomous/ftg/target_speed` | Float32 | ftg_planner | Plot |
+| `/autonomous/ftg/planner_status` | String | ftg_planner | Log |
+| `/autonomous/ackermann_cmd` | AckermannDriveStamped | ftg_command | Log / Plot |
+| `/autonomous/ftg/control_status` | String | ftg_command | Log |
+| `/autonomous/ftg/scan_check_markers` | MarkerArray | scan_front_window_check | 3D |
+| `/autonomous/ftg/scan_check` | String | scan_front_window_check | Log |
 
-**Panel 2: Plot (Zeitverlauf)**
-- `/autonomous/ftg/gap_angle.data` → Lenkwinkel über Zeit
-- `/autonomous/ftg/target_speed.data` → Geschwindigkeit über Zeit
-- `/autonomous/ftg/front_clearance.data` → Frontabstand über Zeit
+### 8.3 Panel-Konfiguration
 
-**Panel 3: Plot (Ackermann-Output)**
-- `/autonomous/ackermann_cmd.drive.speed` → tatsächliche Speed
-- `/autonomous/ackermann_cmd.drive.steering_angle` → tatsächlicher Lenkwinkel
+#### Panel 1: 3D-Ansicht – LiDAR + FTG-Visualisierung
 
-**Panel 4: Log / Raw Messages**
-- `/autonomous/ftg/planner_status` → Planner-Entscheidungen als Text
-- `/autonomous/ftg/control_status` → Control-Status als Text
+Neues **3D Panel** erstellen, Fixed Frame: `base_link`.
 
-**Panel 5: Diagnostics (optional)**
-- `/autonomous/ftg/status` → Preprocessor-Status
-- `/autonomous/ftg/scan_check` → Front-Window-Check Ergebnisse
+Topics hinzufügen (links unter „Topics"):
 
-### 8.3 Topics die sich besonders zum Debuggen eignen
-
-| Problem | Topic beobachten | Worauf achten |
+| Topic | Was man sieht | Empfohlene Farbe |
 |---|---|---|
-| Auto fährt nicht | `/autonomous/ftg/planner_status` | "waiting for fresh inputs" → ein Input fehlt |
-| Keine Lücke gefunden | `/gap_found` | Immer `false`? → Preprocessor-Output prüfen |
-| Falsche Richtung | `/autonomous/ftg/gap_angle` + 3D-Scan | Stimmt der Winkel mit dem sichtbaren Gap überein? |
-| Zu langsam/schnell | `/autonomous/ftg/front_clearance` + Plot | Clearance vs. Speed-Kurve prüfen |
-| Gar kein Scan-Output | `/autonomous/ftg/status` | TF-Fehlermeldungen? |
+| `/scan` | Roher 360° LiDAR-Scan | Weiß/Grau |
+| `/autonomous/ftg/scan_filtered` | Gefiltertes Frontfenster (±50°) | Grün |
+| `/visualize_obstacles` | Erkannte Hindernisse vom FTG-Algorithmus | Grün (hardcoded im C++) |
+| `/visualize_largest_gap` | 3 Punkte: Roboterposition + Gap-Ränder | Standard |
+| `/visualize_final_heading_angle` | Pose-Pfeil: gewählte Fahrtrichtung | Standard |
+| `/autonomous/ftg/scan_check_markers` | Kugel + Pfeil zum nächsten Hindernis | Nur bei `run_scan_check:=true` |
 
-### 8.4 Foxglove Layout speichern
+So sieht man auf einen Blick: roher Scan → gefilterter Scan → erkannte Hindernisse → gewählte Lücke → Fahrtrichtung.
 
-File → Export Layout → `ftg_debug_layout.json` speichern.
-Beim nächsten Mal: File → Import Layout.
+#### Panel 2: Plot – Steering & Speed über Zeit
+
+Neues **Plot Panel** erstellen, 3 Serien hinzufügen:
+
+| Serie | Topic-Pfad | Beschreibung |
+|---|---|---|
+| Gap Angle | `/autonomous/ftg/gap_angle.data` | Gewünschter Lenkwinkel (rad) |
+| Target Speed | `/autonomous/ftg/target_speed.data` | Gewünschte Geschwindigkeit (m/s) |
+| Front Clearance | `/autonomous/ftg/front_clearance.data` | Abstand zum nächsten Hindernis (m) |
+
+Damit sieht man wie Speed und Lenkung auf Hindernisse reagieren.
+
+#### Panel 3: Plot – Ackermann-Output (was das Auto tatsächlich bekommt)
+
+Neues **Plot Panel**:
+
+| Serie | Topic-Pfad |
+|---|---|
+| Actual Speed | `/autonomous/ackermann_cmd.drive.speed` |
+| Actual Steering | `/autonomous/ackermann_cmd.drive.steering_angle` |
+
+Vergleiche mit Panel 2 um zu sehen ob Command-Node die Werte korrekt weitergibt.
+
+#### Panel 4: Plot – FTG-Heading (Rohdaten von follow_the_gap_v0)
+
+Neues **Plot Panel**:
+
+| Serie | Topic-Pfad |
+|---|---|
+| Raw Heading | `/final_heading_angle.data` |
+| Gap Angle (nach Planner) | `/autonomous/ftg/gap_angle.data` |
+
+Zeigt ob der Planner den Heading-Winkel korrekt begrenzt (±0.45 rad).
+
+#### Panel 5: Log – Status-Meldungen
+
+Neues **Raw Messages Panel** oder **Log Panel**:
+
+| Topic | Was man sieht |
+|---|---|
+| `/autonomous/ftg/planner_status` | `[PLANNER] gap_angle=+0.12 rad, target_speed=0.45 m/s, ...` |
+| `/autonomous/ftg/control_status` | `[CONTROL] speed=0.45 m/s, steering=+0.120 rad` |
+| `/autonomous/ftg/status` | Preprocessor-Status, TF-Meldungen |
+
+Bei Problemen hier zuerst schauen – die Status-Meldungen zeigen sofort ob ein Input fehlt oder stale ist.
+
+### 8.4 Debugging-Szenarien
+
+| Problem | Was in Foxglove prüfen |
+|---|---|
+| Auto fährt gar nicht | Panel 5: steht dort `waiting for fresh inputs`? → Ein Topic fehlt |
+| Keine Lücke gefunden | 3D: ist `/autonomous/ftg/scan_filtered` sichtbar? Sind `/visualize_obstacles` überall? |
+| Falsche Fahrtrichtung | 3D: zeigt `/visualize_final_heading_angle` Pfeil in die richtige Richtung? |
+| Auto zu langsam | Panel 2: ist `front_clearance` niedrig? Ist `gap_angle` groß? → Speed-Policy greift |
+| Steering immer 0 | Panel 4: kommt `/final_heading_angle` mit Werten ≠ 0? |
+| Scan sieht falsch aus | 3D: vergleiche `/scan` (weiß) mit `/autonomous/ftg/scan_filtered` (grün) – ist das Frontfenster richtig orientiert? |
+
+### 8.5 Layout speichern
+
+File → Export Layout → `ftg_debug_layout.json`
+
+Beim nächsten Mal: File → Import Layout → fertig.
 
 ---
 
@@ -571,3 +682,4 @@ Beim nächsten Mal: File → Import Layout.
 | `scan_filtered` zeigt alle Ranges 0.05 | Preprocessor clippt zu aggressiv oder TF falsch | Prüfe TF und `clip_min_range_m` |
 | Ackermann speed immer 0 | Clearance < stop_clearance | Hindernis zu nah oder Clearance falsch berechnet |
 | Auto lenkt in falsche Richtung | Steering-Vorzeichen falsch | `angle_to_steering_gain: -1.0` in ftg_control.yaml |
+| `/visualize_largest_gap` leer | Kein Gap gefunden | Prüfe `/gap_found` – wenn false, gibt es keine Gap-Visualisierung |
