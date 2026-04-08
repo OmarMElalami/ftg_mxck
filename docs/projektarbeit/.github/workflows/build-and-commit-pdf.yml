@@ -1,0 +1,39 @@
+name: Build and Commit LaTeX PDF
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build_pdf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile LaTeX to PDF
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: main.tex
+          working_directory: Projektarbeit_MXCK_FTG
+
+      - name: Prepare output folder
+        run: |
+          mkdir -p pdf
+          cp Projektarbeit_MXCK_FTG/main.pdf pdf/dokumentation.pdf
+
+      - name: Commit PDF if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pdf/dokumentation.pdf
+          git diff --staged --quiet || git commit -m "chore(docs): update generated PDF"
+          git push

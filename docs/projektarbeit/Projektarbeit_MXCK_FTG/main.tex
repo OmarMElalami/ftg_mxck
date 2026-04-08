@@ -1,0 +1,260 @@
+\documentclass[12pt]{report}
+
+%==============================================================================
+% Pakete
+%==============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+\usepackage{graphicx}
+\graphicspath{{images/}}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{mdframed}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{tocbibind}
+
+%==============================================================================
+% Farben
+%==============================================================================
+\definecolor{thm_green}{RGB}{128,186,36}
+\definecolor{light_gray}{RGB}{245,245,245}
+\definecolor{warn_red}{RGB}{200,50,50}
+\definecolor{ok_green}{RGB}{40,140,40}
+\definecolor{warn_orange}{RGB}{200,120,0}
+
+%==============================================================================
+% Code-Stil
+%==============================================================================
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{light_gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{ok_green},
+  stringstyle=\color{warn_orange},
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  xleftmargin=1.5em,
+}
+
+%==============================================================================
+% Platzhalter-Befehle für fehlende Inhalte
+%==============================================================================
+\newcommand{\bildplatzhalter}[2]{%
+  \begin{figure}[H]
+    \centering
+    \begin{mdframed}[backgroundcolor=yellow!10, linecolor=warn_orange, linewidth=1.5pt]
+      \centering\vspace{1.5cm}
+      \textbf{\color{warn_orange}[FOTO EINFÜGEN]}\\[0.5em]
+      \textit{#1}
+      \vspace{1.5cm}
+    \end{mdframed}
+    \caption{#2}
+  \end{figure}%
+}
+
+\newcommand{\datenplatzhalter}[1]{%
+  \begin{mdframed}[backgroundcolor=blue!5, linecolor=blue!40, linewidth=1pt]
+    \textbf{\color{blue!70}[DATEN / MESSUNG EINFÜGEN]}\\
+    \textit{#1}
+  \end{mdframed}%
+}
+
+%==============================================================================
+% Meta-Daten
+%==============================================================================
+\newcommand\reporttype{Projektarbeit}
+\newcommand\semester{WS 2025/2026}
+\newcommand\reporttitle{Analyse und Evaluation des Follow-the-Gap-Algorithmus\\
+zur autonomen Hindernisvermeidung\\
+auf einem Jetson-Nano-basierten MXCarkit}
+\newcommand\authorone{Aly Elbermawy (5335848)}
+\newcommand\authortwo{Omar Elalami (5379642)}
+\newcommand\authorthree{Zakaria El-aboudi (5223183)}
+\newcommand\supervisor{Prof.\ Dr.\ Benedikt Lattke}
+\newcommand\university{Technische Hochschule Mittelhessen}
+\newcommand\location{Friedberg}
+
+%==============================================================================
+% Kapitel-Layout
+%==============================================================================
+\makeatletter
+\def\@makechapterhead#1{%
+  \vspace*{0pt}
+  {\raggedright\Huge\bfseries\color{thm_green}\thechapter\quad\normalcolor #1\par\vskip8pt
+  \hrule height 1.5pt \vskip12pt}
+}
+\makeatother
+
+\linespread{1.5}
+
+%==============================================================================
+% Kopf-/Fußzeile
+%==============================================================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+%==============================================================================
+% Dokument
+%==============================================================================
+\begin{document}
+
+%------------------------------------------------------------------------------
+% Titelseite
+%------------------------------------------------------------------------------
+\begin{titlepage}
+\centering
+\includegraphics[width=0.35\textwidth]{thm}\\[1.5cm]
+
+{\Large\textbf{\reporttype}}\\[0.3cm]
+{\normalsize Fachbereich MNI -- Informatik \quad|\quad \semester}\\[1.5cm]
+
+\begin{mdframed}[linecolor=thm_green, linewidth=2pt, innertopmargin=12pt, innerbottommargin=12pt]
+\centering
+{\large\textbf{\reporttitle}}
+\end{mdframed}
+
+\vfill
+\begin{tabular}{@{}ll}
+\textbf{Autoren:}     & \authorone \\
+                      & \authortwo \\
+                      & \authorthree \\[0.5em]
+\textbf{Betreuer:}    & \supervisor \\[0.5em]
+\textbf{Hochschule:}  & \university, \location \\[0.5em]
+\textbf{Abgabedatum:} & \today
+\end{tabular}
+\vfill
+\end{titlepage}
+
+%------------------------------------------------------------------------------
+% Kurzfassung
+%------------------------------------------------------------------------------
+\chapter*{Kurzfassung}
+\addcontentsline{toc}{chapter}{Kurzfassung}
+
+Diese Projektarbeit dokumentiert die Entwicklung, Integration und experimentelle
+Evaluation eines reaktiven, LiDAR-basierten Hindernisvermeidungssystems
+für das MXCarkit -- ein miniaturisiertes autonomes Fahrzeug auf Basis des
+NVIDIA Jetson Nano. Das Ziel des Systems war es, das Fahrzeug in die Lage zu
+versetzen, Hindernisse selbstständig zu erkennen, ihnen auszuweichen und bei
+unausweichlichen Hindernissen zum Stillstand zu kommen.
+
+Als Planungsalgorithmus wurde eine modifizierte CTU-Variante des
+\textit{Follow-the-Gap}-Algorithmus (FTG) eingesetzt, der aus den
+Rohdaten eines RPLIDAR A1/A2-Sensors eine sichere Fahrtrichtung berechnet.
+Der entwickelte ROS~2-Stack umfasst sieben spezialisierte Pakete für
+Wahrnehmung, Planung, Adaption und Steuerung.
+
+Die Versuche zeigten, dass das Fahrzeug Hindernisse prinzipiell erkennt
+und Lenkbefehle erzeugt, die korrekte Ausweichrichtungen kodieren.
+Im praktischen Einsatz konnte jedoch kein vollständig kollisionsfreies
+Fahren erreicht werden. Als Hauptursachen wurden eine fehlende
+TF-Koordinatentransformation zwischen Fahrzeug- und Sensorrahmen sowie
+eine fehlerhafte Frontbereich-Kalibrierung des LiDAR-Sensors identifiziert.
+Die Arbeit beschreibt den vollständigen Entwicklungs- und Debugging-Prozess
+und leitet konkrete Handlungsempfehlungen ab.
+
+\bigskip
+\noindent\textbf{Schlüsselwörter:} Follow-the-Gap, ROS~2, LiDAR,
+autonomes Fahren, Jetson Nano, MXCarkit, Hinderniserkennung, Ackermann-Steuerung
+
+%------------------------------------------------------------------------------
+% Inhaltsverzeichnis
+%------------------------------------------------------------------------------
+\pagenumbering{Roman}
+\setcounter{page}{2}
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\listoftables
+\newpage
+
+%------------------------------------------------------------------------------
+% Hauptteil
+%------------------------------------------------------------------------------
+\pagenumbering{arabic}
+
+\include{chapters/01_grundlagen}
+\include{chapters/02_durchfuehrung}
+\include{chapters/03_diskussion}
+\include{chapters/04_fazit}
+
+%------------------------------------------------------------------------------
+% Literaturverzeichnis
+%------------------------------------------------------------------------------
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{Literaturverzeichnis}
+
+\bibitem{ftg_orig}
+S.~Sezer und M.~Gokasan,
+\textit{Novel obstacle avoidance algorithm for short range ultrasonic sensors},
+Journal of the Franklin Institute, Bd.~349, Nr.~6, S.~1939--1958, 2012.
+
+\bibitem{f1tenth}
+F1TENTH-Community,
+\textit{F1TENTH Autonomous Racing -- Follow the Gap Algorithm},
+Online-Dokumentation, 2023.
+Verfügbar: \url{https://f1tenth.readthedocs.io}
+
+\bibitem{ros2_foxy}
+Open Robotics,
+\textit{ROS~2 Foxy Fitzroy -- Offizielle Dokumentation}, 2020.
+Verfügbar: \url{https://docs.ros.org/en/foxy/}
+
+\bibitem{rplidar}
+Slamtec,
+\textit{RPLIDAR A1/A2 -- Low Cost 360° Laser Range Scanner, Technisches Datenblatt},
+2023.
+
+\bibitem{ackermann}
+R.~Rajamani,
+\textit{Vehicle Dynamics and Control}, 2.~Aufl.,
+Springer, New York, 2012.
+
+\bibitem{mxck_repo}
+W.~Meisenheimer,
+\textit{mxck2\_ws -- MXCK2 Robot Operating System Workspace},
+GitHub-Repository, 2024.
+Verfügbar: \url{https://github.com/william-mx/mxck2_ws}
+
+\end{thebibliography}
+
+%------------------------------------------------------------------------------
+% Eidesstattliche Erklärung
+%------------------------------------------------------------------------------
+\chapter*{Eidesstattliche Erklärung}
+\addcontentsline{toc}{chapter}{Eidesstattliche Erklärung}
+
+Wir erklären hiermit, dass wir die vorliegende Projektarbeit selbstständig und
+ohne unzulässige Hilfe Dritter verfasst haben. Alle verwendeten Quellen und
+Hilfsmittel sind vollständig angegeben. Die Arbeit wurde in gleicher oder
+ähnlicher Form noch keiner anderen Prüfungsbehörde vorgelegt.
+
+\vspace{2cm}
+\noindent
+Friedberg, \today
+
+\vspace{1.5cm}
+\noindent
+\begin{tabular}{@{}p{5cm}@{\hspace{1cm}}p{5cm}@{\hspace{1cm}}p{5cm}}
+\hrulefill & \hrulefill & \hrulefill \\
+Aly Elbermawy & Omar Elalami & Zakaria El-aboudi
+\end{tabular}
+
+\end{document}
