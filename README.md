@@ -1,7 +1,7 @@
 # MXCK Follow-The-Gap Stack – Dokumentation
 
 > **Projektdokumentation:** [PDF herunterladen](docs/pdf/dokumentation.pdf) 
-- LaTeX-/Ausarbeitungsquellen: `docs/projektarbeit/Projektarbeit_MXCK_FTG`
+- LaTeX-/Ausarbeitungsquellen: (docs/projektarbeit/Projektarbeit_MXCK_FTG)
 - PDF-Dateien: `docs/pdf`
 
 ## Inhaltsverzeichnis
