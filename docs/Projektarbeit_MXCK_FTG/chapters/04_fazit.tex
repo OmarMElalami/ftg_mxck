@@ -1,96 +1,94 @@
 \chapter{Fazit und Ausblick}
 \label{ch:fazit}
 
-% ============================================================
 \section{Fazit}
-% ============================================================
 
-Diese Projektarbeit dokumentiert den vollständigen Entwicklungs-,
-Integrations- und Evaluationsprozess eines Follow-the-Gap-basierten
-Hindernisvermeidungssystems für das MXCarkit.
+Im Rahmen dieser Projektarbeit wurde die vorhandene FTG-Dokumentation an den
+aktuellen technischen Stand des Repositories \texttt{ftg\_mxck} und an die
+MXCK-Umgebung aus \texttt{mxck2\_ws} angepasst. Der wesentliche inhaltliche
+Gewinn besteht darin, dass nun nicht mehr mehrere widersprüchliche
+Architekturbilder nebeneinanderstehen, sondern eine klar definierte
+Standardpipeline beschrieben wird.
 
-Das gesetzte Ziel -- ein Fahrzeug, das selbstständig Hindernisse
-erkennt, ausweicht und bei unausweichlichen Hindernissen anhält --
-konnte im Rahmen der durchgeführten Experimente \emph{nur
-teilweise} erreicht werden. Die Einzelkomponenten des Stacks
-(LiDAR-Empfang, Hinderniskonvertierung, Planerkern, Geschwindigkeitsadapter
-und Ackermann-Ausgabe) funktionierten im Einzeltest korrekt.
-Im Zusammenspiel verhinderten jedoch systemische Fehler
-die kollisionsfreie Navigation.
+Die überarbeitete Kernarchitektur lautet:
 
-\textbf{Zu den wesentlichen Erkenntnissen dieser Arbeit zählen:}
+\begin{center}
+\texttt{/scan}
+$\rightarrow$
+\texttt{scan\_preprocessor\_node}
+$\rightarrow$
+\texttt{/autonomous/ftg/scan\_filtered}
+$\rightarrow$
+\texttt{follow\_the\_gap\_v0}
+$\rightarrow$
+\texttt{ftg\_planner\_node}
+$\rightarrow$
+\texttt{ftg\_command\_node}
+$\rightarrow$
+\texttt{/autonomous/ackermann\_cmd}
+\end{center}
+
+Damit wurden folgende Ziele erreicht:
 
 \begin{itemize}
-    \item \textbf{Kalibrierung ist entscheidend:} Der Parameter
-    \texttt{front\_center\_deg} hatte enormen Einfluss auf das
-    Gesamtverhalten. Eine Abweichung von nur $45°$ (von $135°$ auf $90°$)
-    führte dazu, dass der Algorithmus konstant am Grenzwert operierte
-    und keinerlei situationsabhängige Reaktion zeigte.
-
-    \item \textbf{TF-Infrastruktur ist nicht optional:}
-    Reaktive Planungsalgorithmen hängen fundamental von der korrekten
-    räumlichen Zuordnung der Sensordaten ab. Das Fehlen der
-    \texttt{base\_link}$\to$\texttt{laser}-Transformation verhinderte
-    eine automatische, robuste Kalibrierung und war die tiefste
-    Ursache des Systemversagens.
-
-    \item \textbf{Hindernismodellierung beeinflusst Lückenbewertung:}
-    Ein Sicherheitsradius von $0{,}01$\,m ist für ein Fahrzeug
-    der Breite $>30$\,cm unzureichend. Die Wahl des Hindernisradius
-    direkt beeinflusst, welche Lücken als passierbar gelten.
-
-    \item \textbf{Modularität erleichtert Debugging:}
-    Die konsequent modulare Paketstruktur mit dedizierten
-    Debug-Topics (\texttt{/visualize\_obstacles},
-    \texttt{/autonomous/ftg/planner\_status}) ermöglichte eine
-    systematische Eingrenzung der Fehlerquellen -- ohne diese
-    Transparenz wäre das Debugging erheblich schwieriger gewesen.
-
-    \item \textbf{Container-Grenzen sind ROS-Grenzen:}
-    Das DDS-basierte Kommunikationsmodell von ROS~2 funktioniert
-    gut innerhalb eines Netzwerks, jedoch entstehen durch
-    unterschiedliche ROS~2-Versionen und QoS-Inkompatibilitäten
-    unsichtbare Kommunikationsgrenzen.
+    \item Die Dokumentation entspricht der aktuellen scan-basierten
+    Hauptpipeline des Repositories.
+    \item Die Rollen von Perception, FTG-Kern, Planner und Control sind
+    sauber getrennt.
+    \item Die theoretische Erläuterung des FTG-Verfahrens wurde auf die
+    Originalliteratur und die CTU/F1TENTH-Umsetzung zurückgeführt.
+    \item Die ROS~2-spezifische Einordnung wurde durch die CTU-Arbeit zur
+    ROS~2-Migration und Prozessanalyse gestärkt.
+    \item Veraltete oder missverständliche Beschreibungen des Legacy-Pfads
+    wurden aus dem Zentrum der Dokumentation entfernt.
 \end{itemize}
 
-% ============================================================
-\section{Ausblick}
-% ============================================================
+Insgesamt ist die Arbeit damit nicht nur eine Beschreibung eines Algorithmus,
+sondern eine technische Bereinigung und Präzisierung eines gesamten
+ROS~2-Stacks für ein reales Lehr- und Entwicklungsfahrzeug.
 
-Mit den in Kapitel~\ref{ch:diskussion} beschriebenen
-Korrekturen ist zu erwarten, dass das System die ursprüngliche
-Zielsetzung -- kollisionsfreies Fahren mit Nothalt --
-vollständig erfüllen kann. Über die unmittelbaren Korrekturen
-hinaus bieten sich folgende Erweiterungen an:
+\section{Ausblick}
+
+Auf Basis des nun konsistent dokumentierten Stacks bieten sich die folgenden
+nächsten Schritte an:
 
 \begin{enumerate}
-    \item \textbf{Clustering-Integration:}
-    Ein DBSCAN-basierter Clusteringschritt zwischen
-    \texttt{obstacle\_substitution} und dem Planerkern
-    würde die Hindernisrepräsentation erheblich verbessern
-    und das beobachtete Zickzack-Lenkverhalten reduzieren.
+    \item \textbf{PDF-Build automatisieren:}
+    Die Projektdokumentation sollte über einen korrekt im
+    Repository-Root platzierten GitHub-Action-Workflow automatisch gebaut
+    werden. Gleichzeitig sollten LaTeX-Hilfsdateien konsequent ignoriert
+    werden.
 
-    \item \textbf{Systematische Parametrierung via Rosbag:}
-    Die aufgezeichneten Rosbags können für offline
-    Parametertests genutzt werden, ohne das reale
-    Fahrzeug jedes Mal neu starten zu müssen.
+    \item \textbf{Dokumentation und Code synchron halten:}
+    Änderungen an Pipeline, Topic-Namen, YAML-Dateien oder Launchfiles
+    sollten künftig immer gleichzeitig in README und Ausarbeitung
+    nachgeführt werden.
 
-    \item \textbf{Foxglove-Dashboard:}
-    Eine Foxglove-Konfiguration mit 3D-Panel
-    (Hindernisvisualisierung, Heading-Pfeil),
-    Plot-Panel (\texttt{/final\_heading\_angle},
-    \texttt{/gap\_found}) und Raw-Messages-Panel
-    würde zukünftige Kalibrierung und Diagnose
-    erheblich erleichtern.
+    \item \textbf{Rosbag-basierte Evaluation:}
+    Für reproduzierbare Tests empfiehlt sich ein standardisierter Satz an
+    Rosbags mit \texttt{/scan}, \texttt{/tf}, \texttt{/final\_heading\_angle},
+    \texttt{/gap\_found}, Planner- und Control-Topics.
 
-    \item \textbf{Streckentest:}
-    Erprobung des Systems auf einer definierten
-    Teststrecke mit bekannten Hindernishindernissen
-    in verschiedenen Konfigurationen (Engstellen,
-    L-Kurven, dynamische Hindernisse).
+    \item \textbf{Foxglove-Standardlayout:}
+    Ein gemeinsames Debugging-Layout für
+    \texttt{/scan}, \texttt{/autonomous/ftg/scan\_filtered},
+    \texttt{/visualize\_obstacles},
+    \texttt{/visualize\_final\_heading\_angle},
+    \texttt{/autonomous/ackermann\_cmd} und die Status-Topics würde
+    künftige Fehlersuche deutlich beschleunigen.
 
-    \item \textbf{Geschwindigkeitsskalierung:}
-    Nach erfolgreicher Kollisionsfreiheit kann
-    die \texttt{cruise\_speed} schrittweise erhöht
-    und die Geschwindigkeitsstufen feinjustiert werden.
+    \item \textbf{Erweiterung über lokalen FTG hinaus:}
+    Nach erfolgreicher Stabilisierung des lokalen Hindernisvermeidungsstacks
+    kann die Einbindung globaler Routenplanung, Lokalisierung oder
+    zusätzlicher Sensorfusion betrachtet werden.
 \end{enumerate}
+
+\section*{Schlussbemerkung}
+\addcontentsline{toc}{section}{Schlussbemerkung}
+
+Der wichtigste Erkenntnisgewinn dieser Arbeit ist, dass ein robuster
+autonomer Stack nicht nur aus einem guten Algorithmus besteht.
+Er benötigt ebenso eine stimmige Prozesskette, korrekte Frame- und
+Topic-Semantik, nachvollziehbare Startlogik und eine Dokumentation,
+die exakt dem laufenden System entspricht. Erst das Zusammenspiel
+dieser Elemente macht den FTG-Stack auf dem MXCK tatsächlich nutzbar.
