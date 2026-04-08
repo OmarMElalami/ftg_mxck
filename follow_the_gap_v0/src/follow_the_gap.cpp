@@ -13,7 +13,6 @@ float kMaxRange = 0.9f;
 float g_fovAngleMax = static_cast<float>(M_PI / 2.0 + M_PI / 16.0);
 float g_goal_angle = 0.0f;
 
-// Legacy helper obstacles kept for compatibility with disabled nonholonomic code.
 Obstacle obstacle_nhol_left(kTurnRadius, static_cast<float>(M_PI / 2.0), kTurnRadius);
 Obstacle obstacle_nhol_right(kTurnRadius, static_cast<float>(-M_PI / 2.0), kTurnRadius);
 
@@ -37,8 +36,6 @@ float FollowTheGap::FollowTheGapMethod(
   LidarData * lidar_data,
   std::vector<Obstacle> & gap_borders_out)
 {
-  // lidar_data is kept in the interface to avoid behavior/API changes, but the
-  // current implementation does not use it on the active /obstacles path.
   (void)lidar_data;
 
   std::vector<Gap> gaps;
@@ -70,8 +67,7 @@ float FollowTheGap::FollowTheGapMethod(
     std::cerr << e.what() << std::endl;
     throw NoGapFoundException("Found invalid gap center angle");
   } catch (const CenterOutsideGapException &) {
-    std::cerr << "Centre angle was outside gap. "
-                 "Falling back to CalculateGapCenterAngleBasic"
+    std::cerr << "Centre angle was outside gap. Falling back to CalculateGapCenterAngleBasic"
               << std::endl;
     gap_center_angle = CalculateGapCenterAngleBasic(*largest_gap);
   }
@@ -179,7 +175,8 @@ float FollowTheGap::FtgWeightedAverageMethod(
   const float min_range = std::max(lidar_data->range_min, 2.0f);
   const float range_increment = 2.0f;
 
-  const unsigned int num_its = static_cast<unsigned int>((max_range - min_range) / range_increment);
+  const unsigned int num_its =
+    static_cast<unsigned int>((max_range - min_range) / range_increment);
   unsigned int s = 0;
   float final_heading_angle = 0.0f;
 
@@ -195,7 +192,6 @@ float FollowTheGap::FtgWeightedAverageMethod(
       final_heading_angle += angle * (static_cast<float>(i) / num_its);
       s += i;
     } catch (const NoGapFoundException &) {
-      // Ignore this iteration and try the next range.
     }
   }
 
@@ -273,7 +269,6 @@ std::tuple<bool, float> FollowTheGap::Callback(
   float final_heading_angle = 0.0f;
   bool ok = false;
 
-  // Try FTG at lower range first.
   g_fovAngleMax = static_cast<float>(M_PI / 2.0);
 
   kMaxRange = 4.0f;
@@ -289,7 +284,6 @@ std::tuple<bool, float> FollowTheGap::Callback(
 
   g_fovAngleMax += static_cast<float>(M_PI / 16.0);
 
-  // Retry FTG for close ranges.
   if (!ok) {
     kMaxRange = 2.0f;
     g_fovAngleMax = static_cast<float>(M_PI / 2.0 + M_PI / 8.0);
@@ -304,7 +298,6 @@ std::tuple<bool, float> FollowTheGap::Callback(
     }
   }
 
-  // Retry corner following for larger angles.
   if (!ok) {
     g_fovAngleMax = static_cast<float>(M_PI / 2.0 - M_PI / 16.0);
     while ((!ok) && (g_fovAngleMax < static_cast<float>(M_PI))) {
@@ -330,48 +323,6 @@ std::tuple<bool, float> FollowTheGap::Callback(
 
   return std::make_tuple(ok, final_heading_angle);
 }
-
-#if 0
-// -----------------------------------------------------------------------------
-// Legacy nonholonomic helper code path
-// -----------------------------------------------------------------------------
-// This code is intentionally kept but disabled during the cleanup pass.
-// It is not part of the active ROS 2 /obstacles path and keeping it disabled
-// avoids confusion while preserving the historical implementation.
-
-static float FindDistanceBetweenObstacleAndFov(float fov_angle, Obstacle const & obstacle) {
-  float gap_size = std::abs(obstacle.angle - fov_angle);
-  return obstacle.distance_to_center * std::sin(gap_size) - obstacle.radius;
-}
-
-static float FindDistanceBetweenObstacleAndNhol(Obstacle const & obstacle) {
-  return obstacle_nhol_left.DistanceBetweenObstacleEdges(obstacle);
-}
-
-static float FindDistanceBetweenObstacleAndNholRight(Obstacle const & obstacle) {
-  return obstacle_nhol_right.DistanceBetweenObstacleEdges(obstacle);
-}
-
-static float FindThetaNhol(Obstacle const & obstacle) {
-  double const r = kTurnRadius;
-  double const r_squared = r * r;
-  double const d_o = obstacle.distance_to_center;
-  double const d_o_squared = d_o * d_o;
-  double const theta_o = std::abs(obstacle.angle);
-  double const d_ro_squared =
-    r_squared + d_o_squared - 2 * r * d_o * std::cos(M_PI / 2 - theta_o);
-  double const d_ro = std::sqrt(d_ro_squared);
-  double const theta_r = std::acos((r_squared + d_ro_squared - d_o_squared) / (2 * r * d_ro));
-  double const d_nhol_to_o = d_ro - r;
-  double const d_nhol_to_o_squared = d_nhol_to_o * d_nhol_to_o;
-  double const d_r_squared = 2 * r_squared * (1 - std::cos(theta_r));
-  double const d_r = std::sqrt(d_r_squared);
-  double const theta = std::acos(
-    (d_r_squared + d_o_squared - d_nhol_to_o_squared) / (2 * d_r * d_o));
-  double const theta_nhol = theta + theta_o;
-  return static_cast<float>(theta_nhol);
-}
-#endif
 
 std::vector<Gap> FollowTheGap::FindGapsAngle(std::vector<Obstacle> & obstacles)
 {
@@ -546,7 +497,6 @@ void FollowTheGap::FilterObstacles(
     }
   }
 
-  // Legacy filtering was intentionally disabled upstream.
   // FilterLoneObstacleGroups(obstacles);
 }
 

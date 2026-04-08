@@ -1,104 +1,116 @@
 # Copilot instructions for ftg_mxck
 
-This repository contains a ROS2-based autonomous stack for the MXCarkit platform, focused on Follow-The-Gap (FTG) obstacle avoidance and integration into the existing MXCK control architecture.
+This repository contains a ROS 2 autonomous stack for the MXCarkit (MXCK)
+platform, focused on Follow-The-Gap (FTG) obstacle avoidance using a 2D LiDAR.
 
-A full working `line_tracking` example stack is also present in this repository as a reference example for architecture, package structure, launch consistency, parameter organization, and `/autonomous/ackermann_cmd` integration.
+## Platform
 
-Use the `line_tracking` stack as an architectural reference only.
-Do not merge or mix its code directly into the FTG packages unless explicitly requested.
+- NVIDIA Jetson (Tegra, aarch64), Ubuntu 22.04, Docker containers
+- ROS 2 Foxy (mxck2_development) / Humble (mxck2_control)
+- RPLidar 2D LiDAR, Ackermann steering via VESC
+- Host workspace `/home/mxck/mxck2_ws` is volume-mounted into containers
 
-## Non-negotiable platform rules
-- The platform is MXCarkit on NVIDIA Jetson with ROS2 in Docker.
-- The final autonomous output must remain `/autonomous/ackermann_cmd` using `ackermann_msgs/AckermannDriveStamped`.
-- Do not bypass the MXCK vehicle-control chain.
-- Do not publish FTG output directly to VESC topics.
-- `vehicle_control` / `ackermann_to_vesc` remain the downstream control path.
-- `manual_control_launch.py` is started separately and remains responsible for RC, Deadman, safety, and `ackermann_to_vesc`.
-- The FTG stack must integrate into the existing MXCK control flow, not replace it.
+## Non-negotiable rules
 
-## Required FTG target pipeline
-`/scan`
--> `[optional] scan_preprocessor_node`
--> `obstacle_substitution`
--> `/obstacles`
--> `follow_the_gap_v0`
--> `/final_heading_angle` + `/gap_found`
--> `ctu_ftg_adapter_node`
--> `/autonomous/ftg/gap_angle` + `/autonomous/ftg/target_speed` + `/autonomous/ftg/planner_status`
--> `ftg_command_node`
--> `/autonomous/ackermann_cmd`
+- Final autonomous output: `/autonomous/ackermann_cmd` (`AckermannDriveStamped`).
+- Do not bypass the MXCK vehicle-control chain (`vehicle_control` / `ackermann_to_vesc`).
+- Do not publish directly to VESC topics.
+- `manual_control_launch.py` is started separately (RC, Deadman, safety).
+- The FTG stack integrates into the existing MXCK control flow, not replaces it.
 
-## Important reference example in this repo
-A complete working example stack is available in this repository under the uploaded `line_tracking` example path.
-Treat it as a reference for:
-- clear linear pipeline design
-- one clean intermediate interface between stages
-- central parameter file organization
-- launch consistency
-- package.xml / setup.py / executable consistency
-- final publication to `/autonomous/ackermann_cmd`
+## Primary FTG pipeline (single path, no alternatives)
 
-Do not blindly copy it.
-Instead, compare the FTG stack against it and adopt only the useful architecture principles.
+```
+/scan (LaserScan, frame: laser)
+  -> scan_preprocessor_node        [mxck_ftg_perception]
+     TF-based recentering, FOV filter, clipping
+  -> /autonomous/ftg/scan_filtered (LaserScan, frame: base_link)
+  -> /autonomous/ftg/front_clearance (Float32)
 
-## Package boundaries
-Keep CTU-origin packages separate:
-- `obstacle_msgs`
-- `obstacle_substitution`
-- `follow_the_gap_v0`
+/autonomous/ftg/scan_filtered
+  -> follow_the_gap_v0             [follow_the_gap_v0, C++, input_mode=scan]
+  -> /final_heading_angle (Float32)
+  -> /gap_found (Bool)
 
-Keep MXCK-origin FTG packages separate:
-- `mxck_ftg_bringup`
-- `mxck_ftg_control`
-- `mxck_ftg_perception`
-- `mxck_ftg_planner`
+/final_heading_angle + /gap_found + /autonomous/ftg/front_clearance
+  -> ftg_planner_node              [mxck_ftg_planner]
+     Speed policy: clearance + steering -> speed
+  -> /autonomous/ftg/gap_angle (Float32)
+  -> /autonomous/ftg/target_speed (Float32)
+  -> /autonomous/ftg/planner_status (String)
 
-Do not rewrite the CTU FTG core in Python.
+/autonomous/ftg/gap_angle + /autonomous/ftg/target_speed
+  -> ftg_command_node              [mxck_ftg_control]
+  -> /autonomous/ackermann_cmd (AckermannDriveStamped)
+```
+
+There is exactly one planner node (`ftg_planner_node`). The former
+`ctu_ftg_adapter_node` has been merged into it and deleted.
+
+## Package structure
+
+### MXCK packages (maintained here)
+
+| Package | Purpose | Nodes |
+|---------|---------|-------|
+| `mxck_ftg_perception` | LiDAR preprocessing, TF recentering | `scan_preprocessor_node`, `scan_front_window_check` |
+| `mxck_ftg_planner` | Heading + clearance -> gap_angle + speed | `ftg_planner_node` |
+| `mxck_ftg_control` | Gap angle + speed -> AckermannDriveStamped | `ftg_command_node` |
+| `mxck_ftg_bringup` | Launch files for the full stack | (no nodes) |
+
+### CTU-origin packages (upstream, do not rewrite)
+
+| Package | Purpose | Status |
+|---------|---------|--------|
+| `follow_the_gap_v0` | C++ FTG algorithm | Active (input_mode=scan) |
+| `obstacle_msgs` | Custom message definitions | Kept for compatibility |
+| `obstacle_substitution` | LaserScan -> Obstacles converter | Legacy, not used in primary path |
 
 ## Architecture constraints
-- `mxck_ftg_planner` must not become a second unrelated planning system without clear justification.
-- If both `ftg_planner_node` and `ctu_ftg_adapter_node` exist, clearly define which path is primary and which is legacy or alternate.
-- Avoid duplicated control logic, especially:
-  - duplicate speed scaling
-  - duplicate steering limiting
-  - duplicate planner outputs
-  - duplicate startup of vehicle-control components
-- The repo must have one clearly documented primary FTG path.
 
-## Critical technical concerns to verify
-Always verify these together, not in isolation:
-- `package.xml`
-- `setup.py`
-- `CMakeLists.txt`
-- launch files
-- YAML configs
-- executable names
-- topic names
-- remappings
-- publishers/subscribers
-- package dependencies
-- runtime assumptions
-- frame / TF assumptions
-- scan angle semantics
+- `mxck_ftg_planner` contains exactly one node: `ftg_planner_node`.
+- Do not create additional planner or adapter nodes.
+- Do not rewrite the CTU FTG core (`follow_the_gap_v0`) in Python.
+- `obstacle_substitution` is not part of the primary pipeline.
+  The scan-based path feeds `/autonomous/ftg/scan_filtered` directly to
+  `follow_the_gap_v0` with `input_mode=scan`.
+- Avoid duplicated control logic (speed scaling, steering limits, planner outputs).
 
-## High-priority audit and fix checks
-- Whether topic names and remappings match exactly across code, YAML, and launch files
-- Whether optional preprocessor logic is actually valid
-- Whether the active FTG perception path uses a consistent geometry / angle convention
-- Whether `scan_filtered` semantics are clearly defined
-- Whether `/obstacles` geometry is consistent with vehicle-forward direction
-- Whether TF / `base_link` / laser frame assumptions are handled correctly
-- Whether multiple planner paths can run simultaneously by mistake
-- Whether `vehicle_control` is started twice anywhere
-- Whether rosbag topics reflect the final architecture
-- Whether documentation, Docker/devcontainer setup, and runtime assumptions disagree
-- Whether safety-related launch or control mistakes could break first vehicle testing
+## TF and geometry
 
-## Required behavior
-- Prefer audit-first before making broad code changes.
-- If changing code, keep changes minimal, local, justified, and architecture-preserving.
-- Do not invent files, nodes, topics, or architecture that are not present unless explicitly requested.
-- Explicitly flag uncertainties instead of guessing.
-- Preserve compatibility with the MXCK platform and control chain.
-- When useful, compare the FTG stack against the in-repo `line_tracking` example and explain the differences clearly.
-- Produce professional documentation when restructuring or clarifying the stack.
+- `scan_preprocessor_node` uses TF (`base_link <- laser`) for recentering.
+- `front_center_deg: 0.0` means "vehicle forward = 0° in base_link frame".
+  TF handles the actual laser mounting rotation. Do not add manual offsets.
+- Output scan (`/autonomous/ftg/scan_filtered`) is in `base_link` frame
+  with 0 rad = vehicle forward.
+
+## Verification checklist
+
+When modifying any file, verify consistency across all of these together:
+
+- `package.xml` dependencies
+- `setup.py` entry points and data_files
+- `setup.cfg` script directories
+- Launch files (node names, executables, parameter files)
+- YAML configs (topic names, parameter names)
+- Python/C++ code (declared parameters, publishers, subscribers)
+- Topic names and types across all nodes
+- TF frame assumptions
+
+## Launch files
+
+| File | Purpose |
+|------|---------|
+| `ftg_full_system.launch.py` | Recommended. Starts all 4 stages with YAML configs. |
+| `ftg_scan_path.launch.py` | Simplified variant, same pipeline. |
+
+Both load YAML configs via `FindPackageShare`. Neither starts TF or
+vehicle_control — those are started separately.
+
+## Required behavior for Copilot
+
+- Audit before changing. Do not make broad refactors without justification.
+- Keep changes minimal, local, and architecture-preserving.
+- Do not invent nodes, topics, or files that do not exist in the codebase.
+- Flag uncertainties explicitly instead of guessing.
+- Verify that documentation matches actual code, not the other way around.

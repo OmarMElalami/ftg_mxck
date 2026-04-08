@@ -1,28 +1,22 @@
 /**:
   ros__parameters:
-    # Primary FTG planner path:
-    # scan_preprocessor_node applies the base_link<-scan_frame TF correction once,
-    # recenters so 0 rad is vehicle front, and publishes frame_id=base_link.
-    # ftg_planner_node then consumes this base-relative scan without re-applying mounting-yaw correction.
-    scan_topic: "/autonomous/ftg/scan_filtered"
+    heading_angle_topic: "/final_heading_angle"
+    gap_found_topic: "/gap_found"
     front_clearance_topic: "/autonomous/ftg/front_clearance"
-    base_frame: "base_link"
 
     gap_angle_topic: "/autonomous/ftg/gap_angle"
     target_speed_topic: "/autonomous/ftg/target_speed"
-    status_topic: "/autonomous/ftg/planner_status"
-    marker_topic: "/autonomous/ftg/planner_markers"
+    planner_status_topic: "/autonomous/ftg/planner_status"
 
-    free_space_threshold_m: 1.00
-    min_gap_beams: 10
-    safety_bubble_radius_m: 0.35
-    steering_limit_deg: 22.0
-    center_bias_weight: 0.8
+    input_timeout_sec: 0.50
+    max_abs_gap_angle_rad: 0.45
 
-    stop_distance_m: 0.35
-    slow_distance_m: 0.60
-    cruise_distance_m: 1.20
-    speed_stop_mps: 0.0
-    speed_slow_mps: 0.15
-    speed_medium_mps: 0.25
-    speed_fast_mps: 0.35
+    cruise_speed_mps: 0.60
+    min_speed_mps: 0.20
+    stop_speed_mps: 0.00
+
+    caution_clearance_m: 0.90
+    stop_clearance_m: 0.35
+
+    steering_slowdown_start_rad: 0.20
+    steering_slowdown_full_rad: 0.45

@@ -1,128 +1,104 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, LogInfo
+from launch.actions import DeclareLaunchArgument, LogInfo
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    use_tf = LaunchConfiguration('use_tf')
-    use_ftg_stack = LaunchConfiguration('use_ftg_stack')
-    use_scan_preprocessor = LaunchConfiguration('use_scan_preprocessor')
-    start_ctu_ftg = LaunchConfiguration('start_ctu_ftg')
-    use_ftg_planner = LaunchConfiguration('use_ftg_planner')
-    record_bag = LaunchConfiguration('record_bag')
-    bag_dir = LaunchConfiguration('bag_dir')
-    bag_name = LaunchConfiguration('bag_name')
+    run_scan_check = LaunchConfiguration("run_scan_check")
+    scan_topic = LaunchConfiguration("scan_topic")
+    filtered_scan_topic = LaunchConfiguration("filtered_scan_topic")
+    goal_angle_topic = LaunchConfiguration("goal_angle_topic")
 
-    tf_launch = PathJoinSubstitution([
-        FindPackageShare('mxck_run'),
-        'launch',
-        'broadcast_tf_launch.py',
+    # Compatibility arguments: kept so old commands still work.
+    use_vehicle_control = LaunchConfiguration("use_vehicle_control")
+    use_tf = LaunchConfiguration("use_tf")
+    record_bag = LaunchConfiguration("record_bag")
+
+    preprocessor_cfg = PathJoinSubstitution([
+        FindPackageShare("mxck_ftg_perception"), "config", "scan_preprocessor.yaml"
     ])
-
-    ftg_stack_launch = PathJoinSubstitution([
-        FindPackageShare('mxck_ftg_bringup'),
-        'launch',
-        'ftg_stack.launch.py',
+    scan_check_cfg = PathJoinSubstitution([
+        FindPackageShare("mxck_ftg_perception"), "config", "scan_front_window_check.yaml"
     ])
-
-    tf_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(tf_launch),
-        condition=IfCondition(use_tf),
-    )
-
-    ftg_stack_include = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(ftg_stack_launch),
-        condition=IfCondition(use_ftg_stack),
-        launch_arguments={
-            'start_tf': 'false',
-            'use_scan_preprocessor': use_scan_preprocessor,
-            'start_ctu_ftg': start_ctu_ftg,
-            'start_adapter': 'true',
-            'use_ftg_planner': use_ftg_planner,
-            'start_control': 'true',
-        }.items(),
-    )
-
-    rosbag_record = ExecuteProcess(
-        condition=IfCondition(record_bag),
-        cmd=[
-            'bash',
-            '-lc',
-            [
-                'mkdir -p ', bag_dir,
-                ' && ros2 bag record -s mcap -o ',
-                bag_dir, '/', bag_name,
-                ' /scan'
-                ' /tf'
-                ' /tf_static'
-                ' /autonomous/ftg/scan_filtered'
-                ' /obstacles'
-                ' /final_heading_angle'
-                ' /gap_found'
-                ' /autonomous/ftg/gap_angle'
-                ' /autonomous/ftg/target_speed'
-                ' /autonomous/ftg/planner_status'
-                ' /autonomous/ackermann_cmd'
-                ' /autonomous/ftg/control_status'
-                ' /rc/ackermann_cmd'
-                ' /commands/servo/position'
-                ' /commands/motor/speed'
-                ' /commands/motor/brake'
-            ],
-        ],
-        output='screen',
-        shell=False,
-    )
+    planner_cfg = PathJoinSubstitution([
+        FindPackageShare("mxck_ftg_planner"), "config", "ftg_planner.yaml"
+    ])
+    control_cfg = PathJoinSubstitution([
+        FindPackageShare("mxck_ftg_control"), "config", "ftg_control.yaml"
+    ])
 
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'use_tf',
-            default_value='true',
-            description='Start TF broadcast'
-        ),
-        DeclareLaunchArgument(
-            'use_ftg_stack',
-            default_value='true',
-            description='Start the MXCK FTG stack (primary path default)'
-        ),
-        DeclareLaunchArgument(
-            'use_scan_preprocessor',
-            default_value='true',
-            description='Use scan_preprocessor_node before obstacle_substitution'
-        ),
-        DeclareLaunchArgument(
-            'start_ctu_ftg',
-            default_value='false',
-            description='Start legacy follow_the_gap_v0 node (effective only when use_ftg_planner:=false)'
-        ),
-        DeclareLaunchArgument(
-            'use_ftg_planner',
-            default_value='true',
-            description='Use primary recentered-scan ftg_planner_node path instead of ctu_ftg_adapter_node',
-        ),
-        DeclareLaunchArgument(
-            'record_bag',
-            default_value='false',
-            description='Record rosbag2 MCAP'
-        ),
-        DeclareLaunchArgument(
-            'bag_dir',
-            default_value='/mxck2_ws/bags',
-            description='Bag output directory'
-        ),
-        DeclareLaunchArgument(
-            'bag_name',
-            default_value='mxck_ftg_run',
-            description='Bag session name'
+        DeclareLaunchArgument("run_scan_check", default_value="false"),
+        DeclareLaunchArgument("scan_topic", default_value="/scan"),
+        DeclareLaunchArgument("filtered_scan_topic", default_value="/autonomous/ftg/scan_filtered"),
+        DeclareLaunchArgument("goal_angle_topic", default_value="/lsr/angle"),
+
+        DeclareLaunchArgument("use_vehicle_control", default_value="false"),
+        DeclareLaunchArgument("use_tf", default_value="false"),
+        DeclareLaunchArgument("record_bag", default_value="false"),
+
+        LogInfo(msg=["Starting MXCK FTG scan path bringup..."]),
+        LogInfo(msg=["Compatibility args: use_vehicle_control=", use_vehicle_control,
+                     ", use_tf=", use_tf, ", record_bag=", record_bag]),
+        LogInfo(msg=["FTG path: ", scan_topic, " -> ", filtered_scan_topic,
+                     " -> follow_the_gap_v0(scan) -> ftg_planner -> ftg_command"]),
+
+        # --- Stage 1: Perception ---
+        Node(
+            package="mxck_ftg_perception",
+            executable="scan_preprocessor_node",
+            name="scan_preprocessor_node",
+            output="screen",
+            parameters=[
+                preprocessor_cfg,
+                {"scan_topic": scan_topic,
+                 "filtered_scan_topic": filtered_scan_topic},
+            ],
         ),
 
-        LogInfo(msg='Starting MXCK full FTG system (primary planner path by default)...'),
-        LogInfo(msg='vehicle_control must be started separately via manual_control_launch.py'),
+        Node(
+            package="mxck_ftg_perception",
+            executable="scan_front_window_check",
+            name="scan_front_window_check",
+            output="screen",
+            condition=IfCondition(run_scan_check),
+            parameters=[
+                scan_check_cfg,
+                {"scan_topic": scan_topic},
+            ],
+        ),
 
-        tf_include,
-        ftg_stack_include,
-        rosbag_record,
+        # --- Stage 2: Gap detection (CTU C++ node) ---
+        Node(
+            package="follow_the_gap_v0",
+            executable="follow_the_gap",
+            name="follow_the_gap",
+            output="screen",
+            parameters=[{
+                "input_mode": "scan",
+                "scan_topic": filtered_scan_topic,
+                "goal_angle_topic": goal_angle_topic,
+            }],
+        ),
+
+        # --- Stage 3: Planner (heading + clearance -> gap_angle + speed) ---
+        Node(
+            package="mxck_ftg_planner",
+            executable="ftg_planner_node",
+            name="ftg_planner_node",
+            output="screen",
+            parameters=[planner_cfg],
+        ),
+
+        # --- Stage 4: Control (gap_angle + speed -> AckermannDriveStamped) ---
+        Node(
+            package="mxck_ftg_control",
+            executable="ftg_command_node",
+            name="ftg_command_node",
+            output="screen",
+            parameters=[control_cfg],
+        ),
     ])

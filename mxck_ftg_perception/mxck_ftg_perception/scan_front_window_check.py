@@ -20,35 +20,37 @@ from mxck_ftg_perception.common import (
 
 class ScanFrontWindowCheck(Node):
     def __init__(self) -> None:
-        super().__init__('scan_front_window_check')
+        super().__init__("scan_front_window_check")
 
-        self.declare_parameter('scan_topic', '/scan')
-        self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('diagnostic_topic', '/autonomous/ftg/scan_check')
-        self.declare_parameter('marker_topic', '/autonomous/ftg/scan_check_markers')
+        self.declare_parameter("scan_topic", "/scan")
+        self.declare_parameter("base_frame", "base_link")
+        self.declare_parameter("diagnostic_topic", "/autonomous/ftg/scan_check")
+        self.declare_parameter("marker_topic", "/autonomous/ftg/scan_check_markers")
 
-        self.declare_parameter('front_center_deg', 0.0)
-        self.declare_parameter('front_fov_deg', 120.0)
+        self.declare_parameter("front_center_deg", 0.0)
+        self.declare_parameter("front_fov_deg", 120.0)
 
-        self.declare_parameter('clip_min_range_m', 0.05)
-        self.declare_parameter('clip_max_range_m', 8.0)
-        self.declare_parameter('beam_stride', 2)
-        self.declare_parameter('log_every_n_scans', 10)
-        self.declare_parameter('publish_markers', True)
+        self.declare_parameter("clip_min_range_m", 0.05)
+        self.declare_parameter("clip_max_range_m", 8.0)
+        self.declare_parameter("beam_stride", 2)
+        self.declare_parameter("log_every_n_scans", 10)
+        self.declare_parameter("publish_markers", True)
 
-        self.scan_topic = str(self.get_parameter('scan_topic').value)
-        self.base_frame = str(self.get_parameter('base_frame').value)
-        self.diag_topic = str(self.get_parameter('diagnostic_topic').value)
-        self.marker_topic = str(self.get_parameter('marker_topic').value)
+        self.scan_topic = str(self.get_parameter("scan_topic").value)
+        self.base_frame = str(self.get_parameter("base_frame").value)
+        self.diag_topic = str(self.get_parameter("diagnostic_topic").value)
+        self.marker_topic = str(self.get_parameter("marker_topic").value)
 
-        self.front_center_rad = math.radians(float(self.get_parameter('front_center_deg').value))
-        self.front_half_fov_rad = math.radians(float(self.get_parameter('front_fov_deg').value)) / 2.0
+        self.front_center_rad = math.radians(float(self.get_parameter("front_center_deg").value))
+        self.front_half_fov_rad = math.radians(
+            float(self.get_parameter("front_fov_deg").value)
+        ) / 2.0
 
-        self.clip_min = float(self.get_parameter('clip_min_range_m').value)
-        self.clip_max = float(self.get_parameter('clip_max_range_m').value)
-        self.beam_stride = max(1, int(self.get_parameter('beam_stride').value))
-        self.log_every_n_scans = max(1, int(self.get_parameter('log_every_n_scans').value))
-        self.publish_markers = bool(self.get_parameter('publish_markers').value)
+        self.clip_min = float(self.get_parameter("clip_min_range_m").value)
+        self.clip_max = float(self.get_parameter("clip_max_range_m").value)
+        self.beam_stride = max(1, int(self.get_parameter("beam_stride").value))
+        self.log_every_n_scans = max(1, int(self.get_parameter("log_every_n_scans").value))
+        self.publish_markers = bool(self.get_parameter("publish_markers").value)
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -66,13 +68,15 @@ class ScanFrontWindowCheck(Node):
 
     def scan_cb(self, msg: LaserScan) -> None:
         self.scan_count += 1
-        scan_frame = msg.header.frame_id or 'laser'
+        scan_frame = msg.header.frame_id or "laser"
 
         try:
             tf_msg = self.tf_buffer.lookup_transform(self.base_frame, scan_frame, Time())
         except TransformException as exc:
             if self.scan_count % self.log_every_n_scans == 0:
-                self.get_logger().warn(f"TF lookup failed {self.base_frame} <- {scan_frame}: {exc}")
+                self.get_logger().warn(
+                    f"TF lookup failed {self.base_frame} <- {scan_frame}: {exc}"
+                )
             return
 
         tx, ty, yaw = transform_to_2d(tf_msg)
@@ -117,7 +121,10 @@ class ScanFrontWindowCheck(Node):
             extra = ""
         else:
             ar, ab, ax, ay = best_any
-            extra = f" | closest_any={ar:.2f} m @ {math.degrees(ab):+.1f} deg (x={ax:+.2f}, y={ay:+.2f})"
+            extra = (
+                f" | closest_any={ar:.2f} m @ {math.degrees(ab):+.1f} deg "
+                f"(x={ax:+.2f}, y={ay:+.2f})"
+            )
 
         text = (
             f"[SCAN_CHECK] front_closest={fr:.2f} m @ {math.degrees(fb):+.1f} deg ({side}) "
@@ -134,7 +141,7 @@ class ScanFrontWindowCheck(Node):
         point_marker = Marker()
         point_marker.header.frame_id = self.base_frame
         point_marker.header.stamp = msg.header.stamp
-        point_marker.ns = 'scan_front_window_check'
+        point_marker.ns = "scan_front_window_check"
         point_marker.id = 1
         point_marker.type = Marker.SPHERE
         point_marker.action = Marker.ADD
@@ -154,7 +161,7 @@ class ScanFrontWindowCheck(Node):
         arrow_marker = Marker()
         arrow_marker.header.frame_id = self.base_frame
         arrow_marker.header.stamp = msg.header.stamp
-        arrow_marker.ns = 'scan_front_window_check'
+        arrow_marker.ns = "scan_front_window_check"
         arrow_marker.id = 2
         arrow_marker.type = Marker.ARROW
         arrow_marker.action = Marker.ADD
@@ -177,7 +184,7 @@ class ScanFrontWindowCheck(Node):
 
 def main() -> None:
     rclpy.init()
-    node = ScanFrontWindowCheck()   # bzw. ScanPreprocessorNode()
+    node = ScanFrontWindowCheck()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -188,5 +195,5 @@ def main() -> None:
             rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

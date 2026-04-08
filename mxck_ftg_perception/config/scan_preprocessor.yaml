@@ -6,24 +6,14 @@
     front_clearance_topic: "/autonomous/ftg/front_clearance"
     status_topic: "/autonomous/ftg/status"
 
-    # WICHTIG:
-    # MXCK LiDAR mounting assumption: vehicle front is at +135 deg in raw /scan.
-    # Validation on vehicle:
-    # 1) Place an obstacle straight ahead, check /autonomous/ftg/scan_filtered peaks near 0 rad.
-    # 2) If peak is shifted by delta, adjust front_center_deg by approximately +delta_deg.
-    # 3) Confirm planner publishes near-zero gap_angle on clear straight corridor.
-    front_center_deg: 135.0
+    # MXCK LiDAR mounting assumption:
+    # vehicle forward appears near +135 deg in raw /scan.
+    front_center_deg: 0.0
 
-    # Erstmal enger als bisher, damit CTU wirklich nur den Frontbereich sieht.
     front_fov_deg: 100.0
 
-    # Nicht unter dem echten LiDAR-Minimum arbeiten.
     clip_min_range_m: 0.18
     clip_max_range_m: 5.0
-
-    # Sehr wichtig:
-    # Außerhalb des Frontfensters NICHT als künstliches Nah-Hindernis behandeln.
-    outside_window_as_obstacle: false
 
     enable_moving_average: false
     moving_average_window: 3

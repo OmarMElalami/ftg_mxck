@@ -24,12 +24,10 @@ namespace AngleFilter
   extern size_t right_index;
 }
 
-// Mutable globals preserved to avoid behavior changes in the legacy algorithm.
 extern float kMaxRange;
 extern float g_fovAngleMax;
 extern float g_goal_angle;
 
-// Constants used by the legacy implementation.
 static constexpr float kDistanceToCorner = 0.22f;
 static constexpr unsigned int kPublishMessageBufferSize = 10;
 static constexpr unsigned int kSubscribeMessageBufferSize = 1;
@@ -40,7 +38,6 @@ static constexpr float kCornerWeightCoefficient = 100.0f;
 static constexpr float kFovAngle = static_cast<float>(M_PI / 4.0);
 static constexpr float kTrackMinWidth = 0.35f;
 
-// Mutable helper obstacles used by some legacy nonholonomic calculations.
 extern Obstacle obstacle_nhol_left;
 extern Obstacle obstacle_nhol_right;
 

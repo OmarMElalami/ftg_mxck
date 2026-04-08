@@ -6,12 +6,6 @@
 namespace FollowTheGap
 {
 
-/**
- * @brief Corner model used by fallback logic.
- *
- * A corner is represented as a specialized gap plus a semantic label telling
- * whether it should be interpreted as a left or right corner.
- */
 class Corner : public Gap
 {
 public:

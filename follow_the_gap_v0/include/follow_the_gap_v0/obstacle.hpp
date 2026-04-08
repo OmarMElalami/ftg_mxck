@@ -6,18 +6,6 @@
 namespace FollowTheGap
 {
 
-/**
- * @brief Circular obstacle used by the FTG algorithm.
- *
- * The obstacle can be constructed from:
- * - Cartesian coordinates and radius, or
- * - Polar coordinates (distance, angle) and radius.
- *
- * Important note about car_radius:
- * Historically one constructor accepted a `car_radius` argument. The current
- * algorithm behavior does not use that parameter anymore. We keep the signature
- * for compatibility and document the unused argument in the implementation.
- */
 struct Obstacle
 {
   Obstacle(float x, float y, float radius, float car_radius);
@@ -38,7 +26,6 @@ struct Obstacle
 
   bool operator<(const Obstacle & obs) const
   {
-    // Reverse sort by angle so that higher angle (more left) comes first.
     return this->angle > obs.angle;
   }
 };
