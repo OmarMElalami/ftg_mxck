@@ -3,50 +3,40 @@
 This repository contains a ROS 2 autonomous stack for the MXCarkit (MXCK)
 platform, focused on Follow-The-Gap (FTG) obstacle avoidance using a 2D LiDAR.
 
-This repository now also contains project documentation under `docs/`.
-When revising documentation, Copilot must treat the **actual repository code and
-root README** as the source of truth.
-
----
-
-## Source of truth priority
-
-When there is any mismatch, use this priority order:
-
-1. Actual code in this repository
-2. Launch files and YAML configs in this repository
-3. Root `README.md` in this repository
-4. Documentation files under `docs/`
-5. Older text, diagrams, notes, or imported documentation content
-
-**Do not update code just to match stale documentation.**
-Update the documentation to match the current codebase.
-
----
-
 ## Platform
 
-- NVIDIA Jetson (Tegra, aarch64), Ubuntu 22.04, Docker containers
-- ROS 2 Foxy (`mxck2_development`) / Humble (`mxck2_control`)
-- RPLidar 2D LiDAR, Ackermann steering via VESC
+- NVIDIA Jetson (Tegra, aarch64), Docker-based workflow
+- ROS 2 Foxy in `mxck2_development`
+- The repository documentation may mention Humble in other MXCK containers, but
+  this FTG stack must be documented against the code and launch files that are
+  actually present in this repository
+- RPLidar 2D LiDAR
+- Ackermann steering via VESC
 - Host workspace `/home/mxck/mxck2_ws` is volume-mounted into containers
 
-When revising docs, do **not** claim Ubuntu 18.04 unless the text explicitly says
-it refers to a historical setup and clearly labels it as such.
-
----
-
-## Non-negotiable runtime rules
+## Non-negotiable rules
 
 - Final autonomous output: `/autonomous/ackermann_cmd` (`AckermannDriveStamped`)
-- Do not bypass the MXCK vehicle-control chain (`vehicle_control` / `ackermann_to_vesc`)
+- Do not bypass the MXCK vehicle-control chain
 - Do not publish directly to VESC topics
-- `manual_control_launch.py` is started separately (RC, Deadman, safety)
-- The FTG stack integrates into the existing MXCK control flow; it does not replace it
+- `manual_control_launch.py` is started separately
+- TF and `vehicle_control` are external to this FTG stack unless explicitly added
+- Documentation must match the current code and launch files in this repository
 
----
+## Canonical architecture source order
 
-## Primary FTG pipeline (current official path)
+When there is any conflict, treat the following as the authority in this order:
+
+1. actual package code
+2. launch files
+3. YAML configs
+4. root `README.md`
+5. documentation under `docs/`
+
+Do not preserve outdated descriptions just because they existed in an older
+document or upstream repo.
+
+## Primary FTG pipeline (single current path)
 
 ```text
 /scan (LaserScan, frame: laser)
