@@ -1,3 +1,3 @@
 # Mxck_FTG_Dokumentation
 ## Aktuelle PDF
-[Dokumentation als PDF](.docs/projektarbeit/pdf/dokumentation.pdf)
+[Dokumentation als PDF](.docs/pdf/dokumentation.pdf)
