@@ -5,7 +5,7 @@
     diagnostic_topic: "/autonomous/ftg/scan_check"
     marker_topic: "/autonomous/ftg/scan_check_markers"
 
-    front_center_deg: 135.0
+    front_center_deg: 0.0
     front_fov_deg: 100.0
 
     clip_min_range_m: 0.18

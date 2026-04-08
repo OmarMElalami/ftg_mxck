@@ -5,7 +5,8 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "std_msgs/msg/float64.hpp"
-#include "std_msgs/msg/int32.hpp"
+
+#include "sensor_msgs/msg/laser_scan.hpp"
 
 #include "visualization_msgs/msg/marker.hpp"
 
@@ -17,12 +18,10 @@
 #include "obstacle_msgs/msg/obstacles_stamped.hpp"
 #include "obstacle_msgs/msg/circle_obstacle.hpp"
 
-// -----------------------------------------------------------------------------
-// Legacy ROS wrapper style
-// -----------------------------------------------------------------------------
-// This file intentionally keeps the original free-function style wrapper so the
-// cleanup pass does not change runtime behavior. A future refactor can move
-// these publishers/subscribers into a dedicated rclcpp::Node subclass.
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <vector>
 
 rclcpp::Node::SharedPtr node;
 
@@ -31,15 +30,64 @@ unsigned int kSubscribeMessageBufferSize = 1;
 
 rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr publisher_final_heading_angle;
 rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_gap_found;
-
-// Debug / visualization publishers.
 rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr publisher_visualize_largest_gap;
 rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_visualize_final_heading_angle;
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr publisher_visualize_obstacles;
 
-// -----------------------------------------------------------------------------
-// Utility functions
-// -----------------------------------------------------------------------------
+std::string g_input_mode = "scan";
+std::string g_scan_topic = "/autonomous/ftg/scan_filtered";
+std::string g_obstacles_topic = "/obstacles";
+std::string g_goal_angle_topic = "/lsr/angle";
+
+namespace
+{
+
+std::string ToLowerCopy(const std::string & value)
+{
+  std::string output = value;
+  std::transform(
+    output.begin(), output.end(), output.begin(),
+    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return output;
+}
+
+}  // namespace
+
+std::vector<FollowTheGap::Obstacle> CreateObstacles(
+  sensor_msgs::msg::LaserScan::ConstSharedPtr lidar_data)
+{
+  const size_t data_size = lidar_data->ranges.size();
+
+  const float & angle_increment = lidar_data->angle_increment;
+  const float & range_max = lidar_data->range_max;
+  const float & range_min = lidar_data->range_min;
+  float angle = lidar_data->angle_min;
+
+  std::vector<FollowTheGap::Obstacle> obstacles;
+  obstacles.reserve(data_size);
+
+  for (size_t i = 0; i < data_size; ++i, angle += angle_increment) {
+    const float & range = lidar_data->ranges[i];
+
+    if (std::isnan(range)) {
+      continue;
+    }
+
+    if ((angle < lidar_data->angle_min) || (angle > lidar_data->angle_max)) {
+      continue;
+    }
+
+    if ((range < range_min) || (range > range_max)) {
+      continue;
+    }
+
+    const float obstacle_radius = FollowTheGap::kCarRadius;
+    obstacles.emplace_back(range, angle, obstacle_radius);
+  }
+
+  std::reverse(obstacles.begin(), obstacles.end());
+  return obstacles;
+}
 
 std::vector<FollowTheGap::Obstacle> CreateObstacles(
   obstacle_msgs::msg::ObstaclesStamped::ConstSharedPtr obstacles_data)
@@ -56,96 +104,9 @@ std::vector<FollowTheGap::Obstacle> CreateObstacles(
       FollowTheGap::kCarRadius);
   }
 
-  // Keep sorting identical to the current behavior: leftmost obstacles first.
   std::sort(obstacles.begin(), obstacles.end());
-
   return obstacles;
 }
-
-#if 0
-// -----------------------------------------------------------------------------
-// Legacy LaserScan path (disabled)
-// -----------------------------------------------------------------------------
-// The current ROS 2 stack feeds this package with /obstacles, not with /scan.
-// We keep the historical code here for reference during migration work.
-
-#include "sensor_msgs/msg/laser_scan.hpp"
-
-std::vector<FollowTheGap::Obstacle> CreateObstacles(
-  sensor_msgs::msg::LaserScan::ConstSharedPtr & lidar_data)
-{
-  size_t const data_size = lidar_data->ranges.size();
-
-  float const & angle_increment = lidar_data->angle_increment;
-  float const & range_max = lidar_data->range_max;
-  float const & range_min = lidar_data->range_min;
-  float angle = lidar_data->angle_min;
-
-  std::vector<FollowTheGap::Obstacle> obstacles;
-
-  for (size_t i = 0; i < data_size; ++i, angle += angle_increment) {
-    float const & range = lidar_data->ranges[i];
-
-    if (std::isnan(range)) {
-      continue;
-    }
-    if ((angle < lidar_data->angle_min) || (angle > lidar_data->angle_max)) {
-      continue;
-    }
-    if ((range < range_min) || (range > range_max)) {
-      continue;
-    }
-
-    float obstacle_radius = FollowTheGap::kCarRadius;
-    obstacles.emplace_back(range, angle, obstacle_radius);
-  }
-
-  std::reverse(obstacles.begin(), obstacles.end());
-  return obstacles;
-}
-
-std::vector<FollowTheGap::Obstacle> CreateObstaclesWithAngleFilter(
-  sensor_msgs::msg::LaserScan::ConstSharedPtr const & lidar_data)
-{
-  float const & angle_increment = lidar_data->angle_increment;
-  float const & range_max = lidar_data->range_max;
-  float const & range_min = lidar_data->range_min;
-
-  float angle =
-    lidar_data->angle_min + FollowTheGap::AngleFilter::right_index * angle_increment;
-
-  std::vector<FollowTheGap::Obstacle> obstacles;
-  std::cerr << "right_index: " << FollowTheGap::AngleFilter::right_index << std::endl;
-  std::cerr << "left_index: " << FollowTheGap::AngleFilter::left_index << std::endl;
-
-  for (size_t i = FollowTheGap::AngleFilter::right_index;
-       i <= FollowTheGap::AngleFilter::left_index;
-       ++i, angle += angle_increment)
-  {
-    float const & range = lidar_data->ranges[i];
-
-    if (std::isnan(range)) {
-      continue;
-    }
-    if ((angle < lidar_data->angle_min) || (angle > lidar_data->angle_max)) {
-      continue;
-    }
-    if ((range < range_min) || (range > range_max)) {
-      continue;
-    }
-
-    float obstacle_radius = FollowTheGap::kCarRadius;
-    obstacles.emplace_back(range, angle, obstacle_radius);
-  }
-
-  std::reverse(obstacles.begin(), obstacles.end());
-  return obstacles;
-}
-#endif
-
-// -----------------------------------------------------------------------------
-// Publishers
-// -----------------------------------------------------------------------------
 
 void PublishFinalHeadingAngle(float final_heading_angle)
 {
@@ -174,8 +135,6 @@ void PublishVisualizeLargestGap(
   const FollowTheGap::Obstacle & gap_right,
   const std::string & frame_id)
 {
-  // Keep the historical topic format unchanged:
-  // publish robot origin, then left border, then right border as PointStamped.
   geometry_msgs::msg::PointStamped robot_point;
   geometry_msgs::msg::PointStamped p0;
   geometry_msgs::msg::PointStamped p1;
@@ -229,64 +188,59 @@ void PublishGapFound(bool gap_found)
   publisher_gap_found->publish(message);
 }
 
-// -----------------------------------------------------------------------------
-// Callbacks
-// -----------------------------------------------------------------------------
-
-void ObstaclesCallback(obstacle_msgs::msg::ObstaclesStamped::ConstSharedPtr obstacles_data)
+void ProcessFtgResult(
+  const std::vector<FollowTheGap::Obstacle> & obstacles,
+  LidarData * lidar_data,
+  const std::string & frame_id)
 {
-  std::vector<FollowTheGap::Obstacle> obstacles = CreateObstacles(obstacles_data);
-
   bool ok = false;
   float angle = 0.0f;
   std::vector<FollowTheGap::Obstacle> obstacles_out;
   std::vector<FollowTheGap::Obstacle> gap_borders_out;
 
-  // The active ROS 2 path currently uses only /obstacles, so lidar_data is null.
   std::tie(ok, angle) =
-    FollowTheGap::Callback(obstacles, nullptr, obstacles_out, gap_borders_out);
+    FollowTheGap::Callback(obstacles, lidar_data, obstacles_out, gap_borders_out);
 
   PublishGapFound(ok);
 
   if (ok) {
     PublishFinalHeadingAngle(angle);
-    PublishVisualizeFinalHeadingAngle(angle, obstacles_data->header.frame_id);
+    PublishVisualizeFinalHeadingAngle(angle, frame_id);
 
     if (gap_borders_out.size() >= 2U) {
       PublishVisualizeLargestGap(
         gap_borders_out.at(0),
         gap_borders_out.at(1),
-        obstacles_data->header.frame_id);
+        frame_id);
     }
   }
 
-  PublishVisualizeObstacles(obstacles_out, obstacles_data->header.frame_id);
+  PublishVisualizeObstacles(obstacles_out, frame_id);
+}
+
+void ScanCallback(sensor_msgs::msg::LaserScan::ConstSharedPtr lidar_data)
+{
+  LidarData ld(
+    lidar_data->range_min,
+    lidar_data->range_max,
+    lidar_data->angle_min,
+    lidar_data->angle_max,
+    lidar_data->angle_increment);
+
+  std::vector<FollowTheGap::Obstacle> obstacles = CreateObstacles(lidar_data);
+  ProcessFtgResult(obstacles, &ld, lidar_data->header.frame_id);
+}
+
+void ObstaclesCallback(obstacle_msgs::msg::ObstaclesStamped::ConstSharedPtr obstacles_data)
+{
+  std::vector<FollowTheGap::Obstacle> obstacles = CreateObstacles(obstacles_data);
+  ProcessFtgResult(obstacles, nullptr, obstacles_data->header.frame_id);
 }
 
 void GoalAngleCallback(std_msgs::msg::Float64::ConstSharedPtr message)
 {
   FollowTheGap::g_goal_angle = static_cast<float>(message->data);
 }
-
-#if 0
-// -----------------------------------------------------------------------------
-// Legacy angle-filter callbacks (disabled)
-// -----------------------------------------------------------------------------
-// These are not part of the active ROS 2 path because FtgWithAngleFilter is not
-// used by the current node wiring.
-
-void AngleFilterLeftCallback(std_msgs::msg::Int32::ConstSharedPtr message) {
-  FollowTheGap::AngleFilter::left_index = message->data;
-}
-
-void AngleFilterRightCallback(std_msgs::msg::Int32::ConstSharedPtr message) {
-  FollowTheGap::AngleFilter::right_index = message->data;
-}
-#endif
-
-// -----------------------------------------------------------------------------
-// Main
-// -----------------------------------------------------------------------------
 
 int main(int argc, char ** argv)
 {
@@ -295,45 +249,59 @@ int main(int argc, char ** argv)
   rclcpp::init(argc, argv);
   node = rclcpp::Node::make_shared("follow_the_gap");
 
-  // Subscriptions.
-  auto subscription_obstacle_data =
-    node->create_subscription<obstacle_msgs::msg::ObstaclesStamped>(
-      "/obstacles",
-      kSubscribeMessageBufferSize,
-      ObstaclesCallback);
+  node->declare_parameter<std::string>("input_mode", "scan");
+  node->declare_parameter<std::string>("scan_topic", "/autonomous/ftg/scan_filtered");
+  node->declare_parameter<std::string>("obstacles_topic", "/obstacles");
+  node->declare_parameter<std::string>("goal_angle_topic", "/lsr/angle");
 
-  (void)subscription_obstacle_data;
+  g_input_mode = ToLowerCopy(node->get_parameter("input_mode").as_string());
+  g_scan_topic = node->get_parameter("scan_topic").as_string();
+  g_obstacles_topic = node->get_parameter("obstacles_topic").as_string();
+  g_goal_angle_topic = node->get_parameter("goal_angle_topic").as_string();
+
+  if ((g_input_mode != "scan") && (g_input_mode != "obstacles")) {
+    RCLCPP_WARN(
+      node->get_logger(),
+      "Invalid input_mode='%s'. Falling back to 'scan'.",
+      g_input_mode.c_str());
+    g_input_mode = "scan";
+  }
+
+  RCLCPP_INFO(
+    node->get_logger(),
+    "Starting follow_the_gap with input_mode='%s', scan_topic='%s', obstacles_topic='%s', goal_angle_topic='%s'",
+    g_input_mode.c_str(),
+    g_scan_topic.c_str(),
+    g_obstacles_topic.c_str(),
+    g_goal_angle_topic.c_str());
+
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_subscription;
+  rclcpp::Subscription<obstacle_msgs::msg::ObstaclesStamped>::SharedPtr obstacle_subscription;
+
+  if (g_input_mode == "scan") {
+    scan_subscription =
+      node->create_subscription<sensor_msgs::msg::LaserScan>(
+        g_scan_topic,
+        kSubscribeMessageBufferSize,
+        ScanCallback);
+  } else {
+    obstacle_subscription =
+      node->create_subscription<obstacle_msgs::msg::ObstaclesStamped>(
+        g_obstacles_topic,
+        kSubscribeMessageBufferSize,
+        ObstaclesCallback);
+  }
 
   auto goal_angle_subscription =
     node->create_subscription<std_msgs::msg::Float64>(
-      "/lsr/angle",
+      g_goal_angle_topic,
       kSubscribeMessageBufferSize,
       GoalAngleCallback);
 
+  (void)scan_subscription;
+  (void)obstacle_subscription;
   (void)goal_angle_subscription;
 
-#if 0
-  // Legacy subscriptions intentionally disabled.
-  auto subscription_lidar_data = node->create_subscription<sensor_msgs::msg::LaserScan>(
-    "/scan",
-    kSubscribeMessageBufferSize,
-    Callback
-  );
-
-  auto subscription_angle_filter_right =
-    node->create_subscription<std_msgs::msg::Int32>(
-      "/right_constraint_index",
-      kSubscribeMessageBufferSize,
-      AngleFilterRightCallback);
-
-  auto subscription_angle_filter_left =
-    node->create_subscription<std_msgs::msg::Int32>(
-      "/left_constraint_index",
-      kSubscribeMessageBufferSize,
-      AngleFilterLeftCallback);
-#endif
-
-  // Publishers.
   publisher_final_heading_angle =
     node->create_publisher<std_msgs::msg::Float32>(
       "/final_heading_angle",

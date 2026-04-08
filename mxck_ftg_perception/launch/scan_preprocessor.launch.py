@@ -5,15 +5,15 @@ import os
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('mxck_ftg_perception')
-    cfg = os.path.join(pkg_share, 'config', 'scan_preprocessor.yaml')
+    pkg_share = get_package_share_directory("mxck_ftg_perception")
+    cfg = os.path.join(pkg_share, "config", "scan_preprocessor.yaml")
 
     return LaunchDescription([
         Node(
-            package='mxck_ftg_perception',
-            executable='scan_preprocessor_node',
-            name='scan_preprocessor_node',
-            output='screen',
+            package="mxck_ftg_perception",
+            executable="scan_preprocessor_node",
+            name="scan_preprocessor_node",
+            output="screen",
             parameters=[cfg],
         )
     ])

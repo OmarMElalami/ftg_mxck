@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+from typing import List
 
 import rclpy
 from rclpy.node import Node
@@ -13,42 +14,49 @@ from mxck_ftg_perception.common import (
     compute_front_center_in_scan,
     transform_to_2d,
     range_is_valid,
-    wrap_to_pi
+    wrap_to_pi,
 )
+
 
 class ScanPreprocessorNode(Node):
     def __init__(self) -> None:
-        super().__init__('scan_preprocessor_node')
+        super().__init__("scan_preprocessor_node")
 
-        self.declare_parameter('scan_topic', '/scan')
-        self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('filtered_scan_topic', '/autonomous/ftg/scan_filtered')
-        self.declare_parameter('front_clearance_topic', '/autonomous/ftg/front_clearance')
-        self.declare_parameter('status_topic', '/autonomous/ftg/status')
+        self.declare_parameter("scan_topic", "/scan")
+        self.declare_parameter("base_frame", "base_link")
+        self.declare_parameter("filtered_scan_topic", "/autonomous/ftg/scan_filtered")
+        self.declare_parameter("front_clearance_topic", "/autonomous/ftg/front_clearance")
+        self.declare_parameter("status_topic", "/autonomous/ftg/status")
 
-        self.declare_parameter('front_center_deg', 0.0)
-        self.declare_parameter('front_fov_deg', 120.0)
+        self.declare_parameter("front_center_deg", 0.0)
+        self.declare_parameter("front_fov_deg", 120.0)
 
-        self.declare_parameter('clip_min_range_m', 0.05)
-        self.declare_parameter('clip_max_range_m', 8.0)
+        self.declare_parameter("clip_min_range_m", 0.05)
+        self.declare_parameter("clip_max_range_m", 8.0)
 
-        self.declare_parameter('enable_moving_average', False)
-        self.declare_parameter('moving_average_window', 3)
+        self.declare_parameter("enable_moving_average", False)
+        self.declare_parameter("moving_average_window", 3)
 
-        self.scan_topic = str(self.get_parameter('scan_topic').value)
-        self.base_frame = str(self.get_parameter('base_frame').value)
-        self.filtered_scan_topic = str(self.get_parameter('filtered_scan_topic').value)
-        self.front_clearance_topic = str(self.get_parameter('front_clearance_topic').value)
-        self.status_topic = str(self.get_parameter('status_topic').value)
+        self.scan_topic = str(self.get_parameter("scan_topic").value)
+        self.base_frame = str(self.get_parameter("base_frame").value)
+        self.filtered_scan_topic = str(self.get_parameter("filtered_scan_topic").value)
+        self.front_clearance_topic = str(self.get_parameter("front_clearance_topic").value)
+        self.status_topic = str(self.get_parameter("status_topic").value)
 
-        self.front_center_base_rad = math.radians(float(self.get_parameter('front_center_deg').value))
-        self.front_half_fov_rad = math.radians(float(self.get_parameter('front_fov_deg').value)) / 2.0
+        self.front_center_base_rad = math.radians(
+            float(self.get_parameter("front_center_deg").value)
+        )
+        self.front_half_fov_rad = math.radians(
+            float(self.get_parameter("front_fov_deg").value)
+        ) / 2.0
 
-        self.clip_min = float(self.get_parameter('clip_min_range_m').value)
-        self.clip_max = float(self.get_parameter('clip_max_range_m').value)
+        self.clip_min = float(self.get_parameter("clip_min_range_m").value)
+        self.clip_max = float(self.get_parameter("clip_max_range_m").value)
 
-        self.enable_moving_average = bool(self.get_parameter('enable_moving_average').value)
-        self.moving_average_window = max(1, int(self.get_parameter('moving_average_window').value))
+        self.enable_moving_average = bool(self.get_parameter("enable_moving_average").value)
+        self.moving_average_window = max(
+            1, int(self.get_parameter("moving_average_window").value)
+        )
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -60,10 +68,11 @@ class ScanPreprocessorNode(Node):
         self.sub = self.create_subscription(LaserScan, self.scan_topic, self.scan_cb, 10)
 
         self.get_logger().info(
-            f"Listening on {self.scan_topic}, publishing recentered front scan to {self.filtered_scan_topic}"
+            f"Listening on {self.scan_topic}, publishing recentered front scan to "
+            f"{self.filtered_scan_topic}"
         )
 
-    def _moving_average(self, values):
+    def _moving_average(self, values: List[float]) -> List[float]:
         if self.moving_average_window <= 1:
             return values[:]
 
@@ -87,7 +96,7 @@ class ScanPreprocessorNode(Node):
         return output
 
     def scan_cb(self, msg: LaserScan) -> None:
-        scan_frame = msg.header.frame_id or 'laser'
+        scan_frame = msg.header.frame_id or "laser"
 
         try:
             tf_msg = self.tf_buffer.lookup_transform(self.base_frame, scan_frame, Time())
@@ -122,13 +131,13 @@ class ScanPreprocessorNode(Node):
                 r = min(max(float(raw_r), effective_min), effective_max)
                 front_valid_ranges.append(r)
             else:
-                r = float('inf')
+                r = float("inf")
 
             inten = float(intensities[i]) if i < len(intensities) else 0.0
             selected.append((rel_theta, r, inten))
 
         if not selected:
-            text = f"[PREPROCESSOR] no beams selected in front window"
+            text = "[PREPROCESSOR] no beams selected in front window"
             self.get_logger().warn(text)
             self.status_pub.publish(String(data=text))
             return
@@ -143,12 +152,14 @@ class ScanPreprocessorNode(Node):
             filtered_ranges = self._moving_average(filtered_ranges)
 
         out = LaserScan()
-        out.header.stamp.sec = msg.header.stamp.sec
-        out.header.stamp.nanosec = msg.header.stamp.nanosec
+        out.header.stamp = msg.header.stamp
         out.header.frame_id = self.base_frame
         out.angle_min = rel_angles[0]
-        out.angle_increment = msg.angle_increment
-        out.angle_max = out.angle_min + (len(filtered_ranges) - 1) * out.angle_increment
+        if len(rel_angles) > 1:
+            out.angle_increment = (rel_angles[-1] - rel_angles[0]) / (len(rel_angles) - 1)
+        else:
+            out.angle_increment = msg.angle_increment
+        out.angle_max = rel_angles[-1]
         out.time_increment = msg.time_increment
         out.scan_time = msg.scan_time
         out.range_min = effective_min
@@ -156,7 +167,7 @@ class ScanPreprocessorNode(Node):
         out.ranges = filtered_ranges
         out.intensities = filtered_intensities
 
-        clearance = min(front_valid_ranges) if front_valid_ranges else float('nan')
+        clearance = min(front_valid_ranges) if front_valid_ranges else float("nan")
 
         self.filtered_pub.publish(out)
         self.clearance_pub.publish(Float32(data=float(clearance)))
@@ -194,6 +205,5 @@ def main() -> None:
             rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-    

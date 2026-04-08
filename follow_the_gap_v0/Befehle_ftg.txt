@@ -49,3 +49,61 @@ ros2 bag record -o ftg_debug \
   /visualize_final_heading_angle \
   /visualize_largest_gap \
   /lsr/angle
+
+###########################################
+Wichtiger Punkt zur neuen Logik
+
+Die empfohlene Standardnutzung ist jetzt:
+
+ros2 launch follow_the_gap_v0 follow_the_gap_v0.launch.py \
+  input_mode:=scan \
+  scan_topic:=/autonomous/ftg/scan_filtered
+
+Legacy-Kompatibilität bleibt erhalten:
+
+ros2 launch follow_the_gap_v0 follow_the_gap_v0.launch.py \
+  input_mode:=obstacles \
+  obstacles_topic:=/obstacles
+So spielst du es auf dem Jetson ein
+
+Backup:
+
+cd /home/mxck/mxck2_ws/src/ftg_mxck
+mv follow_the_gap_v0 follow_the_gap_v0_backup
+mkdir follow_the_gap_v0
+
+Dann die Dateien aus dem bereitgestellten Ordner bzw. ZIP nach
+
+/home/mxck/mxck2_ws/src/ftg_mxck/follow_the_gap_v0
+
+kopieren.
+
+Danach bauen:
+
+sudo docker exec -it mxck2_development bash
+source /opt/ros/foxy/setup.bash
+cd /mxck2_ws
+colcon build --symlink-install --packages-select follow_the_gap_v0
+source /mxck2_ws/install/setup.bash
+
+Dann testen:
+
+ros2 pkg executables follow_the_gap_v0
+ros2 launch follow_the_gap_v0 follow_the_gap_v0.launch.py input_mode:=scan
+Mein Rat für deinen nächsten Test
+
+Starte zuerst genau diese Kette:
+
+/scan
+ -> scan_preprocessor_node
+ -> /autonomous/ftg/scan_filtered
+ -> follow_the_gap_v0 (input_mode=scan)
+
+und prüfe parallel in Foxglove:
+
+/autonomous/ftg/scan_filtered
+/final_heading_angle
+/gap_found
+/visualize_obstacles
+/visualize_final_heading_angle
+/visualize_largest_gap

@@ -1,24 +1,30 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+             schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>mxck_ftg_planner</name>
-  <version>0.1.0</version>
-  <description>MXCarkit FTG planner adapter for CTU follow_the_gap_v0.</description>
+  <version>0.3.0</version>
+  <description>
+    Unified planner node for the MXCK scan-based FTG path.
+    Consumes follow_the_gap_v0 heading/gap_found and front_clearance,
+    publishes gap_angle and target_speed for ftg_command_node.
+  </description>
 
   <maintainer email="omar@example.com">Omar</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>ament_index_python</depend>
 
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
+  <test_depend>ament_copyright</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>

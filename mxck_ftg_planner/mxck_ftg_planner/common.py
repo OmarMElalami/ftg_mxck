@@ -1,30 +1,60 @@
+from dataclasses import dataclass
+from typing import Optional
 import math
-from typing import Tuple
-
-from geometry_msgs.msg import TransformStamped
 
 
-def wrap_to_pi(angle: float) -> float:
-    while angle > math.pi:
-        angle -= 2.0 * math.pi
-    while angle < -math.pi:
-        angle += 2.0 * math.pi
-    return angle
+@dataclass
+class SpeedPolicyConfig:
+    cruise_speed_mps: float
+    min_speed_mps: float
+    stop_speed_mps: float
+    caution_clearance_m: float
+    stop_clearance_m: float
+    steering_slowdown_start_rad: float
+    steering_slowdown_full_rad: float
+    max_abs_gap_angle_rad: float
 
 
-def quaternion_to_yaw(x: float, y: float, z: float, w: float) -> float:
-    siny_cosp = 2.0 * (w * z + x * y)
-    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
-    return math.atan2(siny_cosp, cosy_cosp)
+def clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
 
 
-def transform_to_2d(transform: TransformStamped) -> Tuple[float, float, float]:
-    tx = float(transform.transform.translation.x)
-    ty = float(transform.transform.translation.y)
-    q = transform.transform.rotation
-    yaw = quaternion_to_yaw(q.x, q.y, q.z, q.w)
-    return tx, ty, yaw
+def finite_or_none(value: float) -> Optional[float]:
+    if math.isfinite(value):
+        return float(value)
+    return None
 
 
-def range_is_valid(r: float) -> bool:
-    return math.isfinite(r) and r > 0.0
+def compute_speed_from_clearance_and_steering(
+    clearance_m: Optional[float],
+    gap_angle_rad: float,
+    cfg: SpeedPolicyConfig,
+) -> float:
+    angle = abs(clamp(gap_angle_rad, -cfg.max_abs_gap_angle_rad, cfg.max_abs_gap_angle_rad))
+
+    # Steering-based slowdown.
+    if angle <= cfg.steering_slowdown_start_rad:
+        steering_factor = 1.0
+    elif angle >= cfg.steering_slowdown_full_rad:
+        steering_factor = 0.0
+    else:
+        span = cfg.steering_slowdown_full_rad - cfg.steering_slowdown_start_rad
+        steering_factor = 1.0 - (angle - cfg.steering_slowdown_start_rad) / span
+
+    # Clearance-based slowdown.
+    if clearance_m is None:
+        clearance_factor = 0.5
+    elif clearance_m <= cfg.stop_clearance_m:
+        clearance_factor = 0.0
+    elif clearance_m >= cfg.caution_clearance_m:
+        clearance_factor = 1.0
+    else:
+        span = cfg.caution_clearance_m - cfg.stop_clearance_m
+        clearance_factor = (clearance_m - cfg.stop_clearance_m) / span
+
+    factor = min(steering_factor, clearance_factor)
+
+    if factor <= 0.0:
+        return cfg.stop_speed_mps
+
+    return max(cfg.min_speed_mps, cfg.cruise_speed_mps * factor)

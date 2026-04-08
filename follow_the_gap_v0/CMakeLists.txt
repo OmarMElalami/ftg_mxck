@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 project(follow_the_gap_v0)
 
-# Keep the language level unchanged for Foxy compatibility.
 if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()

@@ -3,23 +3,18 @@
              schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>follow_the_gap_v0</name>
-  <version>0.2.5</version>
+  <version>0.2.6</version>
   <description>
     Legacy CTU Follow-The-Gap implementation ported to ROS 2.
-    This package currently consumes /obstacles and publishes /final_heading_angle,
-    /gap_found, and debug visualization topics.
+    This package now supports two input modes:
+    - scan: subscribe to LaserScan (recommended for MXCK)
+    - obstacles: subscribe to obstacle_msgs/ObstaclesStamped (legacy compatibility)
   </description>
 
   <maintainer email="klapajar@fel.cvut.cz">Jaroslav Klapálek</maintainer>
   <author email="anderssp1994@gmail.com">Anders Solberg Pedersen</author>
   <author email="klapajar@fel.cvut.cz">Jaroslav Klapálek</author>
 
-  <!--
-    License note:
-    The original source headers, README and LICENSE file in this package state GPLv3.
-    package.xml previously said Apache-2.0, which conflicted with the repository files.
-    This cleanup aligns package.xml with the source tree.
-  -->
   <license>GPL-3.0-only</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

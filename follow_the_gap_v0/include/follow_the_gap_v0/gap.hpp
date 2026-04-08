@@ -8,9 +8,6 @@
 namespace FollowTheGap
 {
 
-/**
- * @brief Gap between two circular obstacles.
- */
 class Gap
 {
 public:
@@ -19,10 +16,7 @@ public:
   float angle_left;
   float angle_right;
   float gap_size;
-
-  // Distance between obstacle centers, not edge-to-edge clearance.
   float gap_distance;
-
   const Obstacle * obstacle_left;
   const Obstacle * obstacle_right;
 };

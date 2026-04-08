@@ -12,13 +12,9 @@ Obstacle::Obstacle(float x_in, float y_in, float radius_in, float car_radius)
   y(y_in),
   distance(distance_to_center)
 {
-  // The current implementation intentionally does not use car_radius.
-  // This preserves the behavior described in the historical changelog:
-  // "Use obstacle radius instead of car radius parameter."
   (void)car_radius;
 
   if (radius_in > (distance - 0.01f)) {
-    // Avoid asin(radius / distance) producing NaN for very close obstacles.
     radius = distance - 0.01f;
   } else {
     radius = radius_in;
@@ -27,8 +23,6 @@ Obstacle::Obstacle(float x_in, float y_in, float radius_in, float car_radius)
   const float theta_d = std::asin(radius / distance);
   angle_left = angle + theta_d;
   angle_right = angle - theta_d;
-
-  // Perpendicular distance from origin to obstacle boundary tangent line.
   distance = std::sqrt(distance_to_center * distance_to_center - radius * radius);
 }
 
@@ -47,7 +41,6 @@ Obstacle::Obstacle(float distance_in, float angle_in, float radius_in)
   const float theta_d = std::asin(radius / distance_in);
   angle_left = angle + theta_d;
   angle_right = angle - theta_d;
-
   distance = std::sqrt(distance_to_center * distance_to_center - radius * radius);
 }
 
