@@ -16,11 +16,12 @@ Der entwickelte Stack (\texttt{ftg\_mxck}) ergänzt den Basisstack
 des MXCarkit um sieben spezialisierte ROS~2-Pakete. Der vollständige
 Datenpfad ist in Abbildung~\ref{fig:pipeline} schematisch dargestellt.
 
-\bildplatzhalter{Blockdiagramm: /scan $\to$ scan\_preprocessor $\to$
-obstacle\_substitution $\to$ follow\_the\_gap\_v0 $\to$
-ctu\_ftg\_adapter $\to$ ftg\_command\_node $\to$
-/autonomous/ackermann\_cmd}{Verarbeitungspipeline des FTG-Stacks
-(Blockdiagramm)}
+\bildplatzhalter{Blockdiagramm: /scan $\to$ scan\_preprocessor\_node $\to$
+/autonomous/ftg/scan\_filtered $\to$ follow\_the\_gap\_v0 (input\_mode=scan) $\to$
+/final\_heading\_angle + /gap\_found $\to$ ftg\_planner\_node $\to$
+/autonomous/ftg/gap\_angle + /autonomous/ftg/target\_speed $\to$
+ftg\_command\_node $\to$ /autonomous/ackermann\_cmd}{Verarbeitungspipeline
+des FTG-Stacks (Blockdiagramm)}
 \label{fig:pipeline}
 
 \begin{table}[H]
@@ -155,10 +156,10 @@ ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
   record_bag:=false
 \end{lstlisting}
 
-Beim Start werden sechs ROS~2-Prozesse initiiert:
-\texttt{robot\_state\_publisher}, \texttt{scan\_preprocessor\_node},
-\texttt{obstacle\_substitution\_node}, \texttt{follow\_the\_gap},
-\texttt{ctu\_ftg\_adapter\_node} und \texttt{ftg\_command\_node}.
+Beim Start werden vier ROS~2-Prozesse initiiert:
+\texttt{scan\_preprocessor\_node}, \texttt{follow\_the\_gap},
+\texttt{ftg\_planner\_node} und \texttt{ftg\_command\_node}.
+TF (\texttt{robot\_state\_publisher}) wird separat gestartet.
 
 % ============================================================
 \section{Iterativer Kalibrierungsprozess}
