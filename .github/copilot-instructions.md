@@ -114,3 +114,23 @@ vehicle_control — those are started separately.
 - Do not invent nodes, topics, or files that do not exist in the codebase.
 - Flag uncertainties explicitly instead of guessing.
 - Verify that documentation matches actual code, not the other way around.
+
+## LaTeX-Dokumentation (docs/)
+ 
+The `docs/Projektarbeit_MXCK_FTG/` directory contains a LaTeX project
+documenting this FTG stack as a university project report.
+ 
+### Rules for reviewing/editing the documentation
+ 
+- The documentation must reflect the **current** code architecture, not any
+  previous version.
+- The current primary pipeline is:
+  `scan_preprocessor_node -> follow_the_gap_v0(scan) -> ftg_planner_node -> ftg_command_node`
+- There is NO `ctu_ftg_adapter_node` — it was merged into `ftg_planner_node`.
+- There is NO `obstacle_substitution` in the primary path — the scan-based
+  path feeds `/autonomous/ftg/scan_filtered` directly to `follow_the_gap_v0`.
+- `front_center_deg` is `0.0` (TF-based), not `135.0`.
+- When reviewing `.tex` files, flag any reference to deleted nodes, old
+  pipeline steps, or outdated parameter values.
+- The generated PDF is at `docs/pdf/dokumentation.pdf` and is auto-built
+  by GitHub Actions when `.tex` files change on `main`.
