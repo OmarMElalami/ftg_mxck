@@ -1,4 +1,5 @@
 # LaTeX build artifacts
+main.pdf
 *.aux
 *.log
 *.out
