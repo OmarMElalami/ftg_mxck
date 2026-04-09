@@ -1,223 +1,175 @@
 \chapter{Grundlagen}
 \label{ch:grundlagen}
 
-In diesem Kapitel werden die für das Verständnis der Arbeit notwendigen
-Grundlagen beschrieben. Zunächst wird die verwendete Hardware vorgestellt,
-anschließend die zugrunde liegende Software-Architektur des MXCK-Systems
-und zuletzt der eingesetzte Follow-the-Gap-Algorithmus erläutert.
+Dieses Kapitel beschreibt die fachlichen und systemtechnischen Grundlagen der
+Arbeit. Zuerst wird das MXCK als Zielplattform eingeordnet. Danach werden die
+für die Arbeit relevanten ROS~2-Begriffe erklärt. Abschließend wird der
+Follow-the-Gap-Algorithmus sowohl in seiner ursprünglichen Form als auch in der
+für dieses Projekt relevanten scan-basierten Variante erläutert.
 
-% ============================================================
-\section{Hardware: Das MXCarkit}
-% ============================================================
+\section{Das MXCarkit als Zielplattform}
 
-Das MXCarkit ist ein miniaturisiertes autonomes Versuchsfahrzeug,
-das im Rahmen von Lehrveranstaltungen an der Technischen Hochschule
-Mittelhessen eingesetzt wird. Es dient als Plattform für die Erprobung
-autonomer Fahrfunktionen in realen Umgebungen.
+Das MXCarkit ist ein Jetson-basiertes, containerisiertes Versuchsfahrzeug für
+Lehre und Entwicklung im Bereich autonomer Fahrfunktionen. Laut der aktuellen
+MXCK-Dokumentation werden die Systembestandteile bewusst in Docker-Container
+aufgeteilt, wobei \texttt{mxck2\_ws} die Kernfunktionalität und
+\texttt{development\_ws} experimentelle bzw.\ GPU-nahe Entwicklung aufnimmt.
+Die zentrale Startlogik für Sensorik und Aktorik liegt im Paket
+\texttt{mxck\_run}; einzelne Teilfunktionen wie LiDAR oder Kamera werden über
+Launch-Argumente wie \texttt{run\_lidar:=true} aktiviert.
 
 \begin{table}[H]
 \centering
-\caption{Technische Spezifikationen des MXCarkit}
-\label{tab:specs}
-\begin{tabular}{ll}
+\caption{Relevante MXCK-Systemeigenschaften für diese Arbeit}
+\label{tab:mxck_overview}
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{9.2cm}}
 \toprule
-\textbf{Eigenschaft} & \textbf{Wert} \\
+\textbf{Aspekt} & \textbf{Bedeutung für den FTG-Stack} \\
 \midrule
-Fahrzeugbreite     & $> 30$\,cm \\
-Fahrzeuglänge      & $> 50$\,cm \\
-Antrieb            & Bürstenloser Elektromotor \\
-Motorcontroller    & VESC (Vedder Electronic Speed Controller) \\
-Lenkung            & Ackermann-Geometrie \\
-Recheneinheit      & NVIDIA Jetson Nano \\
-LiDAR-Sensor       & RPLIDAR A1/A2 \\
-Betriebssystem     & Ubuntu 22.04 (L4T) \\
-Middleware         & ROS~2 (Foxy / Humble) \\
+NVIDIA Jetson & Rechnerplattform für ROS~2, Paket-Build, Sensorverarbeitung und Debugging \\
+Docker-basierter Betrieb & Trennung von Sensor-/Control-Containern und Entwicklungsumgebung \\
+2D-LiDAR (\texttt{/scan}) & Primärer Sensor für den reaktiven FTG-Pfad \\
+Ackermann-Steuerung & Lenkwinkel- und Geschwindigkeitsvorgaben werden als Ackermann-Befehl ausgegeben \\
+Bestehende Fahrzeugsteuerung & Der FTG-Stack darf die vorhandene VESC-/Safety-Kette nicht umgehen \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\bildplatzhalter{Foto des MXCarkit von vorne und seitlich mit beschrifteten
-Komponenten (LiDAR, Jetson Nano, VESC, Räder)}{Das MXCarkit -- Versuchsfahrzeug
-mit RPLIDAR A1/A2 und Jetson Nano}
+Für diese Arbeit ist vor allem wichtig, dass der autonome Output nicht direkt an
+VESC-Topics gesendet wird, sondern an
+\texttt{/autonomous/ackermann\_cmd}. Dadurch bleibt die bestehende MXCK-
+Sicherheits- und Moduslogik erhalten.
 
-\subsection{NVIDIA Jetson Nano}
+\section{ROS~2: Workspace, Paket, Node und Launch}
 
-Der Jetson Nano ist ein eingebetteter Einplatinencomputer der Firma NVIDIA
-mit einer quad-core ARM Cortex-A57 CPU und einer integrierten 128-core
-Maxwell-GPU. Im Kontext dieser Arbeit übernimmt er die vollständige
-Verarbeitungskette von der Sensordatenaufnahme über die ROS~2-Middleware
-bis hin zur Ausgabe von Steuerkommandos an den VESC.
+Da der gesamte Stack auf ROS~2 basiert, ist ein sauberes Verständnis der
+Architekturelemente notwendig.
 
-\subsection{LiDAR-Sensor: RPLIDAR A1/A2}
+\subsection{Workspace}
 
-Der RPLIDAR A1/A2 ist ein kostengünstiger 2D-LiDAR-Sensor, der per
-Triangulationsverfahren Distanzmessungen in einem vollständigen
-$360°$-Sichtfeld liefert. Relevante Parameter für diese Arbeit:
+Ein ROS~2-Workspace ist ein Verzeichnis, in dem mehrere Pakete gemeinsam
+gebaut werden. Gebräuchlich ist die Struktur
+\texttt{src/}, \texttt{build/}, \texttt{install/}, \texttt{log/}. Im MXCK-Projekt
+wird dieser Aufbau direkt genutzt: \texttt{mxck2\_ws} enthält die
+Kernfunktionalität, während \texttt{development\_ws} für zusätzliche
+Entwicklungsarbeit vorgesehen ist.
 
-\begin{table}[H]
-\centering
-\caption{Technische Kenndaten des RPLIDAR A1/A2}
-\label{tab:lidar}
-\begin{tabular}{ll}
-\toprule
-\textbf{Parameter} & \textbf{Wert} \\
-\midrule
-Scanrate              & $\approx 11$\,Hz \\
-Messpunkte/Umdrehung  & $\approx 1800$ \\
-Winkelauflösung       & $\approx 0{,}35°$ \\
-Minimalmessreichweite & $0{,}15$\,m \\
-Maximalmessreichweite & $12$--$16$\,m \\
-Sichtfeld             & $360°$ \\
-Schnittstelle         & USB (seriell) \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{Paket}
 
-Der Sensor ist auf dem Fahrzeugdach montiert und publiziert Messdaten
-über den ROS~2-Topic \texttt{/scan} im Format
-\texttt{sensor\_msgs/msg/LaserScan}. Der Scan beginnt bei
-\texttt{angle\_min}\,$= -\pi$ und endet bei \texttt{angle\_max}\,$= +\pi$.
+Ein Paket bündelt eine klar abgegrenzte Funktion. In dieser Arbeit werden
+Pakete für Perception, Planner, Control und Bringup verwendet. Für Python-Pakete
+sind insbesondere \texttt{package.xml}, \texttt{setup.py},
+\texttt{setup.cfg}, der Python-Modulordner und optionale Launch-/Config-Ordner
+relevant. Für C++-Pakete kommen stattdessen \texttt{CMakeLists.txt},
+\texttt{package.xml}, Header- und Source-Dateien zum Einsatz.
 
-\textbf{Wichtige Konvention:} Im Koordinatensystem des RPLIDAR entspricht
-der Winkel $0°$ \emph{nicht} automatisch der Fahrzeugvorderseite.
-Die tatsächliche Zuordnung hängt von der physischen Montageposition
-des Sensors ab und muss kalibriert werden (siehe Abschnitt~\ref{sec:kalibrierung}).
+\subsection{Node}
 
-\subsection{Ackermann-Steuermodell}
+Ein Node ist ein laufender Prozess innerhalb des ROS~2-Graphs. Nodes abonnieren
+Topics, veröffentlichen Topics, verwenden Parameter und werden meist über
+Launch-Dateien gemeinsam gestartet.
 
-Das Fahrzeug verwendet die Ackermann-Lenkgeometrie, bei der Vorder- und
-Hinterräder unterschiedliche Lenkwinkel aufweisen, um schlupffreies
-Kurvenfahren zu ermöglichen. Steuerkommandos werden im ROS~2-Format
-\texttt{ackermann\_msgs/msg/AckermannDriveStamped} mit den Feldern
-\texttt{steering\_angle} (Lenkwinkel in Radiant) und
-\texttt{speed} (Geschwindigkeit in m/s) übergeben.
+\subsection{Launch-Dateien und YAML-Parameter}
 
-% ============================================================
-\section{Software-Architektur: MXCK2-Stack}
-% ============================================================
+ROS~2 nutzt bevorzugt Python-basierte Launch-Dateien. Diese starten mehrere
+Nodes, reichen Parameter weiter und erlauben deklarative Startkonfigurationen.
+Für dieses Projekt ist das besonders wichtig, weil die Pipeline nur dann stabil
+und reproduzierbar ist, wenn Node-Namen, Executables, YAML-Dateien und Topics
+konsistent zusammenpassen.
 
-\subsection{ROS~2 und Docker-Container}
+\section{Follow-the-Gap als reaktiver Planungsansatz}
 
-Das MXCarkit verwendet ROS~2 (Robot Operating System 2) als Middleware.
-Die gesamte Softwareumgebung ist in Docker-Containern gekapselt, was
-eine reproduzierbare Deploymentumgebung gewährleistet. Für diese Arbeit
-relevante Container sind:
+Der Ursprung des Follow-the-Gap-Verfahrens liegt in der Arbeit von Sezer und
+Gokasan. Dort wird FTG als lokaler Hindernisvermeidungsansatz formuliert, der
+die Umgebung nur anhand der aktuell sichtbaren Hindernisse bewertet. Statt eine
+globale Karte aufzubauen, sucht das Verfahren in jedem Zeitpunkt nach der
+größten passierbaren Lücke und richtet das Fahrzeug möglichst auf deren Mitte
+aus.
 
-\begin{table}[H]
-\centering
-\caption{Docker-Container-Übersicht auf dem Jetson Nano}
-\label{tab:containers}
-\begin{tabularx}{\textwidth}{llX}
-\toprule
-\textbf{Container} & \textbf{ROS~2-Version} & \textbf{Inhalt} \\
-\midrule
-\texttt{mxck2\_control}     & Humble & Fahrzeugsteuerung, VESC-Treiber, LiDAR-Treiber \\
-\texttt{mxck2\_development} & Foxy   & Entwicklungsumgebung, FTG-Stack (diese Arbeit) \\
-\texttt{mxck2\_lidar}       & Humble & Alternativer LiDAR-Treiber \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\subsection{Zentrale Idee der Originalarbeit}
 
-Der Workspace \texttt{/mxck2\_ws} im Entwicklungscontainer ist über ein
-Docker-Volume direkt aus dem Host-Verzeichnis
-\texttt{/home/mxck/development\_ws} eingehängt, sodass Codeänderungen
-ohne Neustart des Containers wirksam werden.
+Die Originalarbeit beschreibt drei Kernschritte:
 
-\subsection{Basisstack: mxck2\_ws}
-
-Der vorhandene Basisstack (Repository: \texttt{william-mx/mxck2\_ws})
-stellt die grundlegende Fahrzeugfunktionalität bereit: manuelle
-RC-Steuerung, URDF-Fahrzeugbeschreibung, Kamerabilder und Basistreiber.
-Er definiert außerdem den TF-Baum (Transform Tree) des Fahrzeugs mit
-den Koordinatenrahmen \texttt{base\_link} (Fahrzeugmittelpunkt) und
-\texttt{laser} (LiDAR-Sensor).
-
-\bildplatzhalter{Screenshot des ROS~2-Topic-Graphs (z.B. aus Foxglove)
-mit allen aktiven Knoten und Verbindungen}{ROS~2-Knoten- und Topic-Graph
-des vollständigen FTG-Stacks}
-
-% ============================================================
-\section{Der Follow-the-Gap-Algorithmus}
-% ============================================================
-
-\subsection{Grundprinzip}
-
-Der Follow-the-Gap-Algorithmus (FTG) ist ein reaktives Planungsverfahren
-für autonome Fahrsysteme, das ohne globale Karte oder Pfadplanung auskommt.
-Er operiert ausschließlich auf aktuellen Sensordaten und berechnet in
-Echtzeit eine kollisionsfreie Fahrtrichtung.
-
-Das Grundprinzip lässt sich in drei Schritten zusammenfassen:
-\begin{enumerate}
-    \item Identifiziere alle Hindernisse im Sichtfeld des Sensors.
-    \item Finde die größte \emph{Lücke} (freien Winkelbereich) zwischen benachbarten Hindernissen.
-    \item Steuere das Fahrzeug in Richtung des Mittelpunkts dieser Lücke.
+\begin{enumerate}[label=\arabic*)]
+    \item Aufbau einer Hindernis- bzw.\ Gap-Repräsentation,
+    \item Bestimmung eines sicheren Gap-Center-Winkels,
+    \item Fusion von Gap-Richtung und Zielrichtung zu einem finalen Heading.
 \end{enumerate}
 
-\begin{equation}
-    \theta_{\text{Ziel}} = \frac{\theta_{\text{links}} + \theta_{\text{rechts}}}{2}
-    \label{eq:gap_center}
-\end{equation}
+Wesentliche Eigenschaften des Verfahrens sind laut Originalarbeit:
+\begin{itemize}
+    \item Berücksichtigung des Sichtfelds,
+    \item Berücksichtigung nicht-holonomer Fahrdynamik,
+    \item keine lokale-Minimum-Problematik wie bei Potentialfeldern,
+    \item nur wenige Tuning-Parameter.
+\end{itemize}
 
-Dabei sind $\theta_{\text{links}}$ und $\theta_{\text{rechts}}$ die
-Winkel der linken und rechten Begrenzung der gewählten Lücke.
+\subsection{Gap-Idee in vereinfachter Form}
 
-\subsection{Klassisches F1TENTH-FTG vs.\ CTU-FTG}
+Im klassischen FTG werden aus den Hindernisgrenzen aufeinanderfolgende
+``Gaps'' bestimmt. Die größte geeignete Lücke wird ausgewählt. Aus dieser
+Lücke wird ein Winkel $\varphi_{gap}$ bestimmt. Anschließend wird dieser mit
+einem Zielwinkel $\varphi_{goal}$ fusioniert, wobei nahe Hindernisse den
+Einfluss des Gap-Winkels erhöhen und freie Umgebung den Einfluss des
+Zielwinkels stärkt.
 
-Im Rahmen dieser Arbeit wurde eine modifizierte Variante des FTG-Algorithmus
-verwendet, die ursprünglich von der Tschechischen Technischen Universität Prag
-(CTU) entwickelt wurde. Im Unterschied zur klassischen F1TENTH-Implementierung
-arbeitet diese Variante nicht direkt auf Laserscan-Rohdaten, sondern auf
-einer vorverarbeiteten Liste kreisförmiger Hindernisse.
+Formal beschreibt die Originalarbeit die finale Heading-Bildung als gewichtete
+Fusion aus Gap-Winkel und Zielwinkel. Entscheidend ist dabei der kleinste
+Hindernisabstand $d_{min}$: je kleiner $d_{min}$ ist, desto stärker soll die
+Planung sicherheitsorientiert in Richtung des Gaps reagieren.
 
-\begin{table}[H]
-\centering
-\caption{Vergleich: Klassisches F1TENTH-FTG vs. CTU-FTG}
-\label{tab:ftg_compare}
-\begin{tabularx}{\textwidth}{lXX}
-\toprule
-\textbf{Merkmal} & \textbf{Klassisches F1TENTH-FTG} & \textbf{CTU-FTG (diese Arbeit)} \\
-\midrule
-Eingabe          & Rohlaserscan (\texttt{LaserScan})   & Kreishindernisliste (\texttt{ObstaclesStamped}) \\
-Sicherheitsradius & Explizit um jeden Messpunkt ($\approx$\,halbe Fahrzeugbreite) & Implizit durch Hindernisradius (0{,}01\,m) \\
-Lückenbewertung  & Tiefster freier Strahl             & Größte Winkelbreite \\
-Implementierung  & Python oder C++                    & C++ \\
-Geschwindigkeit  & Oft direkt integriert              & Separater Adapterknoten \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\subsection{Von der Originalformulierung zur praktischen Scan-Variante}
 
-\subsection{Algorithmus-Schritte im Detail}
+Die CTU-F1/10-Implementierung übernimmt die FTG-Idee in einen ROS-Node
+\texttt{follow\_the\_gap}. Dessen klassischer ROS-Eingang ist ein
+\texttt{sensor\_msgs/LaserScan} auf \texttt{/scan}; als Zielwinkel kann
+optional \texttt{/lsr/angle} vorgegeben werden. Als wesentliche Ausgänge nennt
+das CTU-Repository \texttt{/final\_heading\_angle},
+\texttt{/visualize\_final\_heading\_angle},
+\texttt{/visualize\_obstacles} und
+\texttt{/visualize\_largest\_gap}.
 
-Der CTU-FTG-Kern (\texttt{follow\_the\_gap\_v0}) durchläuft pro
-Planungszyklus folgende Schritte:
+Für das MXCK-Projekt wird dieser Kerngedanke nicht als
+\texttt{/scan}-Direkteingang verwendet, sondern als \emph{scan-basierter
+Vorverarbeitungspfad}:
 
-\begin{enumerate}[leftmargin=*, label=\textbf{Schritt \arabic*.}]
-    \item \textbf{Eingabe konvertieren:} Kreisförmige Hindernisse aus
-    \texttt{ObstaclesStamped} in interne \texttt{Obstacle}-Objekte umwandeln.
-    \item \textbf{Filtern:} Hindernisse außerhalb des Sichtfelds oder
-    jenseits der maximalen Relevanzreichweite verwerfen.
-    \item \textbf{Lücken konstruieren:} Zwischen je zwei benachbarten,
-    nicht-überlappenden Hindernissen ein \texttt{Gap}-Objekt anlegen.
-    \item \textbf{Beste Lücke wählen:} Die Lücke mit der größten
-    Winkelbreite auswählen, sofern sie breit genug für das Fahrzeug ist.
-    \item \textbf{Zielwinkel berechnen:} Mittelpunktwinkel der Lücke
-    nach Gleichung~\eqref{eq:gap_center} berechnen.
-    \item \textbf{Fallback:} Falls keine Lücke gefunden wird, Corner-Following
-    aktivieren und \texttt{/gap\_found\,=\,false} publizieren.
-\end{enumerate}
+\begin{lstlisting}
+ /scan
+   -> scan_preprocessor_node
+   -> /autonomous/ftg/scan_filtered
+   -> follow_the_gap_v0 (input_mode=scan)
+   -> /final_heading_angle
+   -> /gap_found
+\end{lstlisting}
 
-\subsection{Hindernisrepräsentation: obstacle\_substitution}
+Damit wird der eigentliche C++-Planerkern entlastet: Das Re-Centering auf die
+Fahrzeugfront, die Clipping-Logik und die Front-Clearance-Bestimmung finden
+bereits vorher statt.
 
-Ein wesentlicher Bestandteil des Systems ist der Knoten
-\texttt{obstacle\_substitution\_node}, der jeden einzelnen
-LiDAR-Messstahl in ein kreisförmiges Hindernis mit Radius~$r = 0{,}01$\,m
-umwandelt. Die kartesischen Koordinaten werden aus den Polarkoordinaten
-des Scans berechnet:
+\section{Warum ROS~2 für dieses Thema relevant ist}
 
-\begin{equation}
-    x = d \cdot \cos(\theta), \quad y = d \cdot \sin(\theta)
-    \label{eq:polar2cart}
-\end{equation}
+Die CTU-Arbeit von Endler zeigt, warum ROS~2 im Kontext schneller
+autonomer Fahrfunktionen relevant ist. Zentrale Punkte sind:
+\begin{itemize}
+    \item DDS-basierte Kommunikation statt ROS~1-Master-Modell,
+    \item klare Trennung von \texttt{rcl}, \texttt{rmw} und DDS,
+    \item Build-System \texttt{ament} mit \texttt{colcon},
+    \item moderne Python-Launchfiles,
+    \item bessere Grundlage für Messung von Latenzen, Jitter und
+    End-to-End-Ketten.
+\end{itemize}
 
-wobei $d$ die gemessene Distanz und $\theta$ der zugehörige Scanwinkel ist.
+Für diese Projektarbeit ist das vor allem deshalb wichtig, weil das MXCK nicht
+nur einen Algorithmus ``irgendwie ausführt'', sondern als Prozesskette aus
+mehreren ROS~2-Nodes verstanden werden muss. Schon kleine Inkonsistenzen in
+Topic-Namen, QoS, Frames oder Startreihenfolge können das Gesamtsystem
+unbrauchbar machen.
+
+\section{Zusammenfassung}
+
+Die theoretische Grundlage dieser Arbeit ist damit zweigeteilt:
+Einerseits liefert die FTG-Originalliteratur die mathematische und
+planungslogische Basis. Andererseits liefert der aktuelle ROS~2-/F1TENTH-
+Kontext die technische Form, in der diese Idee heute auf einem Jetson-basierten
+Lehrfahrzeug umgesetzt wird. Genau an dieser Schnittstelle setzt die
+vorliegende Arbeit an.

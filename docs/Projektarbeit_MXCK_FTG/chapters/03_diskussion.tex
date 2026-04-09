@@ -1,284 +1,161 @@
-\chapter{Diskussion und Fehleranalyse}
+\chapter{Diskussion und Bewertung}
 \label{ch:diskussion}
 
-Dieses Kapitel analysiert systematisch, warum das System im praktischen
-Test keine vollständig kollisionsfreie Navigation erreichte.
-Die Fehlerursachen werden priorisiert und anhand der aufgezeichneten
-Messdaten belegt. Wo eigene Validierungsdaten noch ausstehen,
-sind Platzhalter für spätere Ergänzungen gesetzt.
+In diesem Kapitel werden die wesentlichen technischen Entscheidungen des
+aktuellen Stacks diskutiert. Ziel ist nicht nur eine Fehlerliste, sondern eine
+strukturierte Einordnung der Architektur in Bezug auf Robustheit,
+Wartbarkeit und Übertragbarkeit auf das MXCK.
 
-% ============================================================
-\section{Übersicht der identifizierten Fehlerursachen}
-% ============================================================
+\section{Warum der direkte Scan-Pfad die richtige Hauptarchitektur ist}
 
-Aus den Experimenten und der Analyse des System-Logs ergeben sich
-sechs identifizierbare Fehlerursachen, geordnet nach Schweregrad:
-
-\begin{table}[H]
-\centering
-\caption{Fehlerursachen geordnet nach Schweregrad}
-\label{tab:errors}
-\begin{tabularx}{\textwidth}{lXll}
-\toprule
-\textbf{Nr.} & \textbf{Fehler} & \textbf{Schwere} & \textbf{Behebung} \\
-\midrule
-F1 & Fehlende TF-Transformation (\texttt{base\_link} $\to$ \texttt{laser})
-   & \textcolor{warn_red}{\textbf{Kritisch}} & Mittel \\
-F2 & Falsch kalibriertes Frontfenster (\texttt{front\_center\_deg})
-   & \textcolor{warn_red}{\textbf{Kritisch}} & Einfach \\
-F3 & Zu kleiner Hindernissicherheitsradius ($r = 0{,}01$\,m)
-   & \textcolor{warn_orange}{\textbf{Hoch}} & Einfach \\
-F4 & Fehlende Hindernisgruppierung (kein Clustering)
-   & \textcolor{warn_orange}{\textbf{Hoch}} & Mittel \\
-F5 & ROS~2-Versionskonflikt zwischen Containern
-   & \textcolor{warn_orange}{\textbf{Hoch}} & Komplex \\
-F6 & Gestapelte Geschwindigkeitspolitik
-   & \textcolor{ok_green}{\textbf{Mittel}} & Einfach \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-% ============================================================
-\section{F1: Fehlende TF-Transformation}
-\label{sec:f1}
-% ============================================================
-
-\subsection{Beschreibung}
-
-Der \texttt{scan\_preprocessor\_node} benötigt beim Start die
-TF-Transformation von \texttt{base\_link} nach \texttt{laser},
-um die exakte Montageorientierung des LiDAR-Sensors relativ zum
-Fahrzeugrahmen zu bestimmen. Diese Transformation codiert den
-räumlichen Versatz (Translation und Rotation) zwischen Sensor
-und Fahrzeugmittelpunkt.
-
-Im System war diese Transformation dauerhaft nicht verfügbar.
-Die entsprechende Fehlermeldung aus dem System-Log:
-
-\begin{lstlisting}[caption={TF-Fehlermeldung aus dem System-Log (28.03.2026)}]
-[tf2_echo]: Waiting for transform base_link -> laser:
-Invalid frame ID "base_link" passed to canTransform
-argument target_frame - frame does not exist
-[tf2_echo]: Waiting for transform base_link -> laser:
-...
-\end{lstlisting}
-
-\subsection{Ursache}
-
-Die Fahrzeugbeschreibung (URDF) und die davon abgeleiteten TF-Frames
-werden vom \texttt{robot\_state\_publisher} im Container
-\texttt{mxck2\_control} (ROS~2 Humble) publiziert.
-Der FTG-Stack läuft jedoch im Container \texttt{mxck2\_development}
-(ROS~2 Foxy). Da Humble und Foxy verschiedene DDS-Implementierungen
-verwenden und keine explizite Brücke konfiguriert war,
-konnten die TF-Nachrichten den Container-Grenzübergang nicht passieren.
-
-\begin{mdframed}[backgroundcolor=red!5, linecolor=warn_red, linewidth=1.5pt]
-\textbf{Kritische Folge:} Der Preprocessor fiel auf einen
-Fallback-Winkel zurück und konnte die tatsächliche Sensorausrichtung
-nicht bestimmen. Das bedeutet: Alle nachfolgenden Planungsschritte
-arbeiteten mit einem \emph{garantiert falschen} Frontbereich.
-\end{mdframed}
-
-\subsection{Beleg aus Messdaten}
-
-Das Fehlen des TF-Frames ließ sich direkt verifizieren:
-\begin{lstlisting}[language=bash, caption={Verifikation: kein /tf\_static vom FTG-Container aus sichtbar}]
-# Aus mxck2_control (Humble) -- liefert Transforms:
-ros2 topic echo /tf_static --qos-durability transient_local
-# --> transforms: camera_link -> camera_depth_frame, etc.
-# --> KEINE base_link -> laser Transform vorhanden!
-\end{lstlisting}
-
-\datenplatzhalter{Screenshot: \texttt{ros2 run tf2\_tools view\_frames}
-aus dem FTG-Container -- zeigt fehlende base\_link $\to$ laser Kante
-im TF-Baum}
-
-% ============================================================
-\section{F2: Falsch kalibriertes Frontfenster}
-\label{sec:f2}
-% ============================================================
-
-\subsection{Beschreibung}
-
-Der Parameter \texttt{front\_center\_deg} gibt an, unter welchem
-Winkel im Rohlaserscan die Fahrzeugvorderseite liegt.
-Der Startwert war $135°$; nach zwei Kalibrierungsiterationen
-wurde $0°$ als korrekte Einstellung ermittelt.
-
-\subsection{Auswirkung auf den Lenkwinkel}
-
-Tabelle~\ref{tab:front_center_effect} zeigt den direkten Einfluss
-des \texttt{front\_center\_deg}-Werts auf den ausgegebenen Lenkwinkel:
-
-\begin{table}[H]
-\centering
-\caption{Auswirkung von front\_center\_deg auf /final\_heading\_angle}
-\label{tab:front_center_effect}
-\begin{tabular}{lll}
-\toprule
-\textbf{front\_center\_deg} & \textbf{/final\_heading (rad)} & \textbf{Beobachtung} \\
-\midrule
-$135°$ (Startwert) & nicht verfügbar    & Keine Lücken gefunden \\
-$90°$              & $\approx -1{,}83$ (konstant) & Immer am Limit \\
-$0°$ (Endwert)     & $+0{,}18$ bis $+0{,}26$ & Plausibel, variabel \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Bei $90°$ lag der Lenkwinkel konstant bei $-1{,}83$\,rad,
-was exakt dem Grenzwert des Adapters entspricht -- ein klares
-Zeichen, dass der Planerkern in eine Richtung gelenkt wurde,
-die weit abseits des tatsächlichen Frontbereichs lag.
-
-\bildplatzhalter{Plot: /final\_heading\_angle über Zeit bei
-verschiedenen front\_center\_deg-Werten (135°, 90°, 0°) --
-zeigt die Konvergenz zur stabilen Lösung}{Einfluss des
-front\_center\_deg-Parameters auf den berechneten Zielwinkel}
-
-\subsection{Verbleibende Einschränkung}
-
-Auch bei $0°$ war die Unterscheidung zwischen Hindernispositionen
-links, mittig und rechts nur begrenzt ausgeprägt (Winkeldifferenz
-$< 0{,}1$\,rad). Dies ist ein Hinweis darauf, dass das Frontfenster
-noch immer nicht perfekt mit der physikalischen Vorderseite des
-Fahrzeugs ausgerichtet ist -- die TF-Transformation (F1) würde
-diese Feinabstimmung automatisch lösen.
-
-% ============================================================
-\section{F3: Zu kleiner Hindernissicherheitsradius}
-\label{sec:f3}
-% ============================================================
-
-\subsection{Beschreibung}
-
-Im Knoten \texttt{obstacle\_substitution\_node} wird jeder
-LiDAR-Messpunkt als Kreishindernis mit Radius $r = 0{,}01$\,m
-(1\,cm) modelliert. Das Fahrzeug hat eine Breite von $> 30$\,cm,
-weshalb ein Sicherheitsradius von mindestens der halben Fahrzeugbreite
-($\approx 0{,}15$\,m) notwendig wäre.
-
-\subsection{Konsequenz}
-
-Der FTG-Planerkern berücksichtigt den Hindernisradius bei der
-Lückenbewertung: Eine Lücke gilt als passierbar, wenn ihre
-Winkelbreite ausreicht, um das Fahrzeug -- dargestellt als Kreis
-mit dem Hindernisradius -- hindurchzuführen. Mit $r = 0{,}01$\,m
-werden Lücken als passierbar eingestuft, die in der Realität
-zu eng für das Fahrzeug sind.
-
-\begin{mdframed}[backgroundcolor=orange!5, linecolor=warn_orange]
-\textbf{Beispielrechnung:} Bei einem Hindernis in $0{,}5$\,m Abstand
-ergibt sich die scheinbar passierbare Lückenbreite aus dem Hindernisradius.
-Mit $r = 0{,}01$\,m: freier Winkelbereich $\approx 2 \arcsin(0{,}01/0{,}5)
-\approx 2{,}3°$ -- viel zu klein, um real einen Unterschied zu machen.
-\end{mdframed}
-
-% ============================================================
-\section{F4: Fehlende Hindernisgruppierung}
-\label{sec:f4}
-% ============================================================
-
-\subsection{Beschreibung}
-
-Der Knoten \texttt{obstacle\_substitution\_node} erzeugt für jeden
-der $\approx 1800$ LiDAR-Messstrahlen ein eigenständiges Hindernisobjekt.
-Eine Wand, die aus 100 benachbarten Messpunkten besteht,
-wird als 100 separate Kreishindernisse mit je $r = 0{,}01$\,m dargestellt.
-
-\subsection{Konsequenz}
-
-Zwischen diesen 100 dicht beieinanderliegenden Hindernispunkten
-entstehen $99$ sehr enge ``Lücken'', die der FTG-Algorithmus
-möglicherweise als Lücken klassifiziert, obwohl die Wand physikalisch
-nicht durchfahrbar ist. Dies kann zu folgenden Fehlverhaltensmustern führen:
-
-\begin{itemize}
-    \item Falsche Lückenauswahl: Der Algorithmus wählt eine ``Lücke''
-    innerhalb einer Wand statt den tatsächlich freien Bereich.
-    \item Zitterndes Lenkverhalten: Die ausgewählte ``Lücke''
-    springt zwischen benachbarten Messpunkten, was zu oscillatorischem
-    Lenken führt -- genau das im Experiment beobachtete Zickzack-Verhalten.
-\end{itemize}
-
-\bildplatzhalter{Foxglove 3D-Ansicht: /obstacles-Topic visualisiert --
-zeigt die dichte Punktwolke aller Hindernisse (eine Punkt pro LiDAR-Strahl)
-ohne Clustering}{Hindernisrepräsentation ohne Clustering --
-jeder LiDAR-Messpunkt ist ein separates Objekt}
-
-% ============================================================
-\section{F5: ROS~2-Versionskonflikt zwischen Containern}
-\label{sec:f5}
-% ============================================================
-
-\subsection{Beschreibung}
-
-Das System nutzt zwei Docker-Container mit verschiedenen
-ROS~2-Versionen: \texttt{mxck2\_control} mit Humble und
-\texttt{mxck2\_development} mit Foxy. Die Kommunikation zwischen
-ROS~2-Knoten basiert auf dem DDS-Standard (Data Distribution Service).
-
-\subsection{Konsequenz}
-
-Humble und Foxy verwenden standardmäßig \texttt{rmw\_fastrtps}
-als DDS-Implementierung, jedoch mit unterschiedlichen Versionen
-und Konfigurationsstandards. Ohne explizite Brückenlösung sind
-zwar \texttt{/scan}-Daten über das gemeinsame Docker-Netzwerk
-übertragbar, jedoch nicht alle Nachrichtentypen -- insbesondere
-nicht TF-\texttt{transient\_local}-QoS-Nachrichten (\texttt{/tf\_static}),
-die für TF-Frames benötigt werden.
-
-\datenplatzhalter{Ausgabe von \texttt{ros2 topic list} aus beiden
-Containern gleichzeitig -- zeigt welche Topics container-übergreifend
-sichtbar sind und welche nicht}
-
-% ============================================================
-\section{Gesamtbewertung}
-% ============================================================
-
-\begin{table}[H]
-\centering
-\caption{Gesamtstatus der Systemkomponenten nach Experimenten}
-\label{tab:status}
-\begin{tabularx}{\textwidth}{lXl}
-\toprule
-\textbf{Komponente} & \textbf{Beobachtung} & \textbf{Status} \\
-\midrule
-LiDAR-Datenempfang         & 11\,Hz, 360°, stabil & \textcolor{ok_green}{\textbf{OK}} \\
-obstacle\_substitution     & Konvertierung funktioniert & \textcolor{ok_green}{\textbf{OK}} \\
-Scanvorverarbeitung        & Nach Kalibrierung plausibel & \textcolor{warn_orange}{\textbf{Eingeschränkt}} \\
-Lückenberechnung           & Plausible Winkelwerte & \textcolor{warn_orange}{\textbf{Eingeschränkt}} \\
-Geschwindigkeitsauswahl    & Clearance-Stufen funktionieren & \textcolor{ok_green}{\textbf{OK}} \\
-Ackermann-Ausgabe          & Kommandos werden gesendet & \textcolor{ok_green}{\textbf{OK}} \\
-Kollisionsfreies Fahren    & Kollisionen im Test & \textcolor{warn_red}{\textbf{Nicht erreicht}} \\
-TF-Transformation          & Nicht verfügbar & \textcolor{warn_red}{\textbf{Fehlt}} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\subsection{Handlungsempfehlungen}
-
-Auf Basis der Fehleranalyse werden folgende Maßnahmen priorisiert
-empfohlen:
+Eine der wichtigsten Klärungen im Projekt war die Abkehr vom alten
+Obstacle-Pfad als Standardlaufzeitpfad. Fachlich ist diese Entscheidung aus
+mehreren Gründen sinnvoll:
 
 \begin{enumerate}
-    \item \textbf{[Kritisch] TF-Kette reparieren:}
-    Die \texttt{base\_link\,$\to$\,laser}-Transformation muss in dem
-    ROS-Kontext verfügbar sein, in dem der FTG-Stack läuft --
-    entweder durch Zusammenführung der Container oder durch einen
-    \texttt{topic\_bridge}-Knoten für TF-Nachrichten.
-
-    \item \textbf{[Hoch] Sicherheitsradius anpassen:}
-    In \texttt{obstacle\_substitution\_node} den Hindernisradius
-    von $0{,}01$\,m auf mindestens $0{,}15$\,m erhöhen
-    (halbe Fahrzeugbreite).
-
-    \item \textbf{[Hoch] Clustering hinzufügen:}
-    Einen DBSCAN- oder einfachen Nearest-Neighbor-Clustering-Schritt
-    zwischen \texttt{obstacle\_substitution} und \texttt{follow\_the\_gap\_v0}
-    einführen, um zusammenhängende Hindernisse zu gruppieren.
-
-    \item \textbf{[Mittel] Container konsolidieren:}
-    Den FTG-Stack in den gleichen Container wie \texttt{vehicle\_control}
-    migrieren, um alle ROS~2-Topics ohne Versionskonflikte zu teilen.
+    \item Der FTG-Kern war ursprünglich scan-basiert formuliert.
+    \item Die Hindernis-Substitution bringt eine zusätzliche
+    Interpretations- und Parametrierungsschicht ins System.
+    \item Für ``schnell robuster FTG auf dem MXCK'' ist ein klarer und kurzer
+    Datenpfad vorteilhaft.
 \end{enumerate}
+
+Der direkte Pfad
+\texttt{/scan -> scan\_filtered -> follow\_the\_gap} reduziert
+Fehlerquellen, verkürzt Debugging-Wege und bleibt näher an den
+ursprünglichen FTG-Annahmen der CTU/F1TENTH-Implementierung.
+
+\section{Rolle von TF und Geometrie}
+
+Die überarbeitete Dokumentation und die aktuelle Codeausrichtung machen
+deutlich, dass das Hauptproblem früherer Inkonsistenzen nicht im
+FTG-Kern selbst lag, sondern in der geometrischen Einordnung der Scandaten.
+
+\subsection{Warum \texttt{front\_center\_deg = 0.0} fachlich richtig ist}
+
+Sobald der Preprocessor mit TF arbeitet, ist die Fahrzeugfront eine Eigenschaft des
+\texttt{base\_link}-Rahmens und nicht mehr des rohen LiDAR-Winkelsystems.
+Der Parameter \texttt{front\_center\_deg = 0.0} ist deshalb
+eine semantische Aussage über den Fahrzeugrahmen:
+``vorne ist 0° im Basisrahmen''.
+
+Die tatsächliche LiDAR-Montage wird dann ausschließlich durch
+\texttt{base\_link <- laser} beschrieben. Das ist robuster, weil
+Montagefehler oder andere Sensorrahmen nicht in mehreren Paketen und
+Dokumenten manuell nachgeführt werden müssen.
+
+\subsection{Folgen falscher Frame-Annahmen}
+
+Wenn Dokumentation, Launch-Logik und tatsächliche TF-Struktur nicht
+zusammenpassen, entstehen typische Symptome:
+\begin{itemize}
+    \item falsche Scan-Rezentrierung,
+    \item unplausibler \texttt{/final\_heading\_angle},
+    \item scheinbar ``richtige'', aber physikalisch falsch orientierte Marker,
+    \item falsche Interpretation des Frontfensters in Foxglove.
+\end{itemize}
+
+Gerade deshalb muss die Dokumentation dem Code folgen und nicht umgekehrt.
+
+\section{Bewertung der Planner-/Control-Aufteilung}
+
+Die aktuelle Aufteilung in
+\texttt{follow\_the\_gap\_v0} (Heading),
+\texttt{ftg\_planner\_node} (Policy) und
+\texttt{ftg\_command\_node} (Ackermann-Ausgabe) ist architektonisch sinnvoll.
+
+\subsection{Vorteile dieser Trennung}
+
+\begin{itemize}
+    \item \textbf{C++-Kern bleibt schlank:} Der eigentliche FTG-Kern muss keine
+    Geschwindigkeitsregeln oder MXCK-Hardwaregrenzen kennen.
+    \item \textbf{Planner als Policy-Schicht:} Geschwindigkeitsvorgaben können
+    geändert werden, ohne den FTG-Algorithmus selbst anzufassen.
+    \item \textbf{Control als Safety-Grenze:} Ackermann-Sättigung und Stop bei
+    stale Inputs liegen in einer klaren, letzten Softwarestufe.
+\end{itemize}
+
+\subsection{Mögliche Schwächen}
+
+Die Aufteilung erzeugt mehr ROS~2-Knoten und damit mehr
+Kommunikationsstellen. Für ein kleines Versuchssystem ist das tolerierbar,
+erfordert aber:
+\begin{itemize}
+    \item konsistente Topic-Namen,
+    \item korrekte YAML-Einbindung,
+    \item klare Freshness-Regeln,
+    \item reproduzierbare Bringup-Dateien.
+\end{itemize}
+
+Die Dokumentation muss diese Prozesskette präzise abbilden, da schon eine
+kleine Abweichung zwischen README, Launchfile und Kapiteltext zu realen
+Fehlstarts führen kann.
+
+\section{Einordnung der CTU- und ROS~2-Quellen}
+
+\subsection{Beitrag der Original-FTG-Publikation}
+
+Die Arbeit von Sezer und Gokasan liefert die fachliche Begründung dafür,
+warum FTG in engem, unstrukturiertem Umfeld gut funktioniert:
+Largest-gap-Suche, sichere Heading-Wahl und gewichtete Fusion
+mit Zielrichtung. Für das MXCK ist besonders wichtig, dass das Verfahren
+von Natur aus lokal und reaktiv ist und keine vollständige Umgebungsmap
+benötigt.
+
+\subsection{Beitrag der CTU-Implementierung}
+
+Das CTU-Repository zeigt, wie diese Idee praktisch als ROS-Node umgesetzt wird:
+Scan-Eingang, Zielwinkel-Option und mehrere Diagnose-Ausgänge. Dadurch wird
+klar, welche Teile algorithmischer Kern sind und welche Teile in einem
+fahrzeugspezifischen Stack ausgelagert werden dürfen.
+
+\subsection{Beitrag der ROS~2-/F1TENTH-Thesis}
+
+Die CTU-Arbeit von Endler liefert keine MXCK-spezifische Architektur,
+aber zwei wichtige Perspektiven:
+\begin{itemize}
+    \item warum ROS~2 für autonome Fahrketten interessant ist,
+    \item warum Messung, Tracing und Prozesskettenverständnis entscheidend sind.
+\end{itemize}
+
+Für diese Projektarbeit ist dieser Blick besonders nützlich, weil das
+MXCK nicht nur algorithmisch, sondern auch als Kommunikationskette
+betrachtet wird.
+
+\section{Dokumentationsqualität als Teil der Systemqualität}
+
+Ein zentrales Ergebnis der Überarbeitung ist, dass Dokumentation in diesem
+Projekt nicht bloß ``Begleittext'' ist, sondern Teil der technischen Qualität.
+Mehrere frühere Problemstellen waren rein dokumentationsbedingt:
+
+\begin{itemize}
+    \item veraltete Diagramme mit \texttt{obstacle\_substitution} als Hauptpfad,
+    \item falsche Startreihenfolgen,
+    \item nicht mehr aktuelle Node-Listen,
+    \item uneinheitliche Plattformangaben,
+    \item Workflow-Dateien am falschen Ort,
+    \item versehentlich versionierte LaTeX-Build-Artefakte.
+\end{itemize}
+
+Gerade bei einem ROS~2-Stack mit mehreren Containern, mehreren Workspaces und
+mehreren Paketen ist eine fehlerhafte Doku praktisch gleichbedeutend mit einer
+fehlerhaften Betriebsanleitung.
+
+\section{Grenzen des aktuellen Stands}
+
+Trotz der klaren Architektur und der verbesserten Dokumentation bleiben noch
+offene technische Grenzen:
+
+\begin{itemize}
+    \item Der FTG-Ansatz bleibt ein lokaler, reaktiver Planer.
+    \item Engstellen, Sackgassen und komplexe globale Fahrentscheidungen sind
+    nicht seine Stärke.
+    \item Die jetzige Arbeit dokumentiert den robusten Grundpfad, ersetzt aber
+    keine globale Navigation oder Lokalisierung.
+    \item Für höhere Fahrgeschwindigkeiten werden Laufzeitmessung, Jitter-Analyse
+    und reproduzierbare rosbag-basierte Evaluation wichtiger.
+\end{itemize}
+
+Diese Grenzen sind jedoch keine Schwäche des Projekts, sondern eine saubere
+Einordnung seines Ziels: ein transparenter, robuster, scan-basierter
+Hindernisvermeidungsstack für das MXCK.

@@ -1,344 +1,240 @@
 \chapter{Systembeschreibung und Durchführung}
 \label{ch:durchfuehrung}
 
-Dieses Kapitel beschreibt den entwickelten FTG-Stack im Detail,
-den Integrationsprozess und die iterativen Schritte zur Fehlerdiagnose
-und Kalibrierung. Wo Messdaten oder Fotos noch ausstehen,
-sind entsprechende Platzhalter markiert.
+Dieses Kapitel beschreibt die tatsächlich umgesetzte FTG-Architektur im
+aktuellen Repository \texttt{ftg\_mxck}. Der Fokus liegt dabei auf dem
+scan-basierten Standardpfad, der gegenüber älteren Legacy-Varianten mit
+\texttt{obstacle\_substitution} bewusst bevorzugt wird.
 
-% ============================================================
-\section{Architektur des entwickelten FTG-Stacks}
-% ============================================================
+\section{Zielarchitektur des aktuellen Stacks}
 
-\subsection{Überblick der Pakete}
+Die aktuelle Root-Dokumentation des Repositories definiert die Primärpipeline
+klar als direkten Scan-Pfad bis zur Ackermann-Ausgabe. Daraus ergibt sich
+folgende Soll-Architektur:
 
-Der entwickelte Stack (\texttt{ftg\_mxck}) ergänzt den Basisstack
-des MXCarkit um sieben spezialisierte ROS~2-Pakete. Der vollständige
-Datenpfad ist in Abbildung~\ref{fig:pipeline} schematisch dargestellt.
+\begin{lstlisting}
+ /scan (LaserScan, frame: laser)
+   -> scan_preprocessor_node               [mxck_ftg_perception]
+   -> /autonomous/ftg/scan_filtered        [LaserScan, frame: base_link]
+   -> /autonomous/ftg/front_clearance      [Float32]
 
-\bildplatzhalter{Blockdiagramm: /scan $\to$ scan\_preprocessor\_node $\to$
-/autonomous/ftg/scan\_filtered $\to$ follow\_the\_gap\_v0 (input\_mode=scan) $\to$
-/final\_heading\_angle + /gap\_found $\to$ ftg\_planner\_node $\to$
-/autonomous/ftg/gap\_angle + /autonomous/ftg/target\_speed $\to$
-ftg\_command\_node $\to$ /autonomous/ackermann\_cmd}{Verarbeitungspipeline
-des FTG-Stacks (Blockdiagramm)}
-\label{fig:pipeline}
+ /autonomous/ftg/scan_filtered
+   -> follow_the_gap_v0                    [C++, input_mode=scan]
+   -> /final_heading_angle                 [Float32]
+   -> /gap_found                           [Bool]
 
-\begin{table}[H]
-\centering
-\caption{ROS~2-Pakete des FTG-Stacks und ihre Rollen}
-\label{tab:pakete}
-\begin{tabularx}{\textwidth}{lX}
-\toprule
-\textbf{Paket} & \textbf{Aufgabe} \\
-\midrule
-\texttt{obstacle\_msgs}       & Benutzerdefinierte Nachrichtentypen für Hindernisdarstellung \\
-\texttt{obstacle\_substitution} & Umwandlung jedes LiDAR-Strahls in ein Kreishindernis \\
-\texttt{follow\_the\_gap\_v0} & CTU-FTG-Planerkern (C++): berechnet sicheren Durchfahrtswinkel \\
-\texttt{mxck\_ftg\_perception} & Optionale LiDAR-Vorverarbeitung auf Frontbereich \\
-\texttt{mxck\_ftg\_planner}   & Adapter: Winkel begrenzen, Geschwindigkeit nach Abstand wählen \\
-\texttt{mxck\_ftg\_control}   & Steuerknoten: Ackermann-Kommandos aus Winkel + Geschwindigkeit \\
-\texttt{mxck\_ftg\_bringup}   & Launch-Dateien zur koordinierten Inbetriebnahme \\
-\bottomrule
-\end{tabularx}
-\end{table}
+ /final_heading_angle + /gap_found + /autonomous/ftg/front_clearance
+   -> ftg_planner_node                     [mxck_ftg_planner]
+   -> /autonomous/ftg/gap_angle            [Float32]
+   -> /autonomous/ftg/target_speed         [Float32]
+   -> /autonomous/ftg/planner_status       [String]
 
-\subsection{Topic-Schnittstellen}
-
-\begin{table}[H]
-\centering
-\caption{Kritische ROS~2-Topics in der Verarbeitungspipeline}
-\label{tab:topics}
-\begin{tabularx}{\textwidth}{llX}
-\toprule
-\textbf{Topic} & \textbf{Typ} & \textbf{Bedeutung} \\
-\midrule
-\texttt{/scan}                         & LaserScan       & Rohdaten des RPLIDAR \\
-\texttt{/autonomous/ftg/scan\_filtered} & LaserScan       & Gefilterter Frontscan \\
-\texttt{/obstacles}                    & ObstaclesStamped & Kreishindernisse \\
-\texttt{/final\_heading\_angle}         & Float32         & FTG-Zielwinkel (rad) \\
-\texttt{/gap\_found}                   & Bool            & Planerstatus \\
-\texttt{/autonomous/ftg/gap\_angle}     & Float32         & Begrenzter Lenkwinkel (rad) \\
-\texttt{/autonomous/ftg/target\_speed}  & Float32         & Zielgeschwindigkeit (m/s) \\
-\texttt{/autonomous/ackermann\_cmd}     & AckermannDriveStamped & Finales Fahrkommando \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\subsection{Konfigurationsparameter}
-
-\begin{table}[H]
-\centering
-\caption{Wichtige Konfigurationsparameter des Stacks}
-\label{tab:params}
-\begin{tabularx}{\textwidth}{llX}
-\toprule
-\textbf{Parameter} & \textbf{Endwert} & \textbf{Beschreibung} \\
-\midrule
-\texttt{front\_center\_deg}        & $0°$      & LiDAR-Montagewinkel zur Fahrzeugfront \\
-\texttt{front\_fov\_deg}           & $60°$     & Breite des ausgewerteten Frontbereichs \\
-\texttt{clip\_min\_range\_m}       & $0{,}18$\,m & Minimale Messreichweite \\
-\texttt{clip\_max\_range\_m}       & $2{,}0$\,m  & Maximale Messreichweite \\
-\texttt{stop\_distance\_m}         & $0{,}30$\,m & Vollbremsung bei Unterschreitung \\
-\texttt{slow\_distance\_m}         & $0{,}55$\,m & Langsamfahrt bei Unterschreitung \\
-\texttt{clear\_distance\_m}        & $0{,}90$\,m & Freie Fahrt bei Überschreitung \\
-\texttt{cruise\_speed\_mps}        & $0{,}25$\,m/s & Reisegeschwindigkeit \\
-\texttt{steering\_limit\_deg}      & $22°$     & Maximaler Lenkwinkel \\
-\texttt{gap\_angle\_limit\_rad}    & $0{,}60$\,rad & Maximaler Lückenwinkel \\
-\texttt{enable\_turn\_speed\_scaling} & false  & Drehwinkelbasierte Geschwindigkeitsreduktion \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-% ============================================================
-\section{Identifizierte Ausgangsprobleme und deren Behebung}
-% ============================================================
-
-Bei der Analyse des bestehenden Stacks vor der eigentlichen Integration
-wurden mehrere architekturelle Probleme identifiziert:
-
-\subsection{Problem~P1: Potenziell doppelter Planer-Output}
-
-Die ursprüngliche Launch-Datei \texttt{ftg\_stack.launch.py} erlaubte
-es, sowohl den CTU-Adapterpfad als auch einen alternativen Planerpfad
-(\texttt{ftg\_planner\_node}) gleichzeitig zu starten. Bei gleichzeitigem
-Betrieb beider Pfade würden mehrere Knoten auf denselben Output-Topics
-publizieren, was zu undefiniertem Steuerverhalten führt.
-
-\textbf{Lösung:} Einführung des Launch-Parameters \texttt{use\_ftg\_planner}
-(Standard: \texttt{false}) mit gegenseitigem Ausschluss -- entweder der
-CTU-Adapter \emph{oder} der alternative Planner-Knoten wird gestartet.
-
-\subsection{Problem~P2: Gestapelte Geschwindigkeitspolitik}
-
-Die Standardkonfiguration aktivierte gleichzeitig die clearance-basierte
-Geschwindigkeitswahl im \texttt{ctu\_ftg\_adapter\_node}
-\emph{und} eine zusätzliche lenkwinkelbasierte Geschwindigkeitsskalierung
-im \texttt{ftg\_command\_node}. Das führte dazu, dass die Geschwindigkeit
-an zwei verschiedenen Stellen reduziert wurde, was die Kalibrierung
-deutlich erschwerte.
-
-\textbf{Lösung:} Deaktivierung der redundanten Skalierung durch Setzen von
-\texttt{enable\_turn\_speed\_scaling: false} in \texttt{ftg\_control.yaml}.
-
-% ============================================================
-\section{Integration und Kompilierung}
-\label{sec:integration}
-% ============================================================
-
-Der Stack wurde im Docker-Container \texttt{mxck2\_development}
-(ROS~2 Foxy, Python~3.8, CMake) kompiliert. Der Kompilierungsbefehl:
-
-\begin{lstlisting}[language=bash, caption={Build-Befehl für den FTG-Stack}]
-colcon build --symlink-install \
-  --packages-select \
-    obstacle_msgs \
-    obstacle_substitution \
-    follow_the_gap_v0 \
-    mxck_ftg_perception \
-    mxck_ftg_planner \
-    mxck_ftg_control \
-    mxck_ftg_bringup
+ /autonomous/ftg/gap_angle + /autonomous/ftg/target_speed
+   -> ftg_command_node                     [mxck_ftg_control]
+   -> /autonomous/ackermann_cmd            [AckermannDriveStamped]
 \end{lstlisting}
 
-Die Kompilierung dauerte auf dem Jetson Nano ca.\ 3\,min\,50\,s.
-Das Paket \texttt{obstacle\_msgs} benötigte die längste Kompilierzeit
-($\approx$\,2\,min\,12\,s) aufgrund der ROS~2-Nachrichtengenerierung.
-Es traten \emph{Clock-Skew}-Warnungen auf, die auf eine
-Zeitdiskrepanz zwischen Host-Dateisystem und Container zurückzuführen
-sind, die Funktionalität jedoch nicht beeinträchtigten.
+Wichtig ist dabei, dass die Ackermann-Ausgabe bewusst nicht direkt in
+niedrigere VESC-Topics schreibt, sondern sich in die bestehende MXCK-
+Fahrzeugsteuerung einfügt.
 
-Das System wird gestartet mit:
-
-\begin{lstlisting}[language=bash, caption={Systemstart via Launch-Datei}]
-ros2 launch mxck_ftg_bringup ftg_full_system.launch.py \
-  use_vehicle_control:=false \
-  record_bag:=false
-\end{lstlisting}
-
-Beim Start werden vier ROS~2-Prozesse initiiert:
-\texttt{scan\_preprocessor\_node}, \texttt{follow\_the\_gap},
-\texttt{ftg\_planner\_node} und \texttt{ftg\_command\_node}.
-TF (\texttt{robot\_state\_publisher}) wird separat gestartet.
-
-% ============================================================
-\section{Iterativer Kalibrierungsprozess}
-\label{sec:kalibrierung}
-% ============================================================
-
-Die korrekte Kalibrierung des Parameters \texttt{front\_center\_deg}
-erwies sich als zentrales Problem der Integration. Dieser Parameter
-gibt an, bei welchem Winkel im Rohlaserscan die Fahrzeugvorderseite liegt.
-Im Folgenden werden die durchgeführten Optimierungsiterationen beschrieben.
-
-\subsection{Iteration~0: Initialer Start -- keine Lücken gefunden}
-
-Beim ersten Start des Systems lieferte der FTG-Planerkern
-kontinuierlich folgende Meldung:
-
-\begin{lstlisting}[caption={Ausgabe des FTG-Kerns beim ersten Start}]
-[follow_the_gap-4] No gaps found
-[follow_the_gap-4] No gaps found
-...
-\end{lstlisting}
-
-Der \texttt{/autonomous/ftg/scan\_filtered}-Topic zeigte, dass
-der gesamte Frontbereich mit dem Minimalwert $0{,}05$\,m belegt war,
-also keinerlei gültige Messdaten enthielt.
-
-\textbf{Diagnose:} Der Kalibrierungswert \texttt{front\_center\_deg = 135°}
-entsprach nicht der tatsächlichen Montagelage des LiDAR-Sensors.
-Der ausgewertete ``Frontbereich'' lag physikalisch \emph{hinter}
-oder seitlich des Fahrzeugs. Zusätzlich fehlte die TF-Transformation
-\texttt{base\_link} $\to$ \texttt{laser}, weshalb der Preprocessor
-keinen automatischen Offset berechnen konnte.
-
-\subsection{Iteration~1: front\_center\_deg = 90°}
-
-\textbf{Änderung:} \texttt{front\_center\_deg} von $135°$ auf $90°$ geändert.
-
-\textbf{Ergebnis:} Der Scan-Preprocessor lieferte nun Daten,
-jedoch zeigte \texttt{/final\_heading\_angle} konstant $\approx -1{,}83$\,rad
--- unabhängig von der Hindernisposition:
+\section{Paketübersicht}
 
 \begin{table}[H]
 \centering
-\caption{Messwerte bei front\_center\_deg = 90° (Iteration~1)}
-\label{tab:iter1}
-\begin{tabular}{lll}
+\caption{Pakete des aktuellen FTG-Stacks}
+\label{tab:packages}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.8cm} >{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{6cm}}
 \toprule
-\textbf{Hindernisposition} & \textbf{/final\_heading (rad)} & \textbf{/gap\_angle (rad)} \\
+\textbf{Paket} & \textbf{Wesentliche Nodes} & \textbf{Rolle im Datenpfad} \\
 \midrule
-Vorne mittig & $-1{,}811$ & $-0{,}600$ (Grenzwert) \\
-Vorne rechts & $-1{,}809$ & $-0{,}600$ (Grenzwert) \\
-Vorne links  & $-1{,}809$ & $-0{,}600$ (Grenzwert) \\
+\texttt{mxck\_ftg\_perception} &
+\texttt{scan\_preprocessor\_node}, \texttt{scan\_front\_window\_check} &
+TF-basierte Scanvorverarbeitung und Diagnose \\
+
+\texttt{follow\_the\_gap\_v0} &
+\texttt{follow\_the\_gap} &
+C++-FTG-Kern im Scan-Modus \\
+
+\texttt{mxck\_ftg\_planner} &
+\texttt{ftg\_planner\_node} &
+Gap-Winkel- und Geschwindigkeitsplanung \\
+
+\texttt{mxck\_ftg\_control} &
+\texttt{ftg\_command\_node} &
+Ackermann-Ausgabe aus Planner-Topics \\
+
+\texttt{mxck\_ftg\_bringup} &
+keine Laufzeit-Node &
+Startlogik für die komplette Pipeline \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Der Wert $-0{,}600$ entspricht exakt dem Parameter
-\texttt{gap\_angle\_limit\_rad}: Der Adapter begrenzte den Winkel stets
-auf diesen Maximalwert, weil der Planerkern permanent $-1{,}83$\,rad ausgab.
+\section{Stufe 1: LiDAR-Vorverarbeitung}
 
-\textbf{Diagnose:} Der Frontbereich lag noch immer in der falschen Richtung.
-Die Obstacle-Koordinaten für ein Hindernis direkt vor dem Fahrzeug
-(ca.\ 35\,cm Distanz) zeigten:
+\subsection{\texttt{scan\_preprocessor\_node}}
 
-\begin{lstlisting}[caption={Obstacle-Koordinaten bei Hindernis vorne (Iteration~1)}]
-center: x=0.336, y=0.862  (Hindernis "vorne mittig")
-center: x=0.345, y=0.872  (Hindernis "vorne rechts")
-center: x=0.328, y=0.904  (Hindernis "vorne links")
-\end{lstlisting}
+Der \texttt{scan\_preprocessor\_node} bildet den Eintrittspunkt des
+Produktivpfades. Seine Aufgabe besteht darin, aus dem rohen
+\texttt{/scan}-Topic einen für den FTG-Kern gut interpretierbaren
+Front-Scan zu erzeugen.
 
-Alle drei Positionen liegen in der gleichen $x/y$-Region,
-das System unterscheidet nicht zwischen links, mitte und rechts.
-Der hohe $y$-Wert zeigt, dass die Fahrzeugvorderseite im
-Koordinatensystem entlang der $y$-Achse statt der $x$-Achse zeigt --
-ein klassischer Achsendrehfehler.
+Dazu führt der Node folgende Schritte aus:
 
-\subsection{Iteration~2: Verengung des Sichtfelds}
+\begin{enumerate}
+    \item Abonnement von \texttt{/scan},
+    \item TF-Lookup von \texttt{base\_link <- laser},
+    \item Bestimmung der Fahrtrichtung im Basisrahmen,
+    \item Auswahl des Frontfensters (z.\,B.\ 100°),
+    \item Clipping auf gültige Minimal- und Maximalreichweiten,
+    \item Publikation des gefilterten Scans auf
+    \texttt{/autonomous/ftg/scan\_filtered},
+    \item Publikation des minimalen Frontabstands auf
+    \texttt{/autonomous/ftg/front\_clearance}.
+\end{enumerate}
 
-\textbf{Änderungen:}
+Die zentrale Designentscheidung ist dabei: \texttt{front\_center\_deg = 0.0}
+beschreibt ``vorne im \texttt{base\_link}-Frame''. Die reale Montagerotation des
+LiDAR wird ausschließlich durch TF aufgelöst. Dadurch muss kein fester
+Sensor-Offset mehr in die Dokumentation oder in die Laufzeitlogik
+eingebrannt werden.
+
+\subsection{\texttt{scan\_front\_window\_check}}
+
+Der Diagnose-Node wird optional zugeschaltet und dient nicht der normalen
+Fahrt, sondern der Kalibrierung und Verifikation. Er hilft dabei,
+das konfigurierte Frontfenster mit der tatsächlichen Fahrzeugfront
+abzugleichen und die Wirkung des TF-Setups sichtbar zu machen.
+
+\section{Stufe 2: FTG-Kern im Scan-Modus}
+
+Die aktuelle FTG-Nutzung im MXCK geht bewusst \emph{nicht} über den alten
+Obstacle-Substitution-Pfad, sondern direkt über einen vorbereiteten
+\texttt{LaserScan}. Der C++-Node \texttt{follow\_the\_gap} wird daher mit
+\texttt{input\_mode=scan} gestartet.
+
+\subsection{Ein- und Ausgänge}
+
+Der aktuelle CTU-Kern nutzt konzeptionell:
 \begin{itemize}
-    \item \texttt{front\_fov\_deg}: $100°$ $\to$ $60°$
-    \item \texttt{clip\_max\_range\_m}: $5{,}0$\,m $\to$ $2{,}0$\,m
-    \item \texttt{clip\_min\_range\_m}: auf $0{,}18$\,m (echtes LiDAR-Minimum)
+    \item einen Scan-Eingang,
+    \item optional einen Zielwinkel,
+    \item einen finalen Heading-Winkel als Ausgabe,
+    \item sowie Visualisierungstopics zur Diagnose.
 \end{itemize}
 
-\textbf{Beobachtung:} Das Fahrzeug zeigte erstmals Bewegungen:
-Es lenkte abwechselnd links und rechts und fuhr manchmal kurz vor,
-wenn viel freier Raum vorhanden war. Dies entsprach jedoch
-\emph{nicht} dem erwarteten Ausweichverhalten.
+Im aktuellen MXCK-Stack werden insbesondere folgende Topics relevant:
+\begin{itemize}
+    \item Input: \texttt{/autonomous/ftg/scan\_filtered}
+    \item Output: \texttt{/final\_heading\_angle}
+    \item Output: \texttt{/gap\_found}
+    \item Debug: \texttt{/visualize\_obstacles}
+    \item Debug: \texttt{/visualize\_largest\_gap}
+    \item Debug: \texttt{/visualize\_final\_heading\_angle}
+\end{itemize}
 
-\bildplatzhalter{Videostandbild oder Foto aus dem Experiment:
-Fahrzeug lenkt in die falsche Richtung anstatt auszuweichen}{
-Beobachtetes Fehlverhalten: Fahrzeug reagiert in entgegengesetzte Richtung}
+\subsection{Bedeutung für das Projekt}
 
-\subsection{Iteration~3: Vollständige Kalibrierung (front\_center\_deg = 0°)}
+Diese Stufe ist fachlich der Kern des Systems: Hier wird aus der
+lokalen Hindernissituation ein Richtungsvektor berechnet.
+Die Entscheidung, den Node nicht umzuschreiben, sondern als
+C++-Kern beizubehalten und nur sauber scan-basiert einzubinden,
+erhält die algorithmische Nähe zur CTU-/F1TENTH-Vorlage.
 
-\textbf{Änderung:} \texttt{front\_center\_deg} von $90°$ auf $0°$ geändert.
+\section{Stufe 3: Planner}
 
-\textbf{Ergebnis:} Das System lieferte nun plausible, positionsabhängige
-Lenkwinkel:
+Der \texttt{ftg\_planner\_node} fasst die algorithmische Ausgabe des FTG-Kerns
+mit der Frontabstands-Information aus der Vorverarbeitung zusammen.
+Er bildet damit die Brücke zwischen lokaler Richtungsplanung und einer
+fahrbaren, sicheren Sollvorgabe.
 
-\begin{table}[H]
-\centering
-\caption{Messwerte nach vollständiger Kalibrierung (Iteration~3)}
-\label{tab:iter3}
-\begin{tabular}{llll}
-\toprule
-\textbf{Hindernis} & \textbf{/final\_heading (rad)} & \textbf{/gap\_angle (rad)} & \textbf{Clearance (m)} \\
-\midrule
-Karton vorne ($\approx 60$\,cm)   & $+0{,}179$ & $+0{,}182$ & $0{,}906$ \\
-Wand $2$\,m vorne                & $+0{,}179$ & $+0{,}179$ & $0{,}910$ \\
-Hindernis vorne rechts           & $+0{,}181$ & $+0{,}178$ & $0{,}910$ \\
-Hindernis vorne links            & $+0{,}180$ & $+0{,}258$ & --        \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{Eingänge}
 
-\datenplatzhalter{Foxglove-Screenshot oder Plot von /final\_heading\_angle
-und /gap\_angle über Zeit, während ein Hindernis von links nach rechts
-bewegt wird -- zeigt ob die Winkelreaktion korrekt ist.}
+\begin{itemize}
+    \item \texttt{/final\_heading\_angle}
+    \item \texttt{/gap\_found}
+    \item \texttt{/autonomous/ftg/front\_clearance}
+\end{itemize}
 
-Der gefilterte Scan zeigte einen sauberen, engbegrenzten Frontbereich:
-\begin{lstlisting}[caption={Scan-Metadaten nach korrekter Kalibrierung}]
-angle_min: -0.522 rad  (ca. -30 Grad)
-angle_max: +0.522 rad  (ca. +30 Grad)
-range_min: 0.18 m
-range_max: 2.0 m
-\end{lstlisting}
+\subsection{Ausgänge}
 
-% ============================================================
-\section{Praktischer Fahrttest}
-% ============================================================
+\begin{itemize}
+    \item \texttt{/autonomous/ftg/gap\_angle}
+    \item \texttt{/autonomous/ftg/target\_speed}
+    \item \texttt{/autonomous/ftg/planner\_status}
+\end{itemize}
 
-\subsection{Manueller Fahrttest}
+\subsection{Aufgabe des Planers}
 
-Zur Verifikation der Aktuatoranbindung wurde das Fahrzeug zunächst
-manuell per RC-Fernbedienung gesteuert. Die Motorgeschwindigkeit
-(\texttt{/commands/motor/speed}) zeigte dabei Werte zwischen
-$700$--$950$\,RPM, was dem normalen Betriebsbereich des VESC entspricht.
+Der Planer übernimmt drei praktische Aufgaben:
+\begin{enumerate}
+    \item Freshness-Prüfung der Eingänge,
+    \item Begrenzung des Lenkwinkels,
+    \item Geschwindigkeitsvorgabe abhängig von Clearance und Steering.
+\end{enumerate}
 
-Die Ausgabe auf \texttt{/autonomous/ackermann\_cmd} beim manuellen Fahren:
-\begin{lstlisting}[caption={Ackermann-Kommando während manueller Fahrt}]
-drive: { steering_angle: 0.0, speed: 0.1,
-         acceleration: 0.0, jerk: 0.0 }
-\end{lstlisting}
+Damit ist der Planner keine zweite FTG-Implementierung, sondern eine
+\emph{Policy-Schicht}: Er interpretiert die Heading-Ausgabe im Kontext von
+Sicherheitsabstand und Fahrbarkeit.
 
-\subsection{Autonomer Fahrttest}
+\section{Stufe 4: Control}
 
-Im autonomen Modus reagierte das Fahrzeug auf Hindernisse.
-Bei einem Frontobjekt in $\approx 0{,}41$\,m Abstand:
-\begin{lstlisting}[caption={Planerstatus bei nahem Frontobjekt}]
-gap_found=True, heading_fresh=True, scan_fresh=True,
-gap_angle_rad=+0.4788, front_clearance_m=0.408,
-target_speed=0.180 m/s, reason=crawl_distance
-\end{lstlisting}
+Der \texttt{ftg\_command\_node} transformiert die Planner-Ausgänge in einen
+Ackermann-Befehl.
 
-Das Fahrzeug fuhr kurz geradeaus mit reduzierter Geschwindigkeit
-(Kriechmodus: $0{,}18$\,m/s) und lenkte leicht zur Seite.
-Es stieß jedoch gegen das Hindernis, bevor eine vollständige
-Kurskorrektur stattfinden konnte.
+\subsection{Eingänge und Ausgang}
 
-\bildplatzhalter{Videostandbilder oder Bildsequenz aus dem
-autonomen Fahrttest: (1) Hindernis erkannt, (2) Lenkreaktion,
-(3) Kollision}{Ablauf des autonomen Fahrttests}
+\begin{itemize}
+    \item Input: \texttt{/autonomous/ftg/gap\_angle}
+    \item Input: \texttt{/autonomous/ftg/target\_speed}
+    \item Output: \texttt{/autonomous/ackermann\_cmd}
+\end{itemize}
 
-\subsection{Aufgezeichnetes Rosbag}
+Zusätzlich veröffentlicht der Node ein Status-Topic
+\texttt{/autonomous/ftg/control\_status}, das für Debugging und End-to-End-
+Analyse nützlich ist.
 
-Zur späteren Analyse wurde ein 15-sekündiges Rosbag aufgezeichnet,
-in dem ein Hindernis vor dem Fahrzeug von links nach rechts bewegt wurde:
+\section{Bringup und Startlogik}
 
-\begin{lstlisting}[language=bash, caption={Rosbag-Aufnahmebefehl}]
-ros2 bag record -s mcap -o /mxck2_ws/bags/ftg_diag_small \
-  /scan /autonomous/ftg/scan_filtered /obstacles \
-  /final_heading_angle /gap_found \
-  /autonomous/ftg/gap_angle \
-  /autonomous/ftg/planner_status /tf_static
-\end{lstlisting}
+Die empfohlene Startdatei ist \texttt{ftg\_full\_system.launch.py}. Laut
+aktuellem Repository startet sie den scan-basierten Pfad und lädt dabei
+die YAML-Konfigurationen der Perception-, Planner- und Control-Stufe.
+Zusätzlich existiert eine vereinfachte Variante
+\texttt{ftg\_scan\_path.launch.py}.
 
-\datenplatzhalter{Foxglove-Wiedergabe des aufgezeichneten Rosbags:
-Plot von /final\_heading\_angle und /gap\_found über Zeit +
-3D-Ansicht der /obstacles-Punkte. Zeigt die Reaktion des Systems
-auf die Hindernisbewegung.}
+Wichtig ist: TF und \texttt{vehicle\_control} gehören \emph{nicht} automatisch
+zum FTG-Bringup, sondern werden separat über das MXCK-System gestartet.
+
+\section{Testmethodik}
+
+Für ein robustes Vorgehen wurde der Stack stufenweise verifiziert:
+
+\begin{enumerate}
+    \item TF und LiDAR separat prüfen,
+    \item nur \texttt{scan\_preprocessor\_node} starten,
+    \item \texttt{follow\_the\_gap\_v0} isoliert testen,
+    \item Planner prüfen,
+    \item Control prüfen,
+    \item Full-Stack testen,
+    \item erst danach Fahrzeug im Autonomous-Modus fahren.
+\end{enumerate}
+
+Diese Reihenfolge ist nicht nur praktisch, sondern auch
+architekturell sinnvoll: Jeder Fehler kann dadurch einer klaren
+Stufe zugeordnet werden.
+
+\section{Abgrenzung zu Legacy-Komponenten}
+
+Das Repository enthält weiterhin \texttt{obstacle\_msgs} und
+\texttt{obstacle\_substitution}. Diese Pakete bleiben aus Gründen der
+Kompatibilität erhalten, gehören aber nicht mehr zum primären Datenpfad.
+Für die Projektdokumentation bedeutet das:
+\begin{itemize}
+    \item Sie dürfen als Legacy- oder Alternativpfad erwähnt werden,
+    \item sie dürfen aber nicht mehr als aktuelle Hauptpipeline dargestellt werden.
+\end{itemize}
+
+Gerade diese Trennung war für die Überarbeitung der Dokumentation zentral, weil
+ältere Kapitelentwürfe den Legacy-Pfad teils noch als Hauptarchitektur
+beschrieben.
