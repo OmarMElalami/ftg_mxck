@@ -5,10 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## 0.3.0 - 2026-04-09
 ### Changed
-- Removed the legacy adapter stage from architecture references and unified planning in `ftg_planner_node`.
-- Documented heading/speed smoothing behavior in the planner path.
-- Updated FTG parameter references for the ~30 cm MXCK vehicle setup.
-- Confirmed TF-based recentering with `front_center_deg=0.0`.
+- No package-specific changes in `obstacle_substitution` for this release.
+- Previously noted FTG stack/planner updates were release-wide notes and do not belong in this package changelog.
 
 ## Unreleased
 
