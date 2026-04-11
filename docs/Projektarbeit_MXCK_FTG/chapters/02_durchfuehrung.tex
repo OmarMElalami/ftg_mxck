@@ -145,7 +145,7 @@ erhält die algorithmische Nähe zur CTU-/F1TENTH-Vorlage.
 \section{Stufe 3: Planner}
 
 Der \texttt{ftg\_planner\_node} fasst die algorithmische Ausgabe des FTG-Kerns
-mit der Frontabstands-Information aus der Vorverarbeitung zusammen.
+mit der Frontabstands Information aus der Vorverarbeitung zusammen.
 Er bildet damit die Brücke zwischen lokaler Richtungsplanung und einer
 fahrbaren, sicheren Sollvorgabe.
 
@@ -181,7 +181,7 @@ Sicherheitsabstand und Fahrbarkeit.
 \section{Stufe 4: Control}
 
 Der \texttt{ftg\_command\_node} transformiert die Planner-Ausgänge in einen
-Ackermann-Befehl.
+Ackermann Befehl.
 
 \subsection{Eingänge und Ausgang}
 
@@ -238,3 +238,270 @@ Für die Projektdokumentation bedeutet das:
 Gerade diese Trennung war für die Überarbeitung der Dokumentation zentral, weil
 ältere Kapitelentwürfe den Legacy-Pfad teils noch als Hauptarchitektur
 beschrieben.
+
+\section{Konfigurierte Parameter}
+\label{sec:parameter}
+
+Für den stabilen Betrieb des FTG-Stacks im Versuchsraum wurden insgesamt sieben Parameter
+gegenüber den ursprünglichen Referenzwerten angepasst. Die Änderungen betreffen die
+Vorverarbeitungsstufe (\texttt{scan\_preprocessor.yaml}) und den Planner
+(\texttt{ftg\_planner.yaml}).
+
+\begin{table}[H]
+\centering
+\caption{Angepasste Parameter des FTG-Stacks (YAML-Konfiguration)}
+\label{tab:params}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.5cm}
+                >{\raggedright\arraybackslash}p{2.5cm}
+                >{\raggedright\arraybackslash}p{2.0cm}
+                >{\raggedright\arraybackslash}p{5.5cm}}
+\toprule
+\textbf{Parameter} & \textbf{Referenzwert} & \textbf{Neuer Wert} & \textbf{Begründung} \\
+\midrule
+\multicolumn{4}{l}{\textit{mxck\_ftg\_perception / scan\_preprocessor.yaml}} \\[2pt]
+\texttt{front\_fov\_deg}            & 100{,}0°  & \textbf{120{,}0°}  & Breiteres Frontfenster für enge Korridore \\
+\texttt{clip\_min\_range\_m}        & 0{,}18\,m & \textbf{0{,}25\,m} & Ignoriert Reflexionen direkt am Gehäuse \\
+\texttt{clip\_max\_range\_m}        & 5{,}0\,m  & \textbf{10{,}0\,m} & Längerer Horizont im Korridor \\
+\texttt{enable\_moving\_average}    & \texttt{false} & \textbf{\texttt{true}} & Glättet LiDAR-Rauschen (Fenster: 3) \\[6pt]
+\multicolumn{4}{l}{\textit{mxck\_ftg\_planner / ftg\_planner.yaml}} \\[2pt]
+\texttt{cruise\_speed\_mps}         & 0{,}60\,m/s & \textbf{0{,}45\,m/s} & Reduziert für enge Innenraumumgebung \\
+\texttt{caution\_clearance\_m}      & 0{,}90\,m   & \textbf{0{,}50\,m}   & Angepasst für ${\approx}$1\,m breiten Korridor \\
+\texttt{stop\_clearance\_m}         & 0{,}35\,m   & \textbf{0{,}20\,m}   & Erlaubt engeres Heranfahren an Hindernisse \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Die übrigen Parameter (z.\,B.\ \texttt{max\_abs\_gap\_angle\_rad},
+\texttt{heading\_smoothing\_alpha}, \texttt{angle\_to\_steering\_gain}) wurden auf
+ihren Standardwerten belassen, da sie in den Versuchsfahrten keine Anpassung erforderten.
+
+\section{Versuchsdurchführung und Rosbag-Aufnahmen}
+\label{sec:versuche}
+
+Die Validierung des FTG-Stacks erfolgte durch zwei Realfahrten im Seminarraum
+der Hochschule. Beide Aufnahmen wurden mit \texttt{ros2 bag} aufgezeichnet
+und anschließend auf dem Arbeitsrechner ausgewertet.
+
+\subsection{Rosbag-Aufnahme auf dem Jetson}
+
+Während das Fahrzeug fährt, wird auf dem Jetson eine neue Terminal-Session geöffnet
+und die Aufnahme gestartet:
+
+\begin{lstlisting}[language=bash, caption={Rosbag-Aufnahme auf dem Jetson (alle relevanten Topics)}]
+ros2 bag record -o /mxck2_ws/bags/ftg_test \
+  /scan /tf /tf_static \
+  /autonomous/ftg/scan_filtered \
+  /autonomous/ftg/front_clearance \
+  /final_heading_angle /gap_found \
+  /visualize_obstacles \
+  /visualize_largest_gap \
+  /visualize_final_heading_angle \
+  /autonomous/ftg/gap_angle \
+  /autonomous/ftg/target_speed \
+  /autonomous/ftg/planner_status \
+  /autonomous/ackermann_cmd \
+  /autonomous/ftg/control_status
+\end{lstlisting}
+
+Mit \texttt{Ctrl+C} wird die Aufnahme beendet. ROS~2 legt dabei einen Ordner mit
+einer \texttt{metadata.yaml} und einer SQLite-Datenbankdatei (\texttt{.db3}) an.
+
+\subsection{Bag-Datei auf den Arbeitsrechner übertragen}
+
+Der aufgezeichnete Bag-Ordner wird vom Jetson per \texttt{scp} auf den lokalen
+Rechner kopiert:
+
+\begin{lstlisting}[language=bash, caption={Übertragung des Bags vom Jetson auf den PC}]
+# Auf dem lokalen Rechner ausfuehren:
+scp -r mxck@<JETSON_IP>:/mxck2_ws/bags/ftg_test ./ftg_test
+\end{lstlisting}
+
+Für größere Bags empfiehlt sich \texttt{rsync} mit Fortschrittsanzeige:
+
+\begin{lstlisting}[language=bash, caption={Alternative: Übertragung mit rsync}]
+rsync -avh --progress \
+  mxck@<JETSON_IP>:/mxck2_ws/bags/ftg_test ./
+\end{lstlisting}
+
+Zum Wiedergeben der Aufnahme auf dem Arbeitsrechner:
+
+\begin{lstlisting}[language=bash, caption={Bag auf dem PC abspielen}]
+ros2 bag play ./ftg_test/ftg_test_0.db3 --loop
+\end{lstlisting}
+
+\subsection{Aufnahme~1 -- Geradeausfahrt mit Karton-Hindernis}
+\label{sec:aufnahme1}
+
+\subsubsection{Versuchsaufbau}
+
+Die erste Aufnahme fand im Seminarraum statt. Der Korridor zwischen der Tischreihe
+(links) und dem Fensterbrett (rechts) bildete die Fahrstrecke.
+Als einziges Hindernis wurde ein Karton an der rechten Seite des Korridors
+aufgestellt. Das Fahrzeug startete am Ende der Strecke und fuhr
+auf die Wandtafel zu.
+
+\subsubsection{Kennzahlen der Bag-Datei}
+
+\begin{table}[H]
+\centering
+\caption{Bag-Datei Aufnahme~1 (\texttt{ftg\_funktioniert1})}
+\label{tab:bag1}
+\begin{tabular}{lr}
+\toprule
+\textbf{Eigenschaft} & \textbf{Wert} \\
+\midrule
+Dauer                                    & 20{,}68\,s \\
+Gesamtanzahl Nachrichten                 & 4\,322 \\
+LiDAR-Scans (\texttt{/scan})             & 245 \\
+Fahrbefehle (\texttt{/ackermann\_cmd})   & 415 \\
+Zielgeschwindigkeit min / max / Ø        & 0{,}17 / 0{,}40 / 0{,}35\,m/s \\
+Frontabstand min / max / Ø              & 0{,}49 / 0{,}98 / 0{,}77\,m \\
+Gap-Winkel min / max                     & $-8{,}1°$ / $+25{,}8°$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{images/Erste_Aufnahme.jpg}
+    \caption{Aufnahme~1: Das MXCarkit navigiert durch den Seminarraum-Korridor.
+             Der Karton ist rechts neben dem Fensterbrett sichtbar.
+             Das Fahrzeug ist bereits leicht nach links ausgelenkt -- die
+             Gap-Erkennung hat reagiert.}
+    \label{fig:aufnahme1_foto}
+\end{figure}
+
+
+\subsubsection{Zeitreihen-Auswertung}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/aufnahme1_plots.png}
+    \caption{Aufnahme~1: Zeitverlauf von Zielgeschwindigkeit (oben),
+             Frontabstand (Mitte) und Gap-Winkel (unten).
+             Bei $t \approx 4$\,s erkennt der Planner den Karton:
+             der Frontabstand unterschreitet 0{,}70\,m und die Geschwindigkeit
+             wird reduziert. Der Gap-Winkel springt auf $+25{,}8°$ --
+             das Fahrzeug lenkt nach links um den Karton herum.
+             Ab $t \approx 15$\,s steigt der Winkel dauerhaft an, da
+             die Stuhlreihe den verbleibenden Gap nach links begrenzt.}
+    \label{fig:aufnahme1_plots}
+\end{figure}
+
+\subsubsection{Ablauf der Fahrt}
+
+\begin{enumerate}
+    \item Das Fahrzeug beschleunigt auf die Maximalgeschwindigkeit ($0{,}40$\,m/s)
+          im freien Korridor.
+    \item Bei Annäherung an den Karton sinkt \texttt{front\_clearance} unter 0{,}70\,m;
+          die Geschwindigkeit wird gemäß der Clearance-Policy reduziert
+          (vgl.\ Tabelle~\ref{tab:params}).
+    \item Der FTG-Kern erkennt eine große Lücke links (\textit{gap\_angle} $\approx +25°$)
+          und lenkt das Fahrzeug am Karton vorbei.
+    \item Nach dem Passieren des Hindernisses beschleunigt das Fahrzeug erneut.
+    \item Im Bereich der Stuhlreihe am Raumende sinkt der Frontabstand unter den
+          \texttt{stop\_clearance}-Wert (0{,}20\,m), das Fahrzeug stoppt.
+\end{enumerate}
+
+\subsection{Aufnahme~2 -- Zwei Hindernisse und dynamische Hindernisbeseitigung}
+\label{sec:aufnahme2}
+
+\subsubsection{Versuchsaufbau}
+
+In der zweiten Aufnahme wurden zwei Hindernisse in Reihe platziert: ein Karton
+(näher) und ein Mülleimer (weiter entfernt). Eine Person stand hinter dem
+Fahrzeug und entfernte den Karton manuell, sobald das Fahrzeug davor stoppte.
+Damit wurde die Reaktion des Systems auf dynamische Umgebungsänderungen
+überprüft.
+
+\subsubsection{Kennzahlen der Bag-Datei}
+
+\begin{table}[H]
+\centering
+\caption{Bag-Datei Aufnahme~2 (\texttt{ftg\_funktioniert2})}
+\label{tab:bag2}
+\begin{tabular}{lr}
+\toprule
+\textbf{Eigenschaft} & \textbf{Wert} \\
+\midrule
+Dauer                                    & 17{,}38\,s \\
+Gesamtanzahl Nachrichten                 & 3\,816 \\
+LiDAR-Scans (\texttt{/scan})             & 206 \\
+Fahrbefehle (\texttt{/ackermann\_cmd})   & 357 \\
+Zielgeschwindigkeit min / max / Ø        & 0{,}15 / 0{,}40 / 0{,}26\,m/s \\
+Frontabstand min / max / Ø              & 0{,}41 / 1{,}11 / 0{,}59\,m \\
+Gap-Winkel min / max                     & $-8{,}6°$ / $+12{,}9°$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{images/zweite_Aufnahme.jpg}
+    \caption{Aufnahme~2: Blick durch den Korridor mit Karton (Mitte rechts)
+             und Mülleimer (vorne). Das Fahrzeug ist bereits zwischen
+             den beiden Hindernissen sichtbar.}
+    \label{fig:aufnahme2_foto}
+\end{figure}
+
+\subsubsection{Zeitreihen-Auswertung}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/aufnahme2_plots.png}
+    \caption{Aufnahme~2: Zeitverlauf von Zielgeschwindigkeit (oben),
+             Frontabstand (Mitte) und Gap-Winkel (unten).
+             Die Beschriftung \textit{``Karton entfernt''} markiert den Moment,
+             in dem der Karton manuell aus dem Weg geräumt wurde:
+             Der Frontabstand springt von ca.\ 0{,}42\,m auf über 1{,}10\,m,
+             und das Fahrzeug beschleunigt sofort wieder.
+             Ab $t \approx 12{,}5$\,s nähert sich das Fahrzeug dem Mülleimer;
+             der Frontabstand sinkt dauerhaft auf den Stop-Wert.}
+    \label{fig:aufnahme2_plots}
+\end{figure}
+
+\subsubsection{Ablauf der Fahrt}
+
+\begin{enumerate}
+    \item Das Fahrzeug startet und erkennt sofort den Karton. Die Geschwindigkeit
+          schwankt zwischen 0{,}15 und 0{,}40\,m/s, da der Planner
+          den engen Frontabstand registriert.
+    \item Das Fahrzeug stoppt nahe am Karton
+          (\texttt{front\_clearance}~$\approx$~0{,}42\,m).
+    \item Eine Person \textbf{entfernt den Karton} aus dem Weg.
+          Der Frontabstand springt auf über 1{,}10\,m; der Planner erkennt
+          die freie Bahn und beschleunigt das Fahrzeug ohne manuellen Eingriff.
+    \item Das Fahrzeug fährt weiter und nähert sich dem Mülleimer.
+    \item Der Frontabstand sinkt auf den \texttt{stop\_clearance}-Wert --
+          das Fahrzeug stoppt dauerhaft neben dem Mülleimer. Aufnahme~2 endet hier.
+\end{enumerate}
+
+\subsection{Vergleich beider Aufnahmen}
+
+\begin{table}[H]
+\centering
+\caption{Gegenüberstellung von Aufnahme~1 und Aufnahme~2}
+\label{tab:vergleich}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Kennzahl} & \textbf{Aufnahme~1} & \textbf{Aufnahme~2} \\
+\midrule
+Dauer (s)                        & 20{,}68  & 17{,}38 \\
+Mittlere Geschwindigkeit (m/s)   & 0{,}35   & 0{,}26 \\
+Max. Gap-Winkel ($°$)            & $+25{,}8$ & $+12{,}9$ \\
+Min. Frontabstand (m)            & 0{,}49   & 0{,}41 \\
+Mittlerer Frontabstand (m)       & 0{,}77   & 0{,}59 \\
+Anzahl Hindernisse               & 1 (Karton) & 2 (Karton + Mülleimer) \\
+Dynamisches Ereignis             & keines   & Karton entfernt (Person) \\
+Stoppursache                     & Stuhlreihe (Ecke) & Mülleimer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Die niedrigere mittlere Geschwindigkeit in Aufnahme~2 (0{,}26\,m/s gegenüber 0{,}35\,m/s)
+erklärt sich dadurch, dass das Fahrzeug vor dem Karton mehrfach abbremste und kurz stoppte.
+Der maximale Gap-Winkel ist in Aufnahme~2 geringer ($+12{,}9°$ statt $+25{,}8°$), weil das
+Fahrzeug in dieser Aufnahme überwiegend geradeaus fuhr -- der Karton lag zentral in der
+Fahrspur und nicht seitlich versetzt wie in Aufnahme~1. Der hohe Frontabstand von 1{,}11\,m
+in Aufnahme~2 entspricht genau dem Moment nach der Karton-Entfernung: Der nun freie Korridor
+ist für den LiDAR auf über einen Meter sichtbar.
