@@ -339,6 +339,9 @@ rsync -a --delete /home/mxck/ftg_mxck/obstacle_msgs/         /home/mxck/mxck2_ws
 rsync -a --delete /home/mxck/ftg_mxck/obstacle_substitution/ /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_substitution/
 ```
 
+> Hinweis: `obstacle_substitution` bleibt aus Kompatibilitätsgründen im Workspace,
+> ist aber **nicht** Teil des primären Scan-basierten FTG-Pfads.
+
 ### 6.4 FTG-Workspace bauen
 
 Der FTG-Stack wird im `mxck2_development`-Container gebaut.
@@ -358,6 +361,7 @@ colcon build --symlink-install --packages-select \
   mxck_ftg_control \
   mxck_ftg_bringup
 
+# nur nach erfolgreichem Build sourcen
 source /mxck2_ws/install/setup.bash
 ```
 
@@ -509,6 +513,8 @@ Erwartung:
 - gültige Translation
 - gültige Rotation
 - keine TF-Fehler
+- `front_center_deg: 0.0` bedeutet „Fahrzeug-vorne = 0° in `base_link`“;
+  die tatsächliche LiDAR-Montagerichtung wird über TF abgebildet
 
 ### 7.4 Schritt 3 – FTG-Pakete im Development-Container testen
 
