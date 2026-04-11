@@ -1,17 +1,28 @@
 /**:
   ros__parameters:
+    heading_angle_topic: "/final_heading_angle"
+    gap_found_topic: "/gap_found"
+    front_clearance_topic: "/autonomous/ftg/front_clearance"
+
     gap_angle_topic: "/autonomous/ftg/gap_angle"
     target_speed_topic: "/autonomous/ftg/target_speed"
+    planner_status_topic: "/autonomous/ftg/planner_status"
 
-    ackermann_cmd_topic: "/autonomous/ackermann_cmd"
-    control_status_topic: "/autonomous/ftg/control_status"
+    input_timeout_sec: 1.50
+    max_abs_gap_angle_rad: 0.45
 
-    frame_id: "base_link"
-    input_timeout_sec: 0.50
-    publish_zero_on_stale: true
+    cruise_speed_mps: 0.45
+    min_speed_mps: 0.15
+    stop_speed_mps: 0.00
 
-    angle_to_steering_gain: 1.00
-    max_steering_angle_rad: 0.45
+    # Angepasst für enge Korridore (~1m Breite)
+    stop_clearance_m: 0.20
+    caution_clearance_m: 0.50
 
-    min_speed_mps: 0.00
-    max_speed_mps: 1.00
+    # Erst bei starkem Lenken abbremsen
+    steering_slowdown_start_rad: 0.35
+    steering_slowdown_full_rad: 0.60
+
+    # Smoothing: 0.0=sehr glatt, 1.0=kein Filter
+    heading_smoothing_alpha: 0.4
+    speed_smoothing_alpha: 0.3
