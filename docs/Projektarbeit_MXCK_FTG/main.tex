@@ -19,6 +19,7 @@
 \usepackage{tocbibind}
 \usepackage{caption}
 \usepackage{longtable}
+\usepackage[htt]{hyphenat}
 \usepackage{listings}
 
 \definecolor{thm_green}{RGB}{128,186,36}
@@ -41,7 +42,7 @@
 \newcommand{\reporttitle}{Entwicklung, Integration und Validierung einer ROS2-basierten Hinderniserkennung mit Reaktionsstrategie für automatisierte Modellfahrzeuge}
 \newcommand{\authorone}{Aly Elbermawy (5335848)}
 \newcommand{\authortwo}{Omar Elalami (5379642)}
-\newcommand{\authorthree}{Zakaria El-aboudi (5223183)}
+\newcommand{\authorthree}{Zakaria Elaboudi (5223183)}
 \newcommand{\supervisor}{Prof.\ Dr.\ Benedikt Lattke}
 %%\newcommand{\university}{Technische Hochschule Mittelhessen}
 \newcommand{\location}{Friedberg}
@@ -69,12 +70,11 @@
 \includegraphics[width=0.42\textwidth]{thm}\\[1.5cm]
 
 {\Large\textbf{\reporttype}}\\[0.3cm]
-{\normalsize Fachbereich M -- Master Maschienenbau Mechatraonics \quad|\quad \semester}\\[1.5cm]
+{\normalsize Fachbereich M -- Master Maschienenbau Mechatraonik \quad|\quad \semester}\\[1.5cm]
 
-\begin{mdframed}[linecolor=thm_green, linewidth=2pt, innertopmargin=12pt, innerbottommargin=12pt]
-\centering
-{\large\textbf{\reporttitle}}
-\end{mdframed}
+\begin{center}
+    {\large\textbf{\reporttitle}}
+\end{center}
 
 \vfill
 \begin{tabular}{@{}ll}
@@ -101,11 +101,10 @@ testbaren ROS~2-Datenpfad von \texttt{/scan} bis
 
 Die aktualisierte Zielarchitektur besteht aus vier logisch getrennten Stufen:
 (i) einer TF-basierten Vorverarbeitung des LiDAR-Scans,
-(ii) dem C++-Planerkern \text{follow\_the\_gap\_v0} im Scan-Modus,
+(ii) dem C++-Planerkern follow\_the\_gap\_v0 im Scan-Modus,
 (iii) einem Python-Planer für Lenkwinkel- und Geschwindigkeitsvorgabe und
 (iv) einem Ackermann-Command-Knoten als Ausgabe in die bestehende
-MXCK-Steuerkette. Der bisherige Legacy-Pfad über
-\texttt{obstacle\_substitution} bleibt kompatibel im Repository, ist jedoch
+MXCK-Steuerkette. Der bisherige Legacy-Pfad über obstacle substitution bleibt kompatibel im Repository, ist jedoch
 nicht mehr der primäre Laufzeitpfad.
 
 Die theoretische Einordnung des Verfahrens erfolgt anhand der Originalarbeit
