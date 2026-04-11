@@ -110,7 +110,7 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 2. Holt die TF `base_link ← laser` um die Montagerotation zu kennen
 3. Addiert `front_center_deg` (normalerweise 0.0) als „was ist vorne"
 4. Filtert nur Beams im konfigurierten Frontfenster (±60° bei 120° FOV)
-5. Clippt Ranges auf `clip_min` bis `clip_max`
+5. Clippt Ranges auf `clip_min_range_m` bis `clip_max_range_m`
 6. Optional: Moving-Average-Glättung auf die Ranges
 7. Publiziert den rezentrierten Scan als `/autonomous/ftg/scan_filtered` im `base_link`-Frame
 8. Publiziert die minimale Frontdistanz als `/autonomous/ftg/front_clearance`
