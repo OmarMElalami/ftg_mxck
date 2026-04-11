@@ -601,9 +601,10 @@ scp -r mxck@192.168.0.100:/home/mxck/ftg_test_bag .
 ### 8.1 Verbindung herstellen
 
 Foxglove Studio → „Open Connection" →
-**Rosbridge WebSocket**: `ws://<JETSON_IP>:8765`
+**Rosbridge WebSocket**: `ws://<JETSON_IP>:8765` *(typischer Standardport, bitte gegen die tatsächliche Container-/Rosbridge-Konfiguration prüfen)*
 
-(Der `mxck2_foxglove` Container stellt die Bridge bereit.)
+(Der `mxck2_foxglove` Container stellt die Bridge bereit; der tatsächlich verwendete Port
+ist im Deployment bzw. in der Container-Konfiguration zu verifizieren.)
 
 > **Hinweis:** FTG-Topics sind nur sichtbar, wenn der FTG-Stack im selben ROS-Domain
 > wie die Foxglove-Bridge läuft. Für Live-Visualisierung entweder den FTG-Stack in
