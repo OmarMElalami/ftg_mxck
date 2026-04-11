@@ -340,7 +340,7 @@ rsync -a --delete /home/mxck/ftg_mxck/obstacle_substitution/ /home/mxck/mxck2_ws
 ```
 
 > Hinweis: `obstacle_substitution` bleibt aus Kompatibilitätsgründen im Workspace,
-> ist aber **nicht** Teil des primären Scan-basierten FTG-Pfads.
+> ist aber **nicht** Teil des primären scan-basierten FTG-Pfads.
 
 ### 6.4 FTG-Workspace bauen
 
@@ -519,7 +519,7 @@ Erwartung:
 - gültige Rotation
 - keine TF-Fehler
 - `front_center_deg: 0.0` bedeutet „Fahrzeug-vorne = 0° in `base_link`“;
-  die tatsächliche LiDAR-Montagerichtung wird über TF abgebildet
+  die tatsächliche lidar-Montagerichtung wird über TF abgebildet
 
 ### 7.4 Schritt 3 – FTG-Pakete im Development-Container testen
 
