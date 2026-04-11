@@ -4,6 +4,8 @@
 Subscribes to follow_the_gap_v0 outputs (heading angle, gap_found) and
 front_clearance from the scan preprocessor, then publishes gap_angle and
 target_speed for the downstream ftg_command_node.
+
+v0.4.0: Added heading smoothing and speed smoothing for stable driving.
 """
 import rclpy
 from rclpy.node import Node
@@ -34,18 +36,22 @@ class FtgPlannerNode(Node):
         self.declare_parameter("planner_status_topic", "/autonomous/ftg/planner_status")
 
         # --- behaviour ---
-        self.declare_parameter("input_timeout_sec", 0.50)
+        self.declare_parameter("input_timeout_sec", 1.50)
         self.declare_parameter("max_abs_gap_angle_rad", 0.45)
 
-        self.declare_parameter("cruise_speed_mps", 0.60)
-        self.declare_parameter("min_speed_mps", 0.20)
+        self.declare_parameter("cruise_speed_mps", 0.45)
+        self.declare_parameter("min_speed_mps", 0.15)
         self.declare_parameter("stop_speed_mps", 0.00)
 
-        self.declare_parameter("caution_clearance_m", 0.90)
-        self.declare_parameter("stop_clearance_m", 0.35)
+        self.declare_parameter("caution_clearance_m", 0.50)
+        self.declare_parameter("stop_clearance_m", 0.20)
 
-        self.declare_parameter("steering_slowdown_start_rad", 0.20)
-        self.declare_parameter("steering_slowdown_full_rad", 0.45)
+        self.declare_parameter("steering_slowdown_start_rad", 0.35)
+        self.declare_parameter("steering_slowdown_full_rad", 0.60)
+
+        # --- smoothing ---
+        self.declare_parameter("heading_smoothing_alpha", 0.4)
+        self.declare_parameter("speed_smoothing_alpha", 0.3)
 
         # --- resolve values ---
         self.heading_angle_topic = str(self.get_parameter("heading_angle_topic").value)
@@ -69,6 +75,9 @@ class FtgPlannerNode(Node):
             max_abs_gap_angle_rad=float(self.get_parameter("max_abs_gap_angle_rad").value),
         )
 
+        self.heading_alpha = float(self.get_parameter("heading_smoothing_alpha").value)
+        self.speed_alpha = float(self.get_parameter("speed_smoothing_alpha").value)
+
         # --- state ---
         self.latest_gap_found = False
         self.latest_heading_angle = 0.0
@@ -77,6 +86,9 @@ class FtgPlannerNode(Node):
         self.last_heading_stamp = None
         self.last_gap_stamp = None
         self.last_clearance_stamp = None
+
+        self._smoothed_heading = 0.0
+        self._smoothed_speed = 0.0
 
         # --- publishers ---
         self.gap_angle_pub = self.create_publisher(Float32, self.gap_angle_topic, 10)
@@ -109,7 +121,12 @@ class FtgPlannerNode(Node):
 
     # --------------------------------------------------------------- callbacks
     def _heading_cb(self, msg: Float32) -> None:
-        self.latest_heading_angle = float(msg.data)
+        raw = float(msg.data)
+        self._smoothed_heading = (
+            self.heading_alpha * raw
+            + (1.0 - self.heading_alpha) * self._smoothed_heading
+        )
+        self.latest_heading_angle = self._smoothed_heading
         self.last_heading_stamp = self._now_sec()
 
     def _gap_found_cb(self, msg: Bool) -> None:
@@ -125,12 +142,14 @@ class FtgPlannerNode(Node):
         now_s = self._now_sec()
 
         if not self._inputs_are_fresh(now_s):
+            self._smoothed_speed = 0.0
             self.gap_angle_pub.publish(Float32(data=0.0))
             self.target_speed_pub.publish(Float32(data=self.cfg.stop_speed_mps))
             self.status_pub.publish(String(data="[PLANNER] waiting for fresh inputs"))
             return
 
         if not self.latest_gap_found:
+            self._smoothed_speed = 0.0
             self.gap_angle_pub.publish(Float32(data=0.0))
             self.target_speed_pub.publish(Float32(data=self.cfg.stop_speed_mps))
             self.status_pub.publish(String(data="[PLANNER] no valid gap found -> stop"))
@@ -141,11 +160,25 @@ class FtgPlannerNode(Node):
             -self.cfg.max_abs_gap_angle_rad,
             self.cfg.max_abs_gap_angle_rad,
         )
-        speed = compute_speed_from_clearance_and_steering(
+
+        raw_speed = compute_speed_from_clearance_and_steering(
             self.latest_clearance,
             gap_angle,
             self.cfg,
         )
+
+        # Smooth speed transitions (ramp up slowly, brake fast)
+        if raw_speed < self._smoothed_speed:
+            # Braking: respond quickly
+            self._smoothed_speed = raw_speed
+        else:
+            # Accelerating: ramp up smoothly
+            self._smoothed_speed = (
+                self.speed_alpha * raw_speed
+                + (1.0 - self.speed_alpha) * self._smoothed_speed
+            )
+
+        speed = self._smoothed_speed
 
         self.gap_angle_pub.publish(Float32(data=float(gap_angle)))
         self.target_speed_pub.publish(Float32(data=float(speed)))
