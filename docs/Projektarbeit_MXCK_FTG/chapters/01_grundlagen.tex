@@ -35,6 +35,15 @@ Bestehende Fahrzeugsteuerung & Der FTG-Stack darf die vorhandene VESC-/Safety-Ke
 \end{tabular}
 \end{table}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/Plan_Car.png}
+    \caption{Draufsicht auf das MXCarkit zur Dokumentation der Sensoranordnung (LiDAR und Jetson Nano).}
+    \label{fig:car_top_view}
+\end{figure}
+
+Die physikalische Position des LiDAR-Sensors in Abbildung \ref{fig:car_top_view} ist entscheidend für die mathematische Korrektheit der Hindernisprojektion. Wie in der Abbildung ersichtlich, befindet sich das optische Zentrum des Sensors mit einem signifikanten Versatz (Offset) vor der Hinterachse, was eine präzise Transformation in den \texttt{base\_link}-Frame erfordert.
+
 Für diese Arbeit ist vor allem wichtig, dass der autonome Output nicht direkt an
 VESC-Topics gesendet wird, sondern an
 \texttt{/autonomous/ackermann\_cmd}. Dadurch bleibt die bestehende MXCK-
