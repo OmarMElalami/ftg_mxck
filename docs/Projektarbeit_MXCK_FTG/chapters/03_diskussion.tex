@@ -41,6 +41,13 @@ Im Rahmen der Validierung wurde eine Kollision mit einem statischen Hindernis (K
     \label{fig:side_view}
 \end{figure}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{images/Front_Car.png}
+    \caption{Frontansicht des MXCarkit ohne Karosserie: Die Position des LiDAR-Sensors relativ zur Fahrzeugfront und der physische Abstand zur Vorderachse sind gut erkennbar. Dieser Versatz muss im \texttt{static\_transform\_publisher} korrekt hinterlegt sein.}
+    \label{fig:front_view_bare}
+\end{figure}
+
 Die Diskrepanz lässt sich auf eine fehlerhafte Definition im \texttt{static\_transform\_publisher} zurückführen. Wenn der Software-Offset (z.B. in der \texttt{mxck\_ftg\_perception}) kleiner gewählt ist als der reale physische Abstand (siehe Abb. \ref{fig:side_view}), projiziert der Algorithmus Hindernisse zu nah an das Fahrzeugzentrum. 
 
 \textbf{Mathematische Folge:}
