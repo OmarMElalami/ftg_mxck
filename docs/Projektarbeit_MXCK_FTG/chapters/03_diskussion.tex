@@ -31,6 +31,21 @@ Die überarbeitete Dokumentation und die aktuelle Codeausrichtung machen
 deutlich, dass das Hauptproblem früherer Inkonsistenzen nicht im
 FTG-Kern selbst lag, sondern in der geometrischen Einordnung der Scandaten.
 
+\subsection{Fallstudie: Analyse der Kollision durch Transformationsfehler}
+Im Rahmen der Validierung wurde eine Kollision mit einem statischen Hindernis (Karton) dokumentiert. Die Analyse der Log-Daten und des Videomaterials ergab, dass der FTG-Kern zwar einen freien Pfad berechnete, dieser jedoch physikalisch nicht existierte.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Side_Car} % Oder ein Frame aus dem Video
+    \caption{Seitenansicht des MXCarkit: Deutlich erkennbar ist die Montageposition des LiDARs oberhalb der Vorderachse.}
+    \label{fig:side_view}
+\end{figure}
+
+Die Diskrepanz lässt sich auf eine fehlerhafte Definition im \texttt{static\_transform\_publisher} zurückführen. Wenn der Software-Offset (z.B. in der \texttt{mxck\_ftg\_perception}) kleiner gewählt ist als der reale physische Abstand (siehe Abb. \ref{fig:side_view}), projiziert der Algorithmus Hindernisse zu nah an das Fahrzeugzentrum. 
+
+\textbf{Mathematische Folge:}
+Ein Hindernis bei $x_{real}$ wird im System als $x_{sys} = x_{real} - \Delta_{offset}$ verarbeitet. Bei einer Linkskurve führt dies dazu, dass das Heck des Fahrzeugs oder die kurveninnere Seite das Hindernis touchiert, da der Planer von einem größeren Freiraum ausgeht, als physikalisch vorhanden ist. Dies erklärt das im Video beobachtete Verhalten, bei dem das Fahrzeug ohne Ausweichbewegung frontal in das Hindernis steuert.
+
 \subsection{Warum \texttt{front\_center\_deg = 0.0} fachlich richtig ist}
 
 Sobald der Preprocessor mit TF arbeitet, ist die Fahrzeugfront eine Eigenschaft des
