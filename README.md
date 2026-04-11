@@ -287,25 +287,61 @@ input_timeout_sec: 0.50        # Bei Datenverlust → Stopp
 
 ## 6. Deployment auf dem Jetson
 
-### 6.1 Dateien kopieren
+### 6.1 Verbindung zum Jetson
 
 Auf deinem PC:
+
 ```bash
-scp -r ftg_mxck/ mxck@<JETSON_IP>:/home/mxck/
+ssh mxck@192.168.0.100
 ```
 
-Auf dem Jetson-Host (**nicht** docker cp – Workspace ist per Volume gemountet):
+Danach arbeitest du zunächst auf dem Jetson-Host.
+
+### 6.2 Wichtige Container-Rollen
+
+Für dieses Projekt werden die Befehle in unterschiedlichen Containern ausgeführt:
+
+- **Jetson-Host**
+  - SSH-Verbindung
+  - Dateien kopieren
+  - Bags aus dem Container auf den Host kopieren
+  - `scp` vom Jetson auf den Laptop
+- **mxck2_control**
+  - Remote-Control / Vehicle-Control
+  - VESC / Servo / `manual_control_launch.py`
+  - TF und LiDAR starten
+  - MXCK-Plattformfunktionen
+- **mxck2_development**
+  - FTG-Workspace bauen
+  - FTG-Nodes testen
+  - Full-Stack-FTG starten
+  - `rosbag` für FTG aufzeichnen
+
+### 6.3 Dateien auf den Jetson kopieren
+
+Auf deinem PC:
+
+```bash
+scp -r ftg_mxck/ mxck@192.168.0.100:/home/mxck/
+```
+
+Auf dem Jetson-Host:
+
 ```bash
 mkdir -p /home/mxck/mxck2_ws/src/ftg_mxck
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_perception/  /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_planner/     /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_planner/
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_control/     /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_control/
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_bringup/     /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_bringup/
-rsync -a --delete /home/mxck/ftg_mxck/follow_the_gap_v0/    /home/mxck/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/
-rsync -a --delete /home/mxck/ftg_mxck/obstacle_msgs/        /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_msgs/
+
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_perception/   /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_planner/      /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_planner/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_control/      /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_control/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_bringup/      /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_bringup/
+rsync -a --delete /home/mxck/ftg_mxck/follow_the_gap_v0/     /home/mxck/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/
+rsync -a --delete /home/mxck/ftg_mxck/obstacle_msgs/         /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_msgs/
+rsync -a --delete /home/mxck/ftg_mxck/obstacle_substitution/ /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_substitution/
 ```
 
-### 6.2 Bauen
+### 6.4 FTG-Workspace bauen
+
+Der FTG-Stack wird im `mxck2_development`-Container gebaut.
 
 ```bash
 sudo docker exec -it mxck2_development bash
@@ -322,95 +358,195 @@ colcon build --symlink-install --packages-select \
   mxck_ftg_control \
   mxck_ftg_bringup
 
-source install/setup.bash
+source /mxck2_ws/install/setup.bash
 ```
+
+### 6.5 BETAFPV LiteRadio 3 – Kalibrierung und Verbindung
+
+Verwendeter Sender:
+**BETAFPV LiteRadio 3 Radio Transmitter**
+
+Vor dem Start des Fahrzeugs muss die Remote-Control sauber kalibriert und mit dem Receiver verbunden werden.
+
+**Vorbereitung**
+- Alle Tasten, Schalter und Joysticks möglichst in Neutralstellung bringen
+- Besonders wichtig: Switch C zunächst in neutraler bzw. sicherer Stellung lassen
+- Sender ausgeschaltet lassen
+
+**Kalibrierung des Senders**
+- Einmal auf Setup drücken  
+  → die LED leuchtet rot
+- Jetzt müssen die Joysticks in der Mitte sein
+- Noch einmal auf Setup drücken  
+  → der Sender piept zweimal
+- Danach den Direction Joystick nacheinander bewegen:
+  - nach oben
+  - nach unten
+  - nach links
+  - nach rechts
+- Danach erneut Setup drücken
+
+**Verbindung mit dem Receiver**
+- Den Throttle Joystick nach unten bewegen
+- Die LED leuchtet blau  
+  → der Sender ist jetzt kalibriert und mit dem Receiver verbunden
+
+### 6.6 Vehicle-Control starten
+
+Die Fahrzeugsteuerung wird im `mxck2_control`-Container gestartet.
+
+```bash
+sudo docker exec -it mxck2_control bash
+ros2 launch vehicle_control manual_control_launch.py
+```
+
+Nach dem Start erscheint im Terminal typischerweise:
+
+```text
+Please activate 'Deadman' mode. Do not touch the throttle or steering for 8 seconds. Safety check ends when speed stays at 0 m/s during this time.
+```
+
+**Wichtige Reihenfolge**
+- Auf Deadman wechseln
+- Throttle und Steering nicht berühren
+- Etwa 8 Sekunden warten
+- Danach läuft die Kalibrierung der Lenkung
+- Das Fahrzeug lenkt kurz links und rechts
+- Wenn im Terminal steht:
+
+```text
+Calibration complete!
+```
+
+ist das Fahrzeug grundsätzlich bereit.
+
+**Switch C – Fahrmodi**
+- oben = Manual
+- Mitte = Autonomous
+- unten = Deadman
+
+### 6.7 TF und LiDAR starten
+
+TF und LiDAR werden ebenfalls im `mxck2_control`-Container gestartet.
+
+In einem zweiten Terminal:
+
+```bash
+sudo docker exec -it mxck2_control bash
+ros2 launch mxck_run mxck_run_launch.py broadcast_tf:=true run_lidar:=true
+```
+
+Damit werden
+- das LiDAR-Topic `/scan`
+- sowie die TF-Beziehung zwischen `base_link` und `laser`
+
+bereitgestellt.
 
 ---
 
 ## 7. Testen – Schritt für Schritt
 
-### 7.1 Voraussetzung: TF + LiDAR
+### 7.1 Überblick über die Terminal-Aufteilung
+
+Empfohlene Aufteilung:
+
+- **Terminal 1**
+  - `mxck2_control`
+  - `manual_control_launch.py`
+- **Terminal 2**
+  - `mxck2_control`
+  - TF + LiDAR
+- **Terminal 3**
+  - `mxck2_development`
+  - FTG-Tests und Full Stack
+
+### 7.2 Schritt 1 – Vehicle-Control und Remote prüfen
+
+In Terminal 1:
 
 ```bash
-# Terminal 1 – TF und LiDAR starten:
+sudo docker exec -it mxck2_control bash
+ros2 launch vehicle_control manual_control_launch.py
+```
+
+Prüfen:
+- erscheint die Aufforderung für Deadman
+- läuft die Safety-Prüfung
+- erscheint `Calibration complete!`
+- kannst du mit Switch C zwischen
+  - Manual
+  - Autonomous
+  - Deadman
+  wechseln
+
+Ohne diesen Schritt solltest du keine Fahrtests machen.
+
+### 7.3 Schritt 2 – TF und LiDAR prüfen
+
+In Terminal 2:
+
+```bash
+sudo docker exec -it mxck2_control bash
 ros2 launch mxck_run mxck_run_launch.py broadcast_tf:=true run_lidar:=true
 ```
 
-**TF prüfen:**
-```bash
-ros2 run tf2_ros tf2_echo base_link laser
-# Erwartung: Translation und Rotation werden angezeigt.
-# Der Yaw-Wert zeigt die LiDAR-Montagerichtung.
-# front_center_deg=0.0 ist korrekt, da TF die Rotation übernimmt.
-```
+Prüfen:
 
-**LiDAR prüfen:**
 ```bash
 ros2 topic hz /scan
-# ✅ Erwartung: ~10 Hz
-
-timeout 2s ros2 topic echo /scan
-# ✅ Erwartung: frame_id nicht leer, ranges nicht alle 0
 ```
 
----
+Erwartung:
+- ungefähr ~10 Hz
 
-### 7.2 Test: scan_preprocessor_node (einzeln)
+TF prüfen:
+
+```bash
+ros2 run tf2_ros tf2_echo base_link laser
+```
+
+Erwartung:
+- gültige Translation
+- gültige Rotation
+- keine TF-Fehler
+
+### 7.4 Schritt 3 – FTG-Pakete im Development-Container testen
+
+In Terminal 3:
+
+```bash
+sudo docker exec -it mxck2_development bash
+source /opt/ros/foxy/setup.bash
+source /mxck2_ws/install/setup.bash
+cd /mxck2_ws
+```
+
+Ab hier werden alle FTG-spezifischen Tests im `mxck2_development`-Container durchgeführt.
+
+### 7.5 Schritt 4 – Nur den Preprocessor testen
 
 ```bash
 ros2 launch mxck_ftg_perception scan_preprocessor.launch.py
 ```
 
-**Prüfen:**
-```bash
-timeout 2s ros2 topic echo /autonomous/ftg/scan_filtered
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| `frame_id` | `"base_link"` |
-| `angle_min` / `angle_max` | Ungefähr symmetrisch um 0 (±0.87 rad bei 100° FOV) |
-| `ranges` | Nicht alle identisch (z.B. nicht alle 0.05) |
-| `range_min` / `range_max` | 0.18 / 5.0 |
+In einem weiteren Terminal im selben Container prüfen:
 
 ```bash
-timeout 2s ros2 topic echo /autonomous/ftg/front_clearance
+ros2 topic echo /autonomous/ftg/scan_filtered --once
+ros2 topic echo /autonomous/ftg/front_clearance --once
+ros2 topic echo /autonomous/ftg/status --once
 ```
 
-| Was prüfen | Erwartung |
-|---|---|
-| `data` | Realistischer Abstand: 0.2–5.0 m |
+Prüfen:
+- `frame_id` von `/autonomous/ftg/scan_filtered` sollte `base_link` sein
+- `angle_min` / `angle_max` sollten plausibel zum Frontfenster passen
+- `front_clearance` sollte realistische Werte liefern
+- keine TF-Fehler im Status
 
-```bash
-timeout 2s ros2 topic echo /autonomous/ftg/status
-```
+### 7.6 Schritt 5 – Nur `follow_the_gap_v0` testen
 
-| Was prüfen | Erwartung |
-|---|---|
-| Inhalt | `"recentered_front_scan=true"`, keine TF-Fehler |
-
----
-
-### 7.3 Test: scan_front_window_check (optional, einzeln)
-
-```bash
-ros2 launch mxck_ftg_perception scan_front_window_check.launch.py
-```
-
-```bash
-timeout 5s ros2 topic echo /autonomous/ftg/scan_check
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| Inhalt | `front_closest=X.XX m @ ±Y.Y deg` |
-| Kein Fehler | Keine `"TF lookup failed"` Meldungen |
-
----
-
-### 7.4 Test: follow_the_gap_v0 (einzeln)
-
-**Voraussetzung:** scan_preprocessor_node muss laufen (Schritt 7.2).
+Voraussetzung:
+- Preprocessor läuft bereits
 
 ```bash
 ros2 run follow_the_gap_v0 follow_the_gap \
@@ -419,128 +555,94 @@ ros2 run follow_the_gap_v0 follow_the_gap \
   -p scan_topic:=/autonomous/ftg/scan_filtered
 ```
 
-**Prüfen – Funktions-Topics:**
+Prüfen:
+
 ```bash
 ros2 topic echo /final_heading_angle
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| `data` | Werte ≠ 0 (zwischen ca. -1.5 und +1.5 rad) |
-
-```bash
 ros2 topic echo /gap_found
 ```
 
-| Was prüfen | Erwartung |
-|---|---|
-| `data` | `true` (wenn freier Raum vorhanden) |
+Erwartung:
+- `/final_heading_angle` liefert Werte in Radiant
+- `/gap_found` ist bei freiem Raum meist `true`
 
-**Prüfen – Visualisierungstopics:**
-```bash
-ros2 topic hz /visualize_obstacles
-# ✅ Erwartung: gleiche Rate wie /scan (~10 Hz), publiziert immer
+### 7.7 Schritt 6 – Nur den Planner testen
 
-ros2 topic hz /visualize_largest_gap
-# ✅ Erwartung: ~10 Hz wenn gap_found=true, 0 Hz wenn kein Gap
-
-ros2 topic hz /visualize_final_heading_angle
-# ✅ Erwartung: ~10 Hz wenn gap_found=true, 0 Hz wenn kein Gap
-```
-
-**Wenn `gap_found` immer `false`:** Der Preprocessor liefert ungültige Daten →
-zurück zu Schritt 7.2.
-
----
-
-### 7.5 Test: ftg_planner_node (einzeln)
-
-**Voraussetzung:** Schritte 7.2 + 7.4 müssen laufen.
+Voraussetzung:
+- Preprocessor und `follow_the_gap_v0` laufen bereits
 
 ```bash
 ros2 launch mxck_ftg_planner ftg_planner.launch.py
 ```
 
-**Prüfen:**
-```bash
-ros2 topic echo /autonomous/ftg/planner_status
-```
-
-| Status-Meldung | Bedeutung |
-|---|---|
-| `waiting for fresh inputs` | Mindestens ein Input fehlt oder ist zu alt |
-| `no valid gap found -> stop` | follow_the_gap sieht keine Lücke |
-| `gap_angle=+0.123 rad, target_speed=0.45 m/s, ...` | ✅ Normaler Betrieb |
+Prüfen:
 
 ```bash
 ros2 topic echo /autonomous/ftg/gap_angle
-# ✅ Erwartung: Werte zwischen -0.45 und +0.45 rad
-
 ros2 topic echo /autonomous/ftg/target_speed
-# ✅ Erwartung: Werte 0.20–0.60 m/s (bei freier Fahrt)
+ros2 topic echo /autonomous/ftg/planner_status
 ```
 
----
+Erwartung:
+- `gap_angle` ist begrenzt
+- `target_speed` ist plausibel
+- `planner_status` zeigt keine stale Inputs
 
-### 7.6 Test: ftg_command_node (einzeln)
+### 7.8 Schritt 7 – Nur den Control-Node testen
 
-**Voraussetzung:** Schritt 7.5 muss laufen.
+Voraussetzung:
+- Planner läuft bereits
 
 ```bash
 ros2 launch mxck_ftg_control ftg_command.launch.py
 ```
 
-**Prüfen:**
+Prüfen:
+
 ```bash
 ros2 topic echo /autonomous/ackermann_cmd
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| `header.frame_id` | `"base_link"` |
-| `drive.speed` | Gleich wie target_speed (0.20–0.60) |
-| `drive.steering_angle` | Gleich wie gap_angle (±0.45 rad) |
-
-```bash
 ros2 topic echo /autonomous/ftg/control_status
-# ✅ Erwartung: "[CONTROL] speed=0.XX m/s, steering=±X.XXX rad"
 ```
 
----
+Erwartung:
+- `speed` und `steering_angle` werden publiziert
+- bei fehlenden Planner-Daten wird auf 0 gesetzt
 
-### 7.7 Test: Full Stack
+### 7.9 Schritt 8 – Full Stack testen
 
-**TF + LiDAR müssen bereits laufen (Schritt 7.1).**
+Wenn die Einzeltests funktionieren:
 
 ```bash
 ros2 launch mxck_ftg_bringup ftg_full_system.launch.py
 ```
 
-**Schnell-Check:**
-```bash
-ros2 topic hz /autonomous/ftg/scan_filtered   # ✅ ~10 Hz
-ros2 topic hz /autonomous/ftg/gap_angle        # ✅ ~10 Hz (getrieben von Scan)
-ros2 topic hz /autonomous/ackermann_cmd        # ✅ ~20 Hz (Timer-basiert)
-```
+Prüfen:
 
-**Detaillierte Prüfung:**
 ```bash
+ros2 topic hz /autonomous/ftg/scan_filtered
 ros2 topic echo /autonomous/ftg/planner_status
-# ✅ Sollte "gap_angle=..." zeigen, NICHT "waiting" oder "no valid gap"
-
 ros2 topic echo /autonomous/ackermann_cmd
-# ✅ speed > 0, steering ≠ 0 (bei vorhandenem Gap)
 ```
 
-### 7.8 Fahrt-Test
+Erwartung:
+- `scan_filtered` läuft stabil
+- `planner_status` zeigt sinnvolle Werte
+- `ackermann_cmd` reagiert auf die Umgebung
 
-**Erst wenn Schritt 7.7 sinnvolle Werte zeigt!**
+### 7.10 Schritt 9 – Fahrtest
 
-```bash
-# Vehicle-Control separat starten und auf Autonomous umschalten
-```
+Erst wenn die Topics korrekt aussehen:
 
-### 7.9 Bag aufnehmen
+- Vehicle-Control läuft bereits in `mxck2_control`
+- auf Deadman bleiben, bis alles stabil ist
+- danach auf Autonomous umschalten
+- mit niedriger Geschwindigkeit beginnen
+- zuerst in freiem Bereich testen
+- erst danach Hindernisse und enge Korridore testen
+
+### 7.11 Schritt 10 – Bag aufnehmen
+
+Die Bag-Aufnahme erfolgt im `mxck2_development`-Container.
 
 ```bash
 ros2 bag record -o /mxck2_ws/bags/ftg_test \
@@ -556,6 +658,26 @@ ros2 bag record -o /mxck2_ws/bags/ftg_test \
   /autonomous/ftg/planner_status \
   /autonomous/ackermann_cmd \
   /autonomous/ftg/control_status
+```
+
+### 7.12 Bag vom Jetson auf den Laptop kopieren
+
+Vom Jetson-Host aus, nicht im Container:
+
+```bash
+exit
+```
+
+Dann:
+
+```bash
+sudo docker cp mxck2_development:/mxck2_ws/bags/ftg_test /home/mxck/ftg_test_bag
+```
+
+Und auf deinem PC:
+
+```bash
+scp -r mxck@192.168.0.100:/home/mxck/ftg_test_bag .
 ```
 
 ---
