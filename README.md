@@ -374,8 +374,10 @@ Eine Änderung erfordert Bearbeitung der Quelldateien und Neukompilierung.
 
 Auf deinem PC:
 ```bash
-ssh mxck@192.168.0.100
+ssh mxck@<JETSON_IP>
 ```
+
+`192.168.0.100` ist ein Beispielwert.
 
 ### 6.2 Wichtige Container-Rollen
 
@@ -387,7 +389,7 @@ ssh mxck@192.168.0.100
 
 Auf deinem PC:
 ```bash
-scp -r ftg_mxck/ mxck@192.168.0.100:/home/mxck/
+scp -r ftg_mxck/ mxck@<JETSON_IP>:/home/mxck/
 ```
 
 Auf dem Jetson-Host:
@@ -591,7 +593,7 @@ ros2 bag record -o /mxck2_ws/bags/ftg_test \
 sudo docker cp mxck2_development:/mxck2_ws/bags/ftg_test /home/mxck/ftg_test_bag
 
 # Vom PC:
-scp -r mxck@192.168.0.100:/home/mxck/ftg_test_bag .
+scp -r mxck@<JETSON_IP>:/home/mxck/ftg_test_bag .
 ```
 
 ---

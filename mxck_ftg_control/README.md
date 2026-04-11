@@ -1,44 +1,33 @@
 # mxck_ftg_control
 
-`mxck_ftg_control` converts FTG planner topics into
-`/autonomous/ackermann_cmd`.
+`mxck_ftg_control` provides `ftg_command_node` and publishes the final autonomous command:
 
-Updated default chain:
+- `/autonomous/ackermann_cmd` (`ackermann_msgs/msg/AckermannDriveStamped`)
+
+Primary pipeline position:
 
 ```text
-/autonomous/ftg/gap_angle
-    + /autonomous/ftg/target_speed
- -> ftg_command_node
- -> /autonomous/ackermann_cmd
+/autonomous/ftg/gap_angle + /autonomous/ftg/target_speed
+  -> ftg_command_node
+  -> /autonomous/ackermann_cmd
 ```
 
-## Node
+## Node: ftg_command_node
 
-### `ftg_command_node`
-
-Inputs:
+### Subscribes
 - `/autonomous/ftg/gap_angle` (`std_msgs/msg/Float32`)
 - `/autonomous/ftg/target_speed` (`std_msgs/msg/Float32`)
 
-Outputs:
+### Publishes
 - `/autonomous/ackermann_cmd` (`ackermann_msgs/msg/AckermannDriveStamped`)
 - `/autonomous/ftg/control_status` (`std_msgs/msg/String`)
 
-## Safety behavior
-
-- stale planner inputs -> publish zero-speed Ackermann command
-- steering command is clipped to configured max steering angle
-- speed command is clipped to configured min/max limits
-- optional `publish_zero_on_stale` remains enabled by default
-
-## Build
-
-```bash
-cd /mxck2_ws
-source /opt/ros/foxy/setup.bash
-colcon build --symlink-install --packages-select mxck_ftg_control
-source install/setup.bash
-```
+### Current key parameters (`config/ftg_control.yaml`)
+- `angle_to_steering_gain: -1.0` (hardware-inverted)
+- `max_steering_angle_rad: 0.45`
+- `min_speed_mps: 0.18`
+- `max_speed_mps: 1.80`
+- `input_timeout_sec: 0.50`
 
 ## Launch
 
