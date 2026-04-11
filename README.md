@@ -365,10 +365,15 @@ colcon build --symlink-install --packages-select \
 source /mxck2_ws/install/setup.bash
 ```
 
+Falls `colcon build` Fehler meldet, erst die Fehler im Build-Output beheben und dann erneut bauen.
+
 ### 6.5 BETAFPV LiteRadio 3 – Kalibrierung und Verbindung
 
 Verwendeter Sender:
 **BETAFPV LiteRadio 3 Radio Transmitter**
+
+> Hinweis: Diese Kalibrierungsabfolge gilt für die BETAFPV LiteRadio 3.
+> Bei anderen Sendern bitte die jeweilige Herstellerdokumentation nutzen.
 
 Vor dem Start des Fahrzeugs muss die Remote-Control sauber kalibriert und mit dem Receiver verbunden werden.
 
