@@ -3,10 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## 0.3.0 - 2026-04-09
 ### Changed
-- Removed the legacy adapter stage from architecture references and unified planning in `ftg_planner_node`.
-- Documented heading/speed smoothing behavior in the planner path.
-- Updated FTG parameter references for the ~30 cm MXCK vehicle setup.
-- Confirmed TF-based recentering with `front_center_deg=0.0`.
+- Clarified package-specific documentation to match the current MXCK FTG stack description.
+- Limited architecture notes in this package to `follow_the_gap_v0`-relevant references.
+- No runtime behavior changes were made in `follow_the_gap_v0` as part of this release.
 
 ## Unreleased
 ### Added
