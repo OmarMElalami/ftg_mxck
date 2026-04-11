@@ -98,9 +98,10 @@ There is exactly one planner node (`ftg_planner_node`). The former
 ### ftg_control.yaml
 - `angle_to_steering_gain: -1.00` (hardware-inverted)
 - `max_steering_angle_rad: 0.45`
-- `min_speed_mps: 0.18`
+- `min_speed_mps: 0.0`
 - `max_speed_mps: 1.80`
 - `input_timeout_sec: 0.50`
+- `target_speed=0.0` is an explicit stop command and must not be clamped up to `min_speed_mps`.
 
 ### follow_the_gap_v0 internal constants (C++, not YAML)
 - `kCarRadius = 0.4` (should be ~0.20 for 30cm vehicle)
