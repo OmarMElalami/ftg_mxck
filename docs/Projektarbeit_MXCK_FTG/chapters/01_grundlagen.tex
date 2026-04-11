@@ -34,12 +34,28 @@ Bestehende Fahrzeugsteuerung & Der FTG-Stack darf die vorhandene VESC-/Safety-Ke
 \bottomrule
 \end{tabular}
 \end{table}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.56\textwidth]{images/Plan_Car.png}
+    \caption{Draufsicht auf das MXCarkit ohne Karosserie: LiDAR-Sensor (Mitte), Recheneinheit (Jetson, schwarze Box), Akku (grauer Quader), VESC-ESC (gelber Stecker) und Lenkservo (roter Antrieb, vorne rechts).}
+    \label{fig:car_top_view}
+\end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.7\textwidth]{images/Plan_Car.png}
-    \caption{Draufsicht auf das MXCarkit zur Dokumentation der Sensoranordnung (LiDAR und Jetson Nano).}
-    \label{fig:car_top_view}
+    \begin{minipage}[b]{0.54\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/Side_Car_Covered.png}
+        \small (a) Seitenansicht mit Karosserie.
+    \end{minipage}
+    \hfill
+    \begin{minipage}[b]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/Front_Car_Covered.png}
+        \small (b) Frontansicht mit Karosserie.
+    \end{minipage}
+    \caption{MXCarkit (MX Carkit / M~Dynamix, THM) in Betriebskonfiguration mit montierter Karosserie. Der LiDAR-Sensor ist im Heckbereich über der Fahrzeugmitte sichtbar, die WLAN-Antenne ragt nach oben heraus.}
+    \label{fig:car_covered}
 \end{figure}
 
 Die physikalische Position des LiDAR-Sensors in Abbildung \ref{fig:car_top_view} ist entscheidend für die mathematische Korrektheit der Hindernisprojektion. Wie in der Abbildung ersichtlich, befindet sich das optische Zentrum des Sensors mit einem signifikanten Versatz (Offset) vor der Hinterachse, was eine präzise Transformation in den \texttt{base\_link}-Frame erfordert.
