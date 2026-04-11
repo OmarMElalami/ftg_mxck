@@ -3,16 +3,15 @@
     scan_topic: "/scan"
     base_frame: "base_link"
     filtered_scan_topic: "/autonomous/ftg/scan_filtered"
+    
     front_clearance_topic: "/autonomous/ftg/front_clearance"
     status_topic: "/autonomous/ftg/status"
-
-    #Die physische LiDAR-Montagerotation wird durch TF aufgelöst; front_center_deg bleibt daher 0.0 im base_link-Bezug.
+    
     front_center_deg: 0.0
-
-    front_fov_deg: 120.0 
-
+    front_fov_deg: 120.0      
+    
     clip_min_range_m: 0.25
     clip_max_range_m: 10.0
-
+    
     enable_moving_average: true  # Glättet Scan-Rauschen
     moving_average_window: 3
