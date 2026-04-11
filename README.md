@@ -1,6 +1,6 @@
 # MXCK Follow-The-Gap Stack – Dokumentation
 
-> **Projektdokumentation:** [PDF herunterladen](docs/pdf/dokumentation.pdf) 
+> **Projektdokumentation:** [PDF herunterladen](docs/pdf/dokumentation.pdf)
 - LaTeX-/Ausarbeitungsquellen: `docs/Projektarbeit_MXCK_FTG`
 
 ## Inhaltsverzeichnis
@@ -14,6 +14,7 @@
 7. [Testen – Schritt für Schritt](#7-testen--schritt-für-schritt)
 8. [Visualisierung mit Foxglove](#8-visualisierung-mit-foxglove)
 9. [Troubleshooting](#9-troubleshooting)
+10. [Optimierungsvorschläge](#10-optimierungsvorschläge)
 
 ---
 
@@ -46,7 +47,7 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 ┌─────────────────────────┐
 │  scan_preprocessor_node │  Paket: mxck_ftg_perception
 │  TF: base_link ← laser  │  Rezentrierung auf Fahrzeug-Front
-│  FOV: ±50° (100°)       │  Clipping: 0.18–5.0 m
+│  FOV: ±60° (120°)       │  Clipping: 0.25–10.0 m
 └────────┬────────────────┘
          │
          ├──▶ /autonomous/ftg/scan_filtered  (LaserScan, frame: base_link)
@@ -69,6 +70,7 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 │              ftg_planner_node                        │
 │  Paket: mxck_ftg_planner                            │
 │  Speed-Policy: clearance + steering → Geschwindigkeit│
+│  Heading-Smoothing + Speed-Smoothing                 │
 └────────┬────────────────────────────────────────────┘
          │
          ├──▶ /autonomous/ftg/gap_angle      (Float32, rad)
@@ -107,10 +109,11 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 1. Liest `/scan` (roher LiDAR-Scan im `laser`-Frame)
 2. Holt die TF `base_link ← laser` um die Montagerotation zu kennen
 3. Addiert `front_center_deg` (normalerweise 0.0) als „was ist vorne"
-4. Filtert nur Beams im ±50°-Frontfenster
-5. Clippt Ranges auf `clip_min` bis `clip_max`
-6. Publiziert den rezenrierten Scan als `/autonomous/ftg/scan_filtered` im `base_link`-Frame
-7. Publiziert die minimale Frontdistanz als `/autonomous/ftg/front_clearance`
+4. Filtert nur Beams im konfigurierten Frontfenster (±60° bei 120° FOV)
+5. Clippt Ranges auf `clip_min_range_m` bis `clip_max_range_m`
+6. Optional: Moving-Average-Glättung auf die Ranges
+7. Publiziert den rezentrierten Scan als `/autonomous/ftg/scan_filtered` im `base_link`-Frame
+8. Publiziert die minimale Frontdistanz als `/autonomous/ftg/front_clearance`
 
 **scan_front_window_check – Was er macht:**
 - Diagnosetool: zeigt alle N Scans den nächsten Punkt im Frontfenster
@@ -150,9 +153,25 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 | `obstacles_topic` | `"/obstacles"` | ObstaclesStamped-Input (wenn input_mode=obstacles) |
 | `goal_angle_topic` | `"/lsr/angle"` | Externer Zielwinkel (optional) |
 
+**Interne C++-Konstanten (nicht per YAML konfigurierbar):**
+
+`follow_the_gap_v0` verwendet intern hardcodierte Geometrie-Konstanten, die das Gap-Finding-Verhalten bestimmen. Diese sind aktuell nicht als ROS-Parameter verfügbar.
+
+| Konstante | Wert | Beschreibung |
+|---|---|---|
+| `kCarRadius` | 0.40 m | Sicherheitsradius – Hindernisse werden um diesen Wert aufgeblasen |
+| `kTurnRadius` | 0.30 m | Angenommener Wendekreis |
+| `kTrackMinWidth` | 0.35 m | Mindestbreite für Corner-Erkennung |
+| `kDistanceToCorner` | 0.22 m | Sicherheitsabstand bei Corner-Following |
+| `kGapWeightCoefficient` | 100.0 | Gewichtung Gap-Richtung vs. Zielrichtung |
+| `kCornerWeightCoefficient` | 100.0 | Gewichtung im Corner-Fall |
+
+> **Hinweis zur Fahrzeuggröße:** Das MXCK ist ca. 30 cm breit. Der aktuelle `kCarRadius = 0.4` behandelt
+> das Fahrzeug als wäre es 80 cm breit (2 × Radius). Dies führt dazu, dass passierbare Lücken
+> in engen Korridoren als blockiert gewertet werden. Siehe [Optimierungsvorschläge](#10-optimierungsvorschläge).
+
 **Frame-ID der Visualisierungen:** Wird aus dem eingehenden Scan übernommen.
 Beim Einsatz von `scan_preprocessor_node` entspricht diese dem konfigurierten `base_frame` des Output-Scans (Default: `base_link`).
-Entsprechend erscheinen die Marker im jeweiligen `base_frame`-Frame, nicht zwingend immer in `base_link`.
 
 ### 3.3 mxck_ftg_planner
 
@@ -160,17 +179,19 @@ Entsprechend erscheinen die Marker im jeweiligen `base_frame`-Frame, nicht zwing
 
 | Node | Executable | Beschreibung |
 |------|-----------|--------------|
-| `ftg_planner_node` | `ftg_planner_node` | Unified Planner mit Speed-Policy |
+| `ftg_planner_node` | `ftg_planner_node` | Unified Planner mit Speed-Policy, Heading- und Speed-Smoothing |
 
 **Was er macht:**
 1. Subscribes: `/final_heading_angle`, `/gap_found`, `/autonomous/ftg/front_clearance`
 2. Prüft Freshness aller Inputs (Timeout → Stopp)
-3. Begrenzt den Lenkwinkel auf `±max_abs_gap_angle_rad`
-4. Berechnet Geschwindigkeit basierend auf:
+3. Glättet den Heading-Winkel (Exponential-Filter, konfigurierbar via `heading_smoothing_alpha`)
+4. Begrenzt den Lenkwinkel auf `±max_abs_gap_angle_rad`
+5. Berechnet Geschwindigkeit basierend auf:
    - **Clearance-Faktor:** Linear von `stop_clearance_m` (0%) bis `caution_clearance_m` (100%)
    - **Steering-Faktor:** Linear von `steering_slowdown_start_rad` (100%) bis `steering_slowdown_full_rad` (0%)
    - Ergebnis: `cruise_speed * min(clearance_faktor, steering_faktor)`, mindestens `min_speed`
-5. Publiziert: `/autonomous/ftg/gap_angle`, `/autonomous/ftg/target_speed`, `/autonomous/ftg/planner_status`
+6. Glättet die Geschwindigkeit (asymmetrisch: sofort bremsen, langsam beschleunigen)
+7. Publiziert: `/autonomous/ftg/gap_angle`, `/autonomous/ftg/target_speed`, `/autonomous/ftg/planner_status`
 
 ### 3.4 mxck_ftg_control
 
@@ -256,291 +277,298 @@ Frame: `base_link` (übernommen aus dem eingehenden Scan).
 
 ## 5. Konfiguration
 
-### scan_preprocessor.yaml
+### 5.1 scan_preprocessor.yaml
+
 ```yaml
-front_center_deg: 0.0      # 0° = TF bestimmt allein wo vorne ist
-front_fov_deg: 100.0        # ±50° Sichtfeld
-clip_min_range_m: 0.18      # Punkte näher als 18cm ignorieren
-clip_max_range_m: 5.0       # Punkte weiter als 5m clippen
+front_center_deg: 0.0       # 0° = TF bestimmt allein wo vorne ist
+front_fov_deg: 120.0         # ±60° Sichtfeld
+clip_min_range_m: 0.25       # Punkte näher als 25cm ignorieren (Chassis-Reflexionen)
+clip_max_range_m: 10.0       # Punkte weiter als 10m clippen
+enable_moving_average: true  # Glättet Scan-Rauschen
+moving_average_window: 3     # Fenstergröße der Mittelung
 ```
 
-### ftg_planner.yaml
+| Parameter | Wirkung |
+|---|---|
+| `front_center_deg` | Definiert „vorne" im `base_link`-Frame. Bei TF-basierter Rezentrierung bleibt der Wert `0.0`. |
+| `front_fov_deg` | Breite des FTG-Frontfensters. Größer = mehr Umgebung, aber auch mehr Seitenwände im Scan. |
+| `clip_min_range_m` | Untere Distanzgrenze. Filtert Chassis-Eigenreflexionen und zu nahe Punkte heraus. |
+| `clip_max_range_m` | Obere Distanzgrenze des verwendeten Scans. |
+| `enable_moving_average` | Glättet einzelne Ausreißer im Scan, stabilisiert Gap-Erkennung. |
+| `moving_average_window` | Fenstergröße für die Mittelung. Größer = glatter, aber mehr Latenz. |
+
+### 5.2 ftg_planner.yaml
+
 ```yaml
-max_abs_gap_angle_rad: 0.45     # ±25.8° max Lenkwinkel
-cruise_speed_mps: 0.60          # Maximalgeschwindigkeit bei freier Fahrt
-min_speed_mps: 0.20             # Minimale Fahrgeschwindigkeit (wenn nicht Stopp)
-stop_clearance_m: 0.35          # Stopp wenn Hindernis näher als 35cm
-caution_clearance_m: 0.90       # Ab 90cm volle Geschwindigkeit
-steering_slowdown_start_rad: 0.20  # Abbremsen ab 11.5° Lenkwinkel
-steering_slowdown_full_rad: 0.45   # Stopp bei 25.8° Lenkwinkel
+input_timeout_sec: 0.50          # Bei Datenverlust → Stopp
+max_abs_gap_angle_rad: 0.45      # ±25.8° max Lenkwinkel
+
+cruise_speed_mps: 0.45           # Maximalgeschwindigkeit bei freier Fahrt
+min_speed_mps: 0.20              # Minimale Fahrgeschwindigkeit (wenn nicht Stopp)
+stop_speed_mps: 0.00             # Geschwindigkeit im Stoppfall
+
+stop_clearance_m: 0.25           # Stopp wenn Hindernis näher als 25cm
+caution_clearance_m: 0.50        # Ab 50cm volle Geschwindigkeit
+
+steering_slowdown_start_rad: 0.40  # Bis hier volle Geschwindigkeit
+steering_slowdown_full_rad: 0.70   # Ab hier maximale Abbremsung (muss > max_abs_gap_angle sein!)
+
+heading_smoothing_alpha: 0.4     # Heading-Glättung (0=sehr glatt, 1=kein Filter)
+speed_smoothing_alpha: 0.3       # Speed-Glättung beim Beschleunigen (Bremsen ist immer sofort)
 ```
 
-### ftg_control.yaml
+| Parameter | Wirkung |
+|---|---|
+| `input_timeout_sec` | Wenn Heading, Gap oder Clearance zu alt sind, stoppt der Planner. |
+| `max_abs_gap_angle_rad` | Begrenzung des Lenkwinkels. |
+| `cruise_speed_mps` | Maximale Wunschgeschwindigkeit bei freiem Weg. |
+| `min_speed_mps` | Mindestgeschwindigkeit, solange noch gefahren wird. |
+| `stop_clearance_m` | Unterhalb dieses Frontabstands wird gestoppt. |
+| `caution_clearance_m` | Ab hier ist der Clearance-Faktor 1.0 (volle Geschwindigkeit). |
+| `steering_slowdown_start_rad` | Bis hier wird durch Lenkwinkel noch nicht abgebremst. |
+| `steering_slowdown_full_rad` | Ab hier ist der Steering-Faktor 0. **Muss größer sein als `max_abs_gap_angle_rad`**, sonst blockiert das Auto bei maximalem Ausweichen. |
+| `heading_smoothing_alpha` | Glättet Sprünge im Heading-Winkel zwischen Scans. |
+| `speed_smoothing_alpha` | Glättet Beschleunigung. Bremsen bleibt immer sofort. |
+
+### 5.3 ftg_control.yaml
+
 ```yaml
-angle_to_steering_gain: 1.00   # gap_angle × gain = steering
-max_steering_angle_rad: 0.45   # Hardware-Limit Lenkung
-max_speed_mps: 1.00            # Absolute Geschwindigkeitsbegrenzung
-input_timeout_sec: 0.50        # Bei Datenverlust → Stopp
+input_timeout_sec: 0.50          # Bei zu alten Planner-Daten → Nullkommando
+angle_to_steering_gain: -1.00    # Invertiert den Lenkwinkel (Hardware-spezifisch)
+max_steering_angle_rad: 0.45     # Hardware-Limit Lenkung
+
+min_speed_mps: 0.18              # Untergrenze für Speed-Commands
+max_speed_mps: 1.80              # Absolute Geschwindigkeitsbegrenzung
 ```
+
+| Parameter | Wirkung |
+|---|---|
+| `angle_to_steering_gain` | Skaliert/invertiert den Lenkwinkel. `-1.0` wenn die physische Lenkung invertiert ist. |
+| `max_steering_angle_rad` | Hardware-Limit der Lenkung. |
+| `min_speed_mps` | Untergrenze für Speed-Commands. |
+| `max_speed_mps` | Absolute Obergrenze für Geschwindigkeit. |
+
+### 5.4 Interne Konstanten von follow_the_gap_v0
+
+Diese Werte sind im C++-Code fest definiert und **nicht** per YAML änderbar.
+Eine Änderung erfordert Bearbeitung der Quelldateien und Neukompilierung.
+
+| Konstante | Aktueller Wert | Datei | Beschreibung |
+|---|---|---|---|
+| `kCarRadius` | 0.40 m | `follow_the_gap.hpp` | Sicherheitsradius für Hindernis-Aufblähung |
+| `kTurnRadius` | 0.30 m | `follow_the_gap.hpp` | Angenommener Wendekreis |
+| `kTrackMinWidth` | 0.35 m | `follow_the_gap.hpp` | Mindestbreite für Corner-Erkennung |
+| `kDistanceToCorner` | 0.22 m | `follow_the_gap.hpp` | Sicherheitsabstand bei Corner-Following |
+| `kGapWeightCoefficient` | 100.0 | `follow_the_gap.hpp` | Gewichtung Gap-Richtung vs. Zielrichtung |
+| `kCornerWeightCoefficient` | 100.0 | `follow_the_gap.hpp` | Gewichtung im Corner-Fall |
+
+> **Wichtig:** Die Fahrzeugbreite wird indirekt über `kCarRadius` berücksichtigt.
+> Der FTG-Algorithmus bläst jedes Hindernis um diesen Radius auf und prüft dann,
+> ob die verbleibende Lücke passierbar ist.
 
 ---
 
 ## 6. Deployment auf dem Jetson
 
-### 6.1 Dateien kopieren
+### 6.1 Verbindung zum Jetson
+
+Auf deinem PC:
+```bash
+ssh mxck@<JETSON_IP>
+```
+
+`192.168.0.100` ist ein Beispielwert.
+
+### 6.2 Wichtige Container-Rollen
+
+- **Jetson-Host:** SSH, Dateien kopieren, Bags transferieren
+- **mxck2_control:** Vehicle-Control, TF, LiDAR, MXCK-Plattformfunktionen
+- **mxck2_development:** FTG-Workspace bauen, testen, starten, Bags aufnehmen
+
+### 6.3 Dateien auf den Jetson kopieren
 
 Auf deinem PC:
 ```bash
 scp -r ftg_mxck/ mxck@<JETSON_IP>:/home/mxck/
 ```
 
-Auf dem Jetson-Host (**nicht** docker cp – Workspace ist per Volume gemountet):
+Auf dem Jetson-Host:
 ```bash
 mkdir -p /home/mxck/mxck2_ws/src/ftg_mxck
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_perception/  /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_planner/     /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_planner/
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_control/     /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_control/
-rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_bringup/     /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_bringup/
-rsync -a --delete /home/mxck/ftg_mxck/follow_the_gap_v0/    /home/mxck/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/
-rsync -a --delete /home/mxck/ftg_mxck/obstacle_msgs/        /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_msgs/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_perception/   /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_perception/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_planner/      /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_planner/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_control/      /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_control/
+rsync -a --delete /home/mxck/ftg_mxck/mxck_ftg_bringup/      /home/mxck/mxck2_ws/src/ftg_mxck/mxck_ftg_bringup/
+rsync -a --delete /home/mxck/ftg_mxck/follow_the_gap_v0/     /home/mxck/mxck2_ws/src/ftg_mxck/follow_the_gap_v0/
+rsync -a --delete /home/mxck/ftg_mxck/obstacle_msgs/         /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_msgs/
+rsync -a --delete /home/mxck/ftg_mxck/obstacle_substitution/ /home/mxck/mxck2_ws/src/ftg_mxck/obstacle_substitution/
 ```
 
-### 6.2 Bauen
+### 6.4 FTG-Workspace bauen
 
 ```bash
 sudo docker exec -it mxck2_development bash
 source /opt/ros/foxy/setup.bash
 cd /mxck2_ws
-
 colcon build --symlink-install --packages-select obstacle_msgs
 source install/setup.bash
-
 colcon build --symlink-install --packages-select \
   mxck_ftg_perception \
   follow_the_gap_v0 \
   mxck_ftg_planner \
   mxck_ftg_control \
   mxck_ftg_bringup
+source /mxck2_ws/install/setup.bash
+```
 
-source install/setup.bash
+> **Hinweis:** Bei Änderungen an Python-Dateien oder YAML-Configs reicht ein Neustart des Stacks
+> (da mit `--symlink-install` gebaut). Bei C++-Änderungen (`follow_the_gap_v0`) ist ein
+> erneuter `colcon build` nötig.
+
+### 6.5 BETAFPV LiteRadio 3 – Kalibrierung und Verbindung
+
+Verwendeter Sender: **BETAFPV LiteRadio 3 Radio Transmitter**
+
+**Kalibrierung:**
+1. Alle Joysticks in Neutralstellung, Sender aus
+2. Einmal auf Setup drücken → LED leuchtet rot
+3. Joysticks in der Mitte lassen, nochmal Setup → Sender piept zweimal
+4. Direction Joystick nacheinander: oben, unten, links, rechts
+5. Setup drücken
+6. Throttle Joystick nach unten → LED leuchtet blau → verbunden
+
+### 6.6 Vehicle-Control starten
+
+```bash
+sudo docker exec -it mxck2_control bash
+ros2 launch vehicle_control manual_control_launch.py
+```
+
+Warten auf `Calibration complete!`, dann **Switch C**:
+- oben = Manual, Mitte = Autonomous, unten = Deadman
+
+### 6.7 TF und LiDAR starten
+
+```bash
+sudo docker exec -it mxck2_control bash
+ros2 launch mxck_run mxck_run_launch.py broadcast_tf:=true run_lidar:=true
 ```
 
 ---
 
 ## 7. Testen – Schritt für Schritt
 
-### 7.1 Voraussetzung: TF + LiDAR
+### 7.1 Terminal-Aufteilung
 
+- **Terminal 1** – `mxck2_control`: `manual_control_launch.py`
+- **Terminal 2** – `mxck2_control`: TF + LiDAR
+- **Terminal 3** – `mxck2_development`: FTG-Tests und Full Stack
+
+### 7.2 Schritt 1 – Vehicle-Control und Remote prüfen
+
+In Terminal 1:
 ```bash
-# Terminal 1 – TF und LiDAR starten:
+sudo docker exec -it mxck2_control bash
+ros2 launch vehicle_control manual_control_launch.py
+```
+
+### 7.3 Schritt 2 – TF und LiDAR prüfen
+
+In Terminal 2:
+```bash
+sudo docker exec -it mxck2_control bash
 ros2 launch mxck_run mxck_run_launch.py broadcast_tf:=true run_lidar:=true
 ```
 
-**TF prüfen:**
+Prüfen:
 ```bash
-ros2 run tf2_ros tf2_echo base_link laser
-# Erwartung: Translation und Rotation werden angezeigt.
-# Der Yaw-Wert zeigt die LiDAR-Montagerichtung.
-# front_center_deg=0.0 ist korrekt, da TF die Rotation übernimmt.
+ros2 topic hz /scan                             # ✅ ~10 Hz
+ros2 run tf2_ros tf2_echo base_link laser       # ✅ Gültige Translation + Rotation
 ```
 
-**LiDAR prüfen:**
-```bash
-ros2 topic hz /scan
-# ✅ Erwartung: ~10 Hz
+### 7.4 Schritt 3 – FTG-Container vorbereiten
 
-timeout 2s ros2 topic echo /scan
-# ✅ Erwartung: frame_id nicht leer, ranges nicht alle 0
+In Terminal 3:
+```bash
+sudo docker exec -it mxck2_development bash
+source /opt/ros/foxy/setup.bash
+source /mxck2_ws/install/setup.bash
+cd /mxck2_ws
 ```
 
----
-
-### 7.2 Test: scan_preprocessor_node (einzeln)
+### 7.5 Schritt 4 – Preprocessor testen
 
 ```bash
 ros2 launch mxck_ftg_perception scan_preprocessor.launch.py
 ```
 
-**Prüfen:**
-```bash
-timeout 2s ros2 topic echo /autonomous/ftg/scan_filtered
-```
+| Prüfung | Befehl | Erwartung |
+|---|---|---|
+| Frame-ID | `ros2 topic echo /autonomous/ftg/scan_filtered --once` | `frame_id: base_link` |
+| Winkel | (gleicher Befehl) | `angle_min/max` symmetrisch um 0 |
+| Clearance | `ros2 topic echo /autonomous/ftg/front_clearance --once` | Realistischer Wert (0.3–10 m) |
+| Status | `ros2 topic echo /autonomous/ftg/status --once` | `recentered_front_scan=true` |
 
-| Was prüfen | Erwartung |
-|---|---|
-| `frame_id` | `"base_link"` |
-| `angle_min` / `angle_max` | Ungefähr symmetrisch um 0 (±0.87 rad bei 100° FOV) |
-| `ranges` | Nicht alle identisch (z.B. nicht alle 0.05) |
-| `range_min` / `range_max` | 0.18 / 5.0 |
+### 7.6 Schritt 5 – follow_the_gap_v0 testen
 
-```bash
-timeout 2s ros2 topic echo /autonomous/ftg/front_clearance
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| `data` | Realistischer Abstand: 0.2–5.0 m |
-
-```bash
-timeout 2s ros2 topic echo /autonomous/ftg/status
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| Inhalt | `"recentered_front_scan=true"`, keine TF-Fehler |
-
----
-
-### 7.3 Test: scan_front_window_check (optional, einzeln)
-
-```bash
-ros2 launch mxck_ftg_perception scan_front_window_check.launch.py
-```
-
-```bash
-timeout 5s ros2 topic echo /autonomous/ftg/scan_check
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| Inhalt | `front_closest=X.XX m @ ±Y.Y deg` |
-| Kein Fehler | Keine `"TF lookup failed"` Meldungen |
-
----
-
-### 7.4 Test: follow_the_gap_v0 (einzeln)
-
-**Voraussetzung:** scan_preprocessor_node muss laufen (Schritt 7.2).
+Voraussetzung: Preprocessor läuft.
 
 ```bash
 ros2 run follow_the_gap_v0 follow_the_gap \
-  --ros-args \
-  -p input_mode:=scan \
-  -p scan_topic:=/autonomous/ftg/scan_filtered
+  --ros-args -p input_mode:=scan -p scan_topic:=/autonomous/ftg/scan_filtered
 ```
 
-**Prüfen – Funktions-Topics:**
-```bash
-ros2 topic echo /final_heading_angle
-```
+| Prüfung | Befehl | Erwartung |
+|---|---|---|
+| Heading | `ros2 topic echo /final_heading_angle` | Werte ≠ 0 |
+| Gap | `ros2 topic echo /gap_found` | `true` bei freiem Raum |
+| Viz-Rate | `ros2 topic hz /visualize_obstacles` | ~10 Hz |
 
-| Was prüfen | Erwartung |
-|---|---|
-| `data` | Werte ≠ 0 (zwischen ca. -1.5 und +1.5 rad) |
+### 7.7 Schritt 6 – Planner testen
 
-```bash
-ros2 topic echo /gap_found
-```
-
-| Was prüfen | Erwartung |
-|---|---|
-| `data` | `true` (wenn freier Raum vorhanden) |
-
-**Prüfen – Visualisierungstopics:**
-```bash
-ros2 topic hz /visualize_obstacles
-# ✅ Erwartung: gleiche Rate wie /scan (~10 Hz), publiziert immer
-
-ros2 topic hz /visualize_largest_gap
-# ✅ Erwartung: ~10 Hz wenn gap_found=true, 0 Hz wenn kein Gap
-
-ros2 topic hz /visualize_final_heading_angle
-# ✅ Erwartung: ~10 Hz wenn gap_found=true, 0 Hz wenn kein Gap
-```
-
-**Wenn `gap_found` immer `false`:** Der Preprocessor liefert ungültige Daten →
-zurück zu Schritt 7.2.
-
----
-
-### 7.5 Test: ftg_planner_node (einzeln)
-
-**Voraussetzung:** Schritte 7.2 + 7.4 müssen laufen.
+Voraussetzung: Preprocessor + FTG laufen.
 
 ```bash
 ros2 launch mxck_ftg_planner ftg_planner.launch.py
 ```
 
-**Prüfen:**
-```bash
-ros2 topic echo /autonomous/ftg/planner_status
-```
-
-| Status-Meldung | Bedeutung |
+| Prüfung | Erwartung |
 |---|---|
-| `waiting for fresh inputs` | Mindestens ein Input fehlt oder ist zu alt |
-| `no valid gap found -> stop` | follow_the_gap sieht keine Lücke |
-| `gap_angle=+0.123 rad, target_speed=0.45 m/s, ...` | ✅ Normaler Betrieb |
+| `planner_status` | `gap_angle=..., target_speed=..., front_clearance=...` |
+| `gap_angle` | Werte zwischen -0.45 und +0.45 rad |
+| `target_speed` | 0.20–0.45 m/s bei freier Fahrt |
 
-```bash
-ros2 topic echo /autonomous/ftg/gap_angle
-# ✅ Erwartung: Werte zwischen -0.45 und +0.45 rad
-
-ros2 topic echo /autonomous/ftg/target_speed
-# ✅ Erwartung: Werte 0.20–0.60 m/s (bei freier Fahrt)
-```
-
----
-
-### 7.6 Test: ftg_command_node (einzeln)
-
-**Voraussetzung:** Schritt 7.5 muss laufen.
+### 7.8 Schritt 7 – Control-Node testen
 
 ```bash
 ros2 launch mxck_ftg_control ftg_command.launch.py
 ```
 
-**Prüfen:**
-```bash
-ros2 topic echo /autonomous/ackermann_cmd
-```
-
-| Was prüfen | Erwartung |
+| Prüfung | Erwartung |
 |---|---|
-| `header.frame_id` | `"base_link"` |
-| `drive.speed` | Gleich wie target_speed (0.20–0.60) |
-| `drive.steering_angle` | Gleich wie gap_angle (±0.45 rad) |
+| `ackermann_cmd` | `speed` und `steering_angle` werden publiziert |
+| `control_status` | `[CONTROL] speed=..., steering=...` |
 
-```bash
-ros2 topic echo /autonomous/ftg/control_status
-# ✅ Erwartung: "[CONTROL] speed=0.XX m/s, steering=±X.XXX rad"
-```
-
----
-
-### 7.7 Test: Full Stack
-
-**TF + LiDAR müssen bereits laufen (Schritt 7.1).**
+### 7.9 Schritt 8 – Full Stack
 
 ```bash
 ros2 launch mxck_ftg_bringup ftg_full_system.launch.py
 ```
 
-**Schnell-Check:**
 ```bash
 ros2 topic hz /autonomous/ftg/scan_filtered   # ✅ ~10 Hz
-ros2 topic hz /autonomous/ftg/gap_angle        # ✅ ~10 Hz (getrieben von Scan)
-ros2 topic hz /autonomous/ackermann_cmd        # ✅ ~20 Hz (Timer-basiert)
+ros2 topic hz /autonomous/ackermann_cmd        # ✅ ~20 Hz
+ros2 topic echo /autonomous/ftg/planner_status # ✅ Keine "waiting" Meldungen
 ```
 
-**Detaillierte Prüfung:**
-```bash
-ros2 topic echo /autonomous/ftg/planner_status
-# ✅ Sollte "gap_angle=..." zeigen, NICHT "waiting" oder "no valid gap"
+### 7.10 Schritt 9 – Fahrtest
 
-ros2 topic echo /autonomous/ackermann_cmd
-# ✅ speed > 0, steering ≠ 0 (bei vorhandenem Gap)
-```
+- Vehicle-Control läuft bereits in `mxck2_control`
+- Auf Deadman bleiben, bis alles stabil ist
+- Danach auf Autonomous umschalten
+- Zuerst in freiem Bereich testen, dann Hindernisse
 
-### 7.8 Fahrt-Test
-
-**Erst wenn Schritt 7.7 sinnvolle Werte zeigt!**
-
-```bash
-# Vehicle-Control separat starten und auf Autonomous umschalten
-```
-
-### 7.9 Bag aufnehmen
+### 7.11 Schritt 10 – Bag aufnehmen
 
 ```bash
 ros2 bag record -o /mxck2_ws/bags/ftg_test \
@@ -558,6 +586,16 @@ ros2 bag record -o /mxck2_ws/bags/ftg_test \
   /autonomous/ftg/control_status
 ```
 
+### 7.12 Bag vom Jetson kopieren
+
+```bash
+# Vom Jetson-Host:
+sudo docker cp mxck2_development:/mxck2_ws/bags/ftg_test /home/mxck/ftg_test_bag
+
+# Vom PC:
+scp -r mxck@<JETSON_IP>:/home/mxck/ftg_test_bag .
+```
+
 ---
 
 ## 8. Visualisierung mit Foxglove
@@ -565,9 +603,14 @@ ros2 bag record -o /mxck2_ws/bags/ftg_test \
 ### 8.1 Verbindung herstellen
 
 Foxglove Studio → „Open Connection" →
-**Rosbridge WebSocket**: `ws://<JETSON_IP>:9090`
+**Rosbridge WebSocket**: `ws://<JETSON_IP>:8765` *(typischer Standardport, bitte gegen die tatsächliche Container-/Rosbridge-Konfiguration prüfen)*
 
-(Der `mxck2_foxglove` Container stellt den Bridge bereit.)
+(Der `mxck2_foxglove` Container stellt die Bridge bereit; der tatsächlich verwendete Port
+ist im Deployment bzw. in der Container-Konfiguration zu verifizieren.)
+
+> **Hinweis:** FTG-Topics sind nur sichtbar, wenn der FTG-Stack im selben ROS-Domain
+> wie die Foxglove-Bridge läuft. Für Live-Visualisierung entweder den FTG-Stack in
+> `mxck2_control` bauen oder ein aufgenommenes Bag in Foxglove öffnen.
 
 ### 8.2 Alle verfügbaren Topics
 
@@ -592,85 +635,61 @@ Foxglove Studio → „Open Connection" →
 
 ### 8.3 Panel-Konfiguration
 
-#### Panel 1: 3D-Ansicht – LiDAR + FTG-Visualisierung
+#### Panel 1: 3D-Ansicht
 
-Neues **3D Panel** erstellen, Fixed Frame: `base_link`.
+Fixed Frame: `base_link`.
 
-Topics hinzufügen (links unter „Topics"):
+| Topic | Was man sieht |
+|---|---|
+| `/scan` | Roher 360° LiDAR-Scan (weiß) |
+| `/autonomous/ftg/scan_filtered` | Gefiltertes Frontfenster (grün) |
+| `/visualize_obstacles` | Erkannte Hindernisse (grün, hardcoded) |
+| `/visualize_largest_gap` | Gap-Ränder + Roboterposition |
+| `/visualize_final_heading_angle` | Gewählte Fahrtrichtung als Pfeil |
 
-| Topic | Was man sieht | Empfohlene Farbe |
-|---|---|---|
-| `/scan` | Roher 360° LiDAR-Scan | Weiß/Grau |
-| `/autonomous/ftg/scan_filtered` | Gefiltertes Frontfenster (±50°) | Grün |
-| `/visualize_obstacles` | Erkannte Hindernisse vom FTG-Algorithmus | Grün (hardcoded im C++) |
-| `/visualize_largest_gap` | 3 Punkte: Roboterposition + Gap-Ränder | Standard |
-| `/visualize_final_heading_angle` | Pose-Pfeil: gewählte Fahrtrichtung | Standard |
-| `/autonomous/ftg/scan_check_markers` | Kugel + Pfeil zum nächsten Hindernis | Nur bei `run_scan_check:=true` |
+#### Panel 2: Plot – Steering & Speed
 
-So sieht man auf einen Blick: roher Scan → gefilterter Scan → erkannte Hindernisse → gewählte Lücke → Fahrtrichtung.
+| Serie | Topic-Pfad |
+|---|---|
+| Gap Angle | `/autonomous/ftg/gap_angle.data` |
+| Target Speed | `/autonomous/ftg/target_speed.data` |
+| Front Clearance | `/autonomous/ftg/front_clearance.data` |
 
-#### Panel 2: Plot – Steering & Speed über Zeit
-
-Neues **Plot Panel** erstellen, 3 Serien hinzufügen:
-
-| Serie | Topic-Pfad | Beschreibung |
-|---|---|---|
-| Gap Angle | `/autonomous/ftg/gap_angle.data` | Gewünschter Lenkwinkel (rad) |
-| Target Speed | `/autonomous/ftg/target_speed.data` | Gewünschte Geschwindigkeit (m/s) |
-| Front Clearance | `/autonomous/ftg/front_clearance.data` | Abstand zum nächsten Hindernis (m) |
-
-Damit sieht man wie Speed und Lenkung auf Hindernisse reagieren.
-
-#### Panel 3: Plot – Ackermann-Output (was das Auto tatsächlich bekommt)
-
-Neues **Plot Panel**:
+#### Panel 3: Plot – Ackermann-Output
 
 | Serie | Topic-Pfad |
 |---|---|
 | Actual Speed | `/autonomous/ackermann_cmd.drive.speed` |
 | Actual Steering | `/autonomous/ackermann_cmd.drive.steering_angle` |
 
-Vergleiche mit Panel 2 um zu sehen ob Command-Node die Werte korrekt weitergibt.
-
-#### Panel 4: Plot – FTG-Heading (Rohdaten von follow_the_gap_v0)
-
-Neues **Plot Panel**:
+#### Panel 4: Plot – Heading vs. Gap Angle
 
 | Serie | Topic-Pfad |
 |---|---|
 | Raw Heading | `/final_heading_angle.data` |
 | Gap Angle (nach Planner) | `/autonomous/ftg/gap_angle.data` |
 
-Zeigt ob der Planner den Heading-Winkel korrekt begrenzt (±0.45 rad).
+#### Panel 5: Log – Status
 
-#### Panel 5: Log – Status-Meldungen
-
-Neues **Raw Messages Panel** oder **Log Panel**:
-
-| Topic | Was man sieht |
+| Topic | Inhalt |
 |---|---|
-| `/autonomous/ftg/planner_status` | `[PLANNER] gap_angle=+0.12 rad, target_speed=0.45 m/s, ...` |
-| `/autonomous/ftg/control_status` | `[CONTROL] speed=0.45 m/s, steering=+0.120 rad` |
-| `/autonomous/ftg/status` | Preprocessor-Status, TF-Meldungen |
-
-Bei Problemen hier zuerst schauen – die Status-Meldungen zeigen sofort ob ein Input fehlt oder stale ist.
+| `/autonomous/ftg/planner_status` | Planner-Entscheidungen |
+| `/autonomous/ftg/control_status` | Control-Status |
+| `/autonomous/ftg/status` | Preprocessor-Status |
 
 ### 8.4 Debugging-Szenarien
 
-| Problem | Was in Foxglove prüfen |
+| Problem | Was prüfen |
 |---|---|
-| Auto fährt gar nicht | Panel 5: steht dort `waiting for fresh inputs`? → Ein Topic fehlt |
-| Keine Lücke gefunden | 3D: ist `/autonomous/ftg/scan_filtered` sichtbar? Sind `/visualize_obstacles` überall? |
-| Falsche Fahrtrichtung | 3D: zeigt `/visualize_final_heading_angle` Pfeil in die richtige Richtung? |
-| Auto zu langsam | Panel 2: ist `front_clearance` niedrig? Ist `gap_angle` groß? → Speed-Policy greift |
-| Steering immer 0 | Panel 4: kommt `/final_heading_angle` mit Werten ≠ 0? |
-| Scan sieht falsch aus | 3D: vergleiche `/scan` (weiß) mit `/autonomous/ftg/scan_filtered` (grün) – ist das Frontfenster richtig orientiert? |
+| Auto fährt nicht | Panel 5: `waiting for fresh inputs`? |
+| Keine Lücke | 3D: `/autonomous/ftg/scan_filtered` sichtbar? |
+| Falsche Richtung | 3D: `/visualize_final_heading_angle` Pfeil richtig? |
+| Zu langsam | Panel 2: `front_clearance` niedrig oder `gap_angle` groß? |
+| Steering = 0 | Panel 4: `/final_heading_angle` Werte ≠ 0? |
 
 ### 8.5 Layout speichern
 
 File → Export Layout → `ftg_debug_layout.json`
-
-Beim nächsten Mal: File → Import Layout → fertig.
 
 ---
 
@@ -679,10 +698,53 @@ Beim nächsten Mal: File → Import Layout → fertig.
 | Symptom | Ursache | Lösung |
 |---|---|---|
 | `[PREPROCESSOR] TF lookup failed` | TF nicht gestartet | `mxck_run_launch.py broadcast_tf:=true` starten |
-| `[PLANNER] waiting for fresh inputs` | Ein Input fehlt oder ist zu alt | Prüfe ob alle 3 Topics publizieren: `/final_heading_angle`, `/gap_found`, `/front_clearance` |
-| `[PLANNER] no valid gap found` | FTG sieht keine Lücke | Prüfe `/autonomous/ftg/scan_filtered` – sind die Ranges sinnvoll? |
-| `[CONTROL] stale planner inputs` | Planner publiziert nicht mehr | Prüfe ob ftg_planner_node noch läuft |
-| `scan_filtered` zeigt alle Ranges 0.05 | Preprocessor clippt zu aggressiv oder TF falsch | Prüfe TF und `clip_min_range_m` |
-| Ackermann speed immer 0 | Clearance < stop_clearance | Hindernis zu nah oder Clearance falsch berechnet |
-| Auto lenkt in falsche Richtung | Steering-Vorzeichen falsch | `angle_to_steering_gain: -1.0` in ftg_control.yaml |
-| `/visualize_largest_gap` leer | Kein Gap gefunden | Prüfe `/gap_found` – wenn false, gibt es keine Gap-Visualisierung |
+| `[PLANNER] waiting for fresh inputs` | Ein Input fehlt oder zu alt | Prüfe ob alle 3 Topics publizieren |
+| `[PLANNER] no valid gap found` | FTG sieht keine Lücke | Prüfe `scan_filtered` Ranges |
+| `[CONTROL] stale planner inputs` | Planner publiziert nicht mehr | Prüfe ob ftg_planner_node läuft |
+| `scan_filtered` alle Ranges 0.05 | Clippt zu aggressiv oder TF falsch | Prüfe TF und `clip_min_range_m` |
+| Speed immer 0 | Clearance < `stop_clearance` | Hindernis zu nah |
+| Falsche Lenkrichtung | Steering-Vorzeichen falsch | `angle_to_steering_gain: -1.0` |
+| Auto stoppt an Corners | FTG-Heading am Limit + Steering-Slowdown | Siehe Optimierungsvorschläge |
+
+---
+
+## 10. Optimierungsvorschläge
+
+### 10.1 follow_the_gap_v0 Geometrie parametrisierbar machen
+
+Der wichtigste Engpass für enge Korridore und Corners ist `kCarRadius = 0.4 m`.
+Für das 30 cm breite MXCK sollte dieser Wert ca. **0.18–0.20 m** betragen.
+
+**Empfohlene Änderung:** Die C++-Konstanten `kCarRadius`, `kTurnRadius`, `kTrackMinWidth`,
+`kDistanceToCorner`, `kGapWeightCoefficient` und `kCornerWeightCoefficient` als ROS-Parameter
+verfügbar machen, damit sie per YAML konfiguriert werden können.
+
+Dazu müssen in `follow_the_gap.hpp` die `static constexpr`-Deklarationen durch `extern`-Variablen
+ersetzt werden, die in `main.cpp` via `declare_parameter` / `get_parameter` geladen werden.
+
+**Empfohlene Startwerte für MXCK (30 cm Breite):**
+
+| Konstante | CTU-Default | Empfohlen (MXCK) | Begründung |
+|---|---|---|---|
+| `kCarRadius` | 0.40 m | **0.20 m** | 15 cm halbe Breite + 5 cm Sicherheitsmarge |
+| `kTurnRadius` | 0.30 m | **0.25 m** | Ackermann-Wendekreis |
+| `kTrackMinWidth` | 0.35 m | **0.30 m** | Fahrzeugbreite |
+| `kDistanceToCorner` | 0.22 m | **0.18 m** | Engerer Corner-Approach |
+
+### 10.2 Clearance-FOV vom FTG-FOV trennen
+
+Aktuell wird `front_clearance` über das gesamte `front_fov_deg` berechnet. In engen Korridoren
+sieht der Preprocessor Seitenwände und meldet niedrige Clearance, obwohl der Weg geradeaus frei ist.
+
+**Empfehlung:** Einen separaten Parameter `clearance_fov_deg` (z.B. 30°) einführen, der nur für die
+`front_clearance`-Berechnung verwendet wird, während `front_fov_deg` für den FTG-Scan-Output bleibt.
+
+### 10.3 Adaptive Speed-Policy
+
+Die aktuelle Speed-Policy kennt nur zwei lineare Faktoren (Clearance und Steering). In bestimmten
+Situationen (z.B. enger Korridor mit Kurve) können sich beide Faktoren gegenseitig zu stark abbremsen.
+
+**Mögliche Verbesserung:** Statt `min(clearance_factor, steering_factor)` könnte ein gewichteter
+Durchschnitt oder eine situationsabhängige Logik verwendet werden, z.B.:
+- Wenn Clearance hoch aber Steering groß → trotzdem fahren (Kurvenfahrt)
+- Wenn Clearance niedrig aber Steering klein → langsamer (enger Korridor geradeaus)

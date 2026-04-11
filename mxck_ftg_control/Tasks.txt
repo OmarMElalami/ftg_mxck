@@ -1,7 +1,0 @@
-Updated on 2026-04-07
-
-Main tasks for this package:
-1) Convert planner angle/speed topics into AckermannDriveStamped.
-2) Keep the output topic fixed at /autonomous/ackermann_cmd.
-3) Stop safely on stale inputs.
-4) Keep the package small, deterministic and easy to debug.

@@ -1,50 +1,45 @@
 # mxck_ftg_planner
 
-Unified planner node for the MXCK scan-based FTG path.
-Consumes `follow_the_gap_v0` outputs and front clearance,
-publishes gap angle and target speed for `ftg_command_node`.
+`mxck_ftg_planner` contains exactly one planner node: `ftg_planner_node`.
 
-## Pipeline position
+It converts FTG heading output + clearance into:
+- `/autonomous/ftg/gap_angle`
+- `/autonomous/ftg/target_speed`
+- `/autonomous/ftg/planner_status`
+
+Primary pipeline position:
 
 ```text
-/final_heading_angle  ──┐
-/gap_found            ──┼──▶  ftg_planner_node  ──▶  /autonomous/ftg/gap_angle
-/autonomous/ftg/      ──┘                        ──▶  /autonomous/ftg/target_speed
-  front_clearance                                ──▶  /autonomous/ftg/planner_status
+/final_heading_angle + /gap_found + /autonomous/ftg/front_clearance
+  -> ftg_planner_node
+  -> /autonomous/ftg/gap_angle + /autonomous/ftg/target_speed
 ```
 
-## Node: `ftg_planner_node`
+> The legacy adapter node is removed; planning is unified in `ftg_planner_node`.
 
-**Inputs:**
-- `/final_heading_angle` (`std_msgs/Float32`) — from `follow_the_gap_v0`
-- `/gap_found` (`std_msgs/Bool`) — from `follow_the_gap_v0`
-- `/autonomous/ftg/front_clearance` (`std_msgs/Float32`) — from `scan_preprocessor_node`
+## Node: ftg_planner_node
 
-**Outputs:**
-- `/autonomous/ftg/gap_angle` (`std_msgs/Float32`)
-- `/autonomous/ftg/target_speed` (`std_msgs/Float32`)
-- `/autonomous/ftg/planner_status` (`std_msgs/String`)
+### Subscribes
+- `/final_heading_angle` (`std_msgs/msg/Float32`)
+- `/gap_found` (`std_msgs/msg/Bool`)
+- `/autonomous/ftg/front_clearance` (`std_msgs/msg/Float32`)
 
-## Speed policy
+### Publishes
+- `/autonomous/ftg/gap_angle` (`std_msgs/msg/Float32`)
+- `/autonomous/ftg/target_speed` (`std_msgs/msg/Float32`)
+- `/autonomous/ftg/planner_status` (`std_msgs/msg/String`)
 
-| Condition | Result |
-|-----------|--------|
-| Any input stale (> 0.5 s) | speed = 0, angle = 0 |
-| `gap_found` = false | speed = 0, angle = 0 |
-| Clearance ≤ `stop_clearance_m` | speed = 0 |
-| Clearance between stop and caution | speed scaled linearly |
-| Steering angle > `steering_slowdown_start_rad` | speed reduced |
-| Clear corridor, small steering | `cruise_speed_mps` |
-
-Speed = `cruise_speed × min(clearance_factor, steering_factor)`,
-clamped to `[min_speed_mps, cruise_speed_mps]`.
-
-## Build
-
-```bash
-colcon build --symlink-install --packages-select mxck_ftg_planner
-source install/setup.bash
-```
+### Current key parameters (`config/ftg_planner.yaml`)
+- `input_timeout_sec: 0.50`
+- `max_abs_gap_angle_rad: 0.45`
+- `cruise_speed_mps: 0.45`
+- `min_speed_mps: 0.20`
+- `stop_clearance_m: 0.25`
+- `caution_clearance_m: 0.50`
+- `steering_slowdown_start_rad: 0.40`
+- `steering_slowdown_full_rad: 0.70`
+- `heading_smoothing_alpha: 0.4`
+- `speed_smoothing_alpha: 0.3`
 
 ## Launch
 
