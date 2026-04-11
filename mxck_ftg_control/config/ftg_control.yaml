@@ -12,5 +12,5 @@
     angle_to_steering_gain: -1.00   # invertiert, Hardware-spezifisch
     max_steering_angle_rad: 0.45
     
-    min_speed_mps: 0.18
+    min_speed_mps: 0.0
     max_speed_mps: 1.80
