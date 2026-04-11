@@ -7,11 +7,11 @@
     control_status_topic: "/autonomous/ftg/control_status"
 
     frame_id: "base_link"
-    input_timeout_sec: 0.50
+    input_timeout_sec: 1.50
     publish_zero_on_stale: true
 
-    angle_to_steering_gain: 1.00
-    max_steering_angle_rad: 0.45
+    angle_to_steering_gain: -1.00   # invertiert, Hardware-spezifisch
+    max_steering_angle_rad: 0.44
 
-    min_speed_mps: 0.00
-    max_speed_mps: 1.00
+    min_speed_mps: 0.10
+    max_speed_mps: 0.60            # war 1.50 – sicherer begrenzen

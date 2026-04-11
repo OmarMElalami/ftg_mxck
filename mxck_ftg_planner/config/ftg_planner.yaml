@@ -8,15 +8,21 @@
     target_speed_topic: "/autonomous/ftg/target_speed"
     planner_status_topic: "/autonomous/ftg/planner_status"
 
-    input_timeout_sec: 0.50
+    input_timeout_sec: 1.50
     max_abs_gap_angle_rad: 0.45
 
-    cruise_speed_mps: 0.60
-    min_speed_mps: 0.20
+    cruise_speed_mps: 0.45
+    min_speed_mps: 0.15
     stop_speed_mps: 0.00
 
-    caution_clearance_m: 0.90
-    stop_clearance_m: 0.35
+    # Angepasst für enge Korridore (~1m Breite)
+    stop_clearance_m: 0.20
+    caution_clearance_m: 0.50
 
-    steering_slowdown_start_rad: 0.20
-    steering_slowdown_full_rad: 0.45
+    # Erst bei starkem Lenken abbremsen
+    steering_slowdown_start_rad: 0.35
+    steering_slowdown_full_rad: 0.60
+
+    # Smoothing: 0.0=sehr glatt, 1.0=kein Filter
+    heading_smoothing_alpha: 0.4
+    speed_smoothing_alpha: 0.3
