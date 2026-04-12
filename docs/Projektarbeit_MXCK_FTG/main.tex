@@ -94,29 +94,13 @@
 \chapter*{Kurzfassung}
 \addcontentsline{toc}{chapter}{Kurzfassung}
 
-Diese Projektarbeit beschreibt die Integration, Dokumentation und Bewertung
-eines scan-basierten \emph{Follow-the-Gap}-Stacks (FTG) für das MXCarkit.
-Das Fahrzeug basiert auf einem NVIDIA-Jetson-System, arbeitet mit einem
-2D-LiDAR und wird über eine Ackermann-Steuerkette mit VESC angesteuert.
-Ziel der Arbeit war es, einen robusten, nachvollziehbaren und sicher
-testbaren ROS~2-Datenpfad von \texttt{/scan} bis
-\texttt{/autonomous/ackermann\_cmd} aufzubauen.
+Im Rahmen dieser Projektarbeit wurde ein scan-basierter \emph{Follow-the-Gap}-Stack (FTG) für das MXCarkit entwickelt, in die bestehende ROS~2-Fahrzeugarchitektur integriert und experimentell validiert. Das Fahrzeug basiert auf einer Jetson-Plattform, verwendet einen 2D-LiDAR als primäre Sensorik für die lokale Umfelderfassung und wird über eine Ackermann-Steuerkette mit VESC angesteuert. Ziel der Arbeit war es, einen robusten, modularen und sicher testbaren Datenpfad von \texttt{/scan} bis zur autonomen Ausgabe \texttt{/autonomous/ackermann\_cmd} bereitzustellen und dessen Funktionsfähigkeit unter realen Randbedingungen nachzuweisen.
 
-Die aktualisierte Zielarchitektur besteht aus vier logisch getrennten Stufen:
-(i) einer TF-basierten Vorverarbeitung des LiDAR-Scans,
-(ii) dem C++-Planerkern follow\_the\_gap\_v0 im Scan-Modus,
-(iii) einem Python-Planer für Lenkwinkel- und Geschwindigkeitsvorgabe und
-(iv) einem Ackermann-Command-Knoten als Ausgabe in die bestehende
-MXCK-Steuerkette. Der bisherige Legacy-Pfad über obstacle substitution bleibt kompatibel im Repository, ist jedoch
-nicht mehr der primäre Laufzeitpfad.
+Die realisierte Hauptarchitektur besteht aus vier funktional getrennten Stufen: einer LiDAR-Vorverarbeitung mit TF-basierter Rezentrierung und frontaler Sichtfeldselektion, dem reaktiven C++-Kern \texttt{follow\_the\_gap\_v0} zur Bestimmung einer befahrbaren Lücke, einer Planner-Stufe zur Begrenzung des Lenkwinkels und zur adaptiven Geschwindigkeitswahl sowie einer Control-Stufe zur Überführung der Sollwerte in Ackermann-kompatible Fahrbefehle. Damit wurde eine klare Trennung zwischen Wahrnehmung, lokaler Richtungswahl, fahrdynamischer Policy und fahrzeugspezifischer Schnittstelle erreicht. Der frühere Legacy-Pfad über \texttt{obstacle\_substitution} bleibt aus Kompatibilitätsgründen im Repository erhalten, stellt jedoch nicht mehr den primären Laufzeitpfad dar.
 
-Die theoretische Einordnung des Verfahrens erfolgt anhand der Originalarbeit
-von Sezer und Gokasan zum Follow-the-Gap-Verfahren, der CTU-Implementierung
-für F1/10-Fahrzeuge sowie der ROS~2/F1TENTH-Migrationsarbeit von Endler.
-Auf dieser Basis wird gezeigt, wie sich die klassische FTG-Idee
-(largest gap, gap center, final heading) in eine aktuelle ROS~2-Pipeline für
-ein Jetson-basiertes Lehr- und Versuchssystem übertragen lässt.
+Die theoretische Grundlage bildet das Follow-the-Gap-Verfahren nach Sezer und Gokasan, ergänzt durch die CTU-/F1TENTH-Referenzimplementierung und deren Übertragung in eine moderne ROS~2-Umgebung. Auf dieser Basis wird gezeigt, wie ein klassischer lokaler reaktiver Planungsansatz in eine aktuelle modulare Fahrzeugsoftware integriert werden kann, ohne die bestehende Sicherheits- und Steuerlogik des MXCarkit zu umgehen.
 
+Die experimentelle Validierung erfolgte anhand realer Fahrversuche in strukturierten Innenraumszenarien mit statischen Hindernissen und Eckdurchfahrt. Zur Analyse wurden alle relevanten Systemgrößen mit \texttt{rosbag2} aufgezeichnet und sowohl online mit Foxglove als auch offline über Zeitreihenplots und Kenngrößen ausgewertet. Die Ergebnisse zeigen, dass das System Hindernisse grundsätzlich zuverlässig als freie bzw. belegte Bereiche im LiDAR-Scan interpretieren, kollisionsfreie Ausweichmanöver erzeugen und in die bestehende Fahrzeugsteuerung integrieren kann. Gleichzeitig wurde deutlich, dass die Qualität des Fahrverhaltens wesentlich von der Parametrierung abhängt, insbesondere von Sichtfeld, Clearance-Schwellen, Steering-Slowdown und den internen geometrischen FTG-Konstanten. Die Arbeit liefert damit nicht nur einen funktionsfähigen Stack, sondern auch eine systematische Bewertung seiner Leistungsfähigkeit, Robustheit und Grenzen.
 \bigskip
 
 
