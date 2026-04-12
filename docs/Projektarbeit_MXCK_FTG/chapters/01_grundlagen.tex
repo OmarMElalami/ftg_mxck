@@ -9,39 +9,14 @@ implementierten Architektur notwendig sind. Abschließend wird der
 Follow-the-Gap-Algorithmus sowohl in seiner ursprünglichen Form als auch
 in der für diese Arbeit relevanten scan-basierten Ausprägung dargestellt.
 
+
 \section{Aufgabenstellung und Ziel der Arbeit}
 
-Ziel dieser Projektarbeit ist die Entwicklung, Integration und
-Validierung eines robusten, scan-basierten Hindernisvermeidungsverfahrens
-für ein automatisiertes Modellfahrzeug auf Basis von ROS~2.
+Im Rahmen dieser Arbeit wird eine Fahrfunktion zur Hinderniserkennung für ein automatisiertes Modellfahrzeug auf Basis des MxCarkit-Systems entwickelt. Ziel ist es, eine robuste und echtzeitfähige Lösung zu konzipieren, die Hindernisse im Fahrweg zuverlässig erkennt und darauf mit geeigneten Reaktionsstrategien wie Abbremsen oder Ausweichen reagiert.
 
-Im Mittelpunkt steht die Realisierung eines durchgängigen und
-reproduzierbaren Datenpfads von der LiDAR-Sensorik bis zur fahrbaren
-Ackermann-Steuerung. Dabei wird nicht lediglich ein einzelner Algorithmus
-betrachtet, sondern die vollständige Verarbeitungskette bestehend aus
-Sensorvorverarbeitung, lokaler Planung und fahrzeugspezifischer
-Ansteuerung.
+Die Aufgabenstellung umfasst die Entwicklung, Integration und Validierung einer ROS 2-basierten Softwarearchitektur, welche Sensordaten, insbesondere von LiDAR- oder Kamerasystemen, verarbeitet und daraus sichere Fahrentscheidungen ableitet. Dabei sollen sowohl geeignete Verfahren zur Umfeldwahrnehmung als auch eine darauf abgestimmte Reaktionslogik implementiert und experimentell untersucht werden.
 
-Die wesentlichen Teilziele der Arbeit sind:
-
-\begin{itemize}
-    \item Aufbau eines konsistenten ROS~2-Datenpfads vom Rohsensor
-    (\texttt{/scan}) bis zur Aktorik
-    (\texttt{/autonomous/ackermann\_cmd}),
-    \item Integration des Follow-the-Gap-Algorithmus in eine reale
-    Fahrzeugarchitektur,
-    \item Gewährleistung reproduzierbarer Systemzustände durch klar
-    definierte Launch- und Parameterkonfigurationen,
-    \item experimentelle Validierung des Systemverhaltens anhand realer
-    Fahrversuche,
-    \item sowie die konsistente Dokumentation der tatsächlich
-    implementierten Systemarchitektur im Repository
-    \texttt{ftg\_mxck}.
-\end{itemize}
-
-Im Unterschied zu rein theoretischen Arbeiten liegt der Fokus somit auf
-der praktischen Umsetzung innerhalb eines bestehenden Softwaresystems
-sowie dessen Interaktion mit realer Sensorik und Aktorik.
+Ein weiterer Schwerpunkt liegt auf der Systemintegration in die bestehende Fahrzeugarchitektur sowie der experimentellen Validierung unter Laborbedingungen. Abschließend erfolgt eine Bewertung der Leistungsfähigkeit, Robustheit und Grenzen des entwickelten Systems, um dessen Einsatzpotenzial für autonome Fahrfunktionen einzuordnen.
 
 \section{Das MXCarkit als Zielplattform}
 
@@ -132,68 +107,69 @@ Orchestrierung mehrerer Nodes. Diese definieren:
 YAML-Dateien dienen dabei der strukturierten Parametrierung der Nodes.
 Für die Reproduzierbarkeit des Systems ist die Konsistenz zwischen
 Launch-Dateien, Parametern und tatsächlicher Node-Konfiguration
-entscheidend.
+entscheidend.\section{Stand der Technik}
+
+Die autonome Navigation von Robotern wird in der Fachliteratur klassisch in die globale Pfadplanung und die lokale Hindernisvermeidung unterteilt. Während statische Planer eine vollständige Karte der Umgebung benötigen, agiert die Hindernisvermeidung rein reaktiv auf Basis aktueller Sensordaten.
+
+\subsection{Vergleich bestehender Planungsansätze}
+
+In der Entwicklung haben sich verschiedene Ansätze zur lokalen Navigation etabliert, die jedoch spezifische systemtechnische Nachteile aufweisen:
+
+\begin{itemize}
+    \item \textbf{Bug-Algorithmen}: Diese folgen dem Prinzip, sich direkt auf ein Ziel zuzubewegen und bei Kontakt ein Hindernis am Rand zu umfahren. Dies führt jedoch oft zu ineffizienten Trajektorien und einer gefährlich nahen Annäherung an Objekte.
+    \item \textbf{Artificial Potential Fields (APF)}: Hierbei werden Hindernisse als abstoßende und das Ziel als anziehende Potentiale modelliert. Ein kritisches Problem stellt das Auftreten lokaler Minima dar, bei denen sich die wirkenden Kräfte gegenseitig aufheben und der Roboter vor Erreichen des Ziels verharrt \cite{sezer2012}.
+    \item \textbf{Vector Field Histogram (VFH)}: Dieser Ansatz nutzt ein polares Histogramm zur Richtungsbestimmung. Er ist zwar zielorientiert, vernachlässigt jedoch häufig die spezifischen kinematischen Beschränkungen des Fahrzeugs, was zu nicht fahrbaren Pfaden führen kann.
+\end{itemize}
+
+Aufgrund dieser Defizite wurde für die vorliegende Arbeit die \textit{Follow-the-Gap Method} (FGM) gewählt. Im Gegensatz zu APF-Methoden ist FGM mathematisch resistent gegen lokale Minima, da der Algorithmus gezielt nach dem größten freien Bereich sucht, anstatt lediglich Kraftvektoren zu summieren \cite{sezer2012}. Zudem integriert FGM die kinematischen Beschränkungen (Non-Holonomie) des Fahrzeugs direkt in den Auswahlprozess der Lücke, was eine höhere Trajektoriengüte und Sicherheit gewährleistet.
+
+\subsection{Sensorik zur Umfeldwahrnehmung}
+
+Für die Umsetzung einer robusten Hindernisvermeidung ist die Wahl der Sensorik entscheidend. In dieser Arbeit wird ein 2D-LiDAR-System (Light Detection and Ranging) als Primärsensor eingesetzt. Die Entscheidung für LiDAR gegenüber kamerabasierten Systemen (Vision) basiert auf folgenden wissenschaftlichen Kriterien:
+
+\begin{enumerate}
+    \item \textbf{Präzision und Reichweite}: LiDAR liefert direkte und hochpräzise Distanzmessungen mit einer geringen Latenz, was für reaktive Algorithmen wie FGM essentiell ist \cite{sezer2012}.
+    \item \textbf{Recheneffizienz}: Im Vergleich zur komplexen Bildverarbeitung (Computer Vision), die hohe Anforderungen an die CPU/GPU stellt, erlauben LiDAR-Scans eine schnelle Extraktion von Hindernissen in Form von Distanz-Arrays.
+    \item \textbf{Beleuchtungsunabhängigkeit}: LiDAR-Systeme arbeiten als aktive Sensoren unabhängig von externen Lichtverhältnissen, was die Robustheit der Hinderniserkennung in unterschiedlichen Laborumgebungen sicherstellt.
+\end{enumerate}
+
+Durch die Kombination der LiDAR-basierten Distanzmessung mit der geometrischen Logik des Follow-the-Gap-Verfahrens wird eine Architektur realisiert, die sowohl die Anforderungen an die Echtzeitfähigkeit als auch an die Kollisionssicherheit erfüllt.
 
 \section{Follow-the-Gap als reaktiver Planungsansatz}
 
-Der Follow-the-Gap-Algorithmus (FTG) ist ein lokaler,
-reaktiver Planungsansatz zur Hindernisvermeidung. Im Gegensatz zu
-kartenbasierten Verfahren basiert FTG ausschließlich auf der aktuellen
-Sensorsicht und verzichtet auf eine globale Umgebungsrepräsentation.
+Der Follow-the-Gap-Algorithmus (FGM) ist ein lokaler Planungsansatz, der eine sichere Durchquerung von Umgebungen ermöglicht, ohne auf eine globale Karte angewiesen zu sein \cite{sezer2012}. Er berechnet basierend auf der aktuellen Sensordatenlage reaktiv den nächsten Bewegungsschritt \cite{sezer2012}.
 
-\subsection{Grundprinzip}
+\subsection{Grundprinzip und methodisches Vorgehen}
 
-Die grundlegende Idee des Verfahrens besteht darin, aus den erfassten
-Hindernissen freie Bereiche (``Gaps'') zu bestimmen und die größte
-passierbare Lücke auszuwählen. Das Fahrzeug wird anschließend in Richtung
-des Zentrums dieser Lücke ausgerichtet.
+Die Implementierung nach Sezer und Gokasan transformiert das Problem zunächst durch eine Hindernisvergrößerung (\textit{Obstacle Enlargement}) in einen Punkt-Roboter-Ansatz \cite{sezer2012}. Dabei wird der Radius des Fahrzeugs rechnerisch zum Radius der Hindernisse addiert, um eine kollisionsfreie Trajektorie innerhalb der berechneten Lücken zu garantieren \cite{sezer2012}.
 
-Die klassische Formulierung umfasst drei Schritte:
+Der Algorithmus folgt drei wesentlichen Schritten \cite{sezer2012}:
+
 \begin{enumerate}
-    \item Identifikation von Hindernissen und freien Bereichen,
-    \item Bestimmung eines geeigneten Gap-Zentrums,
-    \item Ableitung eines Fahrwinkels (Heading) basierend auf dieser Lücke.
+    \item \textbf{Berechnung des Gap-Arrays}: Basierend auf den Sensordaten sowie den Sichtfeldgrenzen (\textit{Field of View}) und den kinematischen Grenzen (\textit{Nonholonomic Constraints}) werden freie Bereiche zwischen den Hindernissen identifiziert \cite{sezer2012}.
+    \item \textbf{Bestimmung des Gap-Zentrums}: Statt lediglich den arithmetischen Mittelwert der Winkel zu bilden, nutzt das Verfahren geometrische Ansätze wie das Cosinus- und das Apollonius-Theorem, um den Median-Vektor zur Mitte der Lücke zu berechnen \cite{sezer2012}. Dies sorgt für eine Trajektorie, die den Abstand zu den begrenzenden Objekten maximiert und somit die Sicherheit erhöht \cite{sezer2012}.
+    \item \textbf{Berechnung des finalen Kurswinkels}: Eine Fusing-Funktion kombiniert den berechneten Winkel zum Gap-Zentrum mit dem Winkel zum globalen Ziel \cite{sezer2012}. Das System gewichtet dabei die Sicherheit (Gap) höher, wenn Hindernisse in unmittelbarer Nähe zum Fahrzeug detektiert werden, während bei freien Fahrwegen die Zielerreichung priorisiert wird \cite{sezer2012}.
 \end{enumerate}
-
-Ein wesentliches Merkmal ist die rein lokale Entscheidungsfindung, die
-eine schnelle Reaktion auf dynamische Umgebungsänderungen ermöglicht.
 
 \subsection{Eigenschaften des Verfahrens}
 
-Das FTG-Verfahren zeichnet sich durch folgende Eigenschaften aus:
+Das FGM-Verfahren zeichnet sich durch folgende Merkmale aus:
 \begin{itemize}
-    \item geringe Anzahl an Parametern,
-    \item robuste Reaktion in engen und unstrukturierten Umgebungen,
-    \item keine Abhängigkeit von globaler Lokalisierung,
-    \item Vermeidung klassischer lokaler Minima, wie sie bei
-    Potentialfeldmethoden auftreten können.
+    \item \textbf{Minimale Parametrierung}: Die Steuerung des Verhältnisses zwischen Zielorientierung und Sicherheit erfolgt über lediglich einen zentralen Tuning-Parameter ($\alpha$) \cite{sezer2012}.
+    \item \textbf{Berücksichtigung der Kinematik}: Der Algorithmus bezieht den minimalen Wendekreis des Fahrzeugs direkt in die Lückenberechnung ein, wodurch nur physikalisch fahrbare Trajektorien generiert werden \cite{sezer2012}.
+    \item \textbf{Vermeidung lokaler Minima}: Im Gegensatz zu klassischen Potentialfeldmethoden weist FGM aufgrund seiner geometrischen Struktur kein inhärentes Problem mit lokalen Minima auf \cite{sezer2012}.
 \end{itemize}
 
-Gleichzeitig ist das Verfahren inhärent lokal und trifft keine
-langfristigen Planungsentscheidungen.
+\subsection{Scan-basierte Umsetzung im ROS 2-Kontext}
 
-\subsection{Scan-basierte Umsetzung im ROS~2-Kontext}
-
-In praktischen ROS~2-Systemen wird FTG typischerweise direkt auf
-LiDAR-Daten angewendet. Die Eingangsgröße ist ein
-\texttt{sensor\_msgs/LaserScan}, aus dem Hindernisabstände und freie
-Bereiche extrahiert werden.
-
-Im Rahmen dieser Arbeit wird der Algorithmus nicht isoliert verwendet,
-sondern in eine mehrstufige Pipeline eingebettet. Dabei erfolgt eine
-explizite Vorverarbeitung des Scans, bevor dieser dem eigentlichen
-FTG-Kern übergeben wird.
-
-Der resultierende Datenfluss folgt konzeptionell der Struktur:
+In der praktischen Umsetzung für das MXCarkit wird dieser theoretische Ansatz in eine modulare ROS 2-Softwarearchitektur überführt \cite{mxck_repo}. Die primäre Eingangsgröße bildet dabei die Nachricht \texttt{sensor\_msgs/LaserScan} des LiDAR-Sensors \cite{mxck_repo}. Die Implementierung im Repository \texttt{ftg\_mxck} bildet die methodischen Schritte des Prozesses als reaktive Verarbeitungskette ab \cite{mxck_repo}:
 
 \begin{lstlisting}
- /scan
-   -> Vorverarbeitung (Filterung, Transformation)
-   -> FTG-Kern (Heading-Bestimmung)
-   -> Planner (Policy und Geschwindigkeit)
-   -> Control (Ackermann-Ausgabe)
+ /scan (Rohdaten des LiDAR)
+   -> Vorverarbeitung (Filterung, Beruecksichtigung der Fahrzeuggeometrie)
+   -> FGM-Kern (Geometrische Berechnung des Gap-Zentrums)
+   -> Planner (Gewichtung von Sicherheit und Zielvorgabe via Alpha)
+   -> Control (Ausgabe als /autonomous/ackermann_cmd)
 \end{lstlisting}
 
-Diese Aufteilung ermöglicht es, den algorithmischen Kern von
-fahrzeugspezifischen Anforderungen zu entkoppeln und gleichzeitig eine
-hohe Transparenz im Gesamtsystem zu gewährleisten.
+Diese Struktur ermöglicht eine stabile Integration des algorithmischen Kerns von Sezer und Gokasan in ein verteiltes System und wahrt dabei die Echtzeitfähigkeit der Hindernisvermeidung \cite{mxck_repo}.
