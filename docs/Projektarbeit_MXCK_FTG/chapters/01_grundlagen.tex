@@ -197,34 +197,3 @@ Der resultierende Datenfluss folgt konzeptionell der Struktur:
 Diese Aufteilung ermöglicht es, den algorithmischen Kern von
 fahrzeugspezifischen Anforderungen zu entkoppeln und gleichzeitig eine
 hohe Transparenz im Gesamtsystem zu gewährleisten.
-
-\section{Bedeutung von ROS~2 für autonome Fahrketten}
-
-ROS~2 bildet die technische Grundlage für die Umsetzung verteilter,
-echtzeitnaher Verarbeitungsketten in der Robotik.
-
-Im Vergleich zu ROS~1 ergeben sich mehrere relevante Vorteile:
-\begin{itemize}
-    \item DDS-basierte Kommunikation ohne zentralen Master,
-    \item verbesserte Skalierbarkeit und Robustheit,
-    \item klar strukturierte Middleware-Abstraktion,
-    \item moderne Build- und Launch-Systeme.
-\end{itemize}
-
-Für diese Arbeit ist insbesondere die Möglichkeit entscheidend,
-mehrere spezialisierte Nodes zu einer deterministischen
-Verarbeitungskette zu kombinieren. Die Gesamtfunktionalität ergibt sich
-erst aus dem Zusammenspiel aller Komponenten.
-
-\section{Zusammenfassung}
-
-Die Grundlagen dieser Arbeit verbinden zwei zentrale Perspektiven:
-Einerseits liefert der Follow-the-Gap-Ansatz die algorithmische Basis
-für eine reaktive Hindernisvermeidung. Andererseits stellt ROS~2 die
-technische Infrastruktur bereit, um diesen Ansatz in eine reale,
-mehrstufige Fahrzeugarchitektur zu integrieren.
-
-Die vorliegende Arbeit positioniert sich genau an dieser Schnittstelle
-zwischen Algorithmik und Systemintegration und betrachtet das Verhalten
-nicht isoliert, sondern als Teil einer vollständigen
-autonomen Verarbeitungskette.
