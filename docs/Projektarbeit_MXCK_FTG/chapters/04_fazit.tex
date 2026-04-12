@@ -3,14 +3,9 @@
 
 \section{Fazit}
 
-Im Rahmen dieser Projektarbeit wurde die vorhandene FTG-Dokumentation an den
-aktuellen technischen Stand des Repositories \texttt{ftg\_mxck} und an die
-MXCK-Umgebung aus \texttt{mxck2\_ws} angepasst. Der wesentliche inhaltliche
-Gewinn besteht darin, dass nun nicht mehr mehrere widersprüchliche
-Architekturbilder nebeneinanderstehen, sondern eine klar definierte
-Standardpipeline beschrieben wird.
+Ziel dieser Projektarbeit war die Entwicklung, Integration und Validierung einer ROS~2-basierten Hinderniserkennung mit geeigneter Reaktionsstrategie auf dem MxCarkit-Modellfahrzeug. Im Mittelpunkt stand dabei nicht allein die Implementierung eines einzelnen Algorithmus, sondern der Aufbau einer vollständigen, reproduzierbaren Verarbeitungskette von der LiDAR-Sensorik bis zur fahrbaren Ackermann-Ausgabe.
 
-Die überarbeitete Kernarchitektur lautet:
+Die entwickelte Kernarchitektur lautet:
 
 \begin{center}
 \texttt{/scan}
@@ -28,25 +23,55 @@ $\rightarrow$
 \texttt{/autonomous/ackermann\_cmd}
 \end{center}
 
-Damit wurden folgende Ziele erreicht:
+Damit wurde ein durchgängiger, modularer und nachvollziehbarer Datenpfad realisiert, der sich in die bestehende MXCK-Steuerarchitektur einfügt und die vorhandene Sicherheits- und Moduslogik nicht umgeht.
+
+Die Validierung zeigt, dass das System unter Laborbedingungen grundsätzlich funktionsfähig ist. In beiden Validierungsläufen konnten Hindernisse kollisionsfrei umfahren und die Reaktionsstrategie des Systems experimentell nachgewiesen werden. Insbesondere die erfolgreiche Integration von Perception, FTG-Kern, Planner und Control belegt, dass ein scan-basiertes Hindernisvermeidungsverfahren auf dem MxCarkit praktisch betrieben werden kann.
+
+Gleichzeitig hat die Auswertung deutlich gemacht, dass die Qualität des Fahrverhaltens wesentlich von der Parametrierung abhängt. Sichtfeld, Clearance-Schwellen, Steering-Slowdown und die internen geometrischen FTG-Konstanten beeinflussen unmittelbar, ob das Fahrzeug eher flüssig, defensiv, konservativ oder instabil reagiert. Die Arbeit zeigt damit nicht nur, dass der Stack prinzipiell funktioniert, sondern auch, dass reproduzierbare Validierung und kritische Parameterauswertung unverzichtbar für eine belastbare Bewertung sind.
+
+Zusammenfassend wurden die wesentlichen Ziele der Aufgabenstellung erreicht:
 
 \begin{itemize}
-    \item Die Dokumentation entspricht der aktuellen scan-basierten
-    Hauptpipeline des Repositories.
-    \item Die Rollen von Perception, FTG-Kern, Planner und Control sind
-    sauber getrennt.
-    \item Die theoretische Erläuterung des FTG-Verfahrens wurde auf die
-    Originalliteratur und die CTU/F1TENTH-Umsetzung zurückgeführt.
-    \item Die ROS~2-spezifische Einordnung wurde durch die CTU-Arbeit zur
-    ROS~2-Migration und Prozessanalyse gestärkt.
-    \item Veraltete oder missverständliche Beschreibungen des Legacy-Pfads
-    wurden aus dem Zentrum der Dokumentation entfernt.
+    \item fachliche Einarbeitung in Hinderniserkennung, ROS~2 und MxCarkit-Systemarchitektur,
+    \item modularer Entwurf und Integration eines scan-basierten Hindernisvermeidungsstacks,
+    \item experimentelle Validierung anhand realer Fahrversuche,
+    \item sowie kritische Analyse von Leistungsfähigkeit, Robustheit und Grenzen.
 \end{itemize}
 
-Insgesamt ist die Arbeit damit nicht nur eine Beschreibung eines Algorithmus,
-sondern eine technische Bereinigung und Präzisierung eines gesamten
-ROS~2-Stacks für ein reales Lehr- und Entwicklungsfahrzeug.
+Die Arbeit leistet damit einen Beitrag zur systematischen Integration und Bewertung eines reaktiven Hindernisvermeidungsverfahrens auf einer realen ROS~2-Fahrzeugplattform.
 
 \section{Ausblick}
 
+Aus den Ergebnissen ergeben sich mehrere konkrete Weiterentwicklungsrichtungen.
 
+\subsection*{Parametrierbare FTG-Geometrie}
+
+Die derzeit noch im C++-Kern fest kodierten Geometrieparameter, insbesondere \texttt{kCarRadius}, sollten künftig als ROS-Parameter verfügbar gemacht werden. Dies würde eine systematische Anpassung an reale Fahrzeugabmessungen ermöglichen und die experimentelle Vergleichbarkeit verschiedener Konfigurationen verbessern.
+
+\subsection*{Verbesserung der Clearance-Bewertung}
+
+Für enge Korridorszenarien erscheint es sinnvoll, das für die Geschwindigkeitsbewertung genutzte Clearance-Fenster vom eigentlichen FTG-Sichtfeld zu trennen. Dadurch ließe sich der Einfluss seitlicher Wände auf die Längsdynamik verringern, ohne die Hinderniswahrnehmung des FTG-Kerns selbst einzuschränken.
+
+\subsection*{Konsistentere Stop-Umsetzung}
+
+Ein weiterer wichtiger Entwicklungsschritt ist die konsequente Durchreichung von Planner-Stopps bis zur Control-Stufe und damit bis zum Ackermann-Ausgang. Gerade für die Sicherheitsvalidierung ist entscheidend, dass erkannte kritische Situationen nicht nur im Planner, sondern auch im endgültigen Fahrbefehl vollständig umgesetzt werden.
+
+\subsection*{Erweiterte Validierung}
+
+Die vorliegende Arbeit bewertet das System in strukturierten Innenraumszenarien mit statischen Hindernissen. Für eine weitergehende Aussagekraft wären zusätzliche Untersuchungen sinnvoll, beispielsweise:
+
+\begin{itemize}
+    \item systematische Parameterstudien mit mehreren Konfigurationssätzen,
+    \item Vergleich verschiedener Sichtfelder und Clearance-Strategien,
+    \item Validierung mit dynamischen Hindernissen,
+    \item sowie Auswertung weiterer Fahrszenarien wie Engstellen, Sackgassen oder stärker variierende Kurvengeometrien.
+\end{itemize}
+
+\subsection*{Weiterentwicklung über lokale Reaktion hinaus}
+
+Langfristig kann der Stack durch zusätzliche Komponenten ergänzt werden, etwa durch globale Pfadplanung, Lokalisierung oder sensorfusionierte Umfeldwahrnehmung. Damit ließe sich die derzeit rein lokale Reaktionsstrategie um eine strategische Navigation erweitern.
+
+\section*{Schlussbemerkung}
+\addcontentsline{toc}{section}{Schlussbemerkung}
+
+Die wichtigste Erkenntnis dieser Arbeit ist, dass ein robuster Hindernisvermeidungsstack nicht allein durch den zugrunde liegenden Algorithmus bestimmt wird. Entscheidend ist vielmehr das Zusammenspiel aus Sensorvorverarbeitung, geometrischer Konsistenz, parametrierter Fahrstrategie, sauberer Systemintegration und nachvollziehbarer Validierung. Erst diese Gesamtheit macht aus einem theoretisch bekannten Verfahren eine praktisch nutzbare Fahrfunktion auf einer realen ROS~2-Plattform.
