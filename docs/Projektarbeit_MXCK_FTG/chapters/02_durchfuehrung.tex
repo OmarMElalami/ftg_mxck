@@ -1,507 +1,171 @@
 \chapter{Systembeschreibung und Durchführung}
 \label{ch:durchfuehrung}
 
-Dieses Kapitel beschreibt die tatsächlich umgesetzte FTG-Architektur im
-aktuellen Repository \texttt{ftg\_mxck}. Der Fokus liegt dabei auf dem
-scan-basierten Standardpfad, der gegenüber älteren Legacy-Varianten mit
-\texttt{obstacle\_substitution} bewusst bevorzugt wird.
+Dieses Kapitel beschreibt die konkret umgesetzte Systemarchitektur sowie die methodische Durchführung der Implementierung und Validierung des Follow-the-Gap-Stacks im Repository \texttt{ftg\_mxck}. Der Fokus liegt auf dem scan-basierten Hauptpfad, der als primäre Laufzeitarchitektur definiert wurde.
 
-\section{Zielarchitektur des aktuellen Stacks}
+\section{Gesamtarchitektur des Systems}
 
-Die aktuelle Root-Dokumentation des Repositories definiert die Primärpipeline
-klar als direkten Scan-Pfad bis zur Ackermann-Ausgabe. Daraus ergibt sich
-folgende Soll-Architektur:
+Die entwickelte Pipeline folgt einer strikt modularen Struktur, die sich in vier logisch getrennte Verarbeitungsebenen gliedert:
 
-\begin{lstlisting}
- /scan (LaserScan, frame: laser)
-   -> scan_preprocessor_node               [mxck_ftg_perception]
-   -> /autonomous/ftg/scan_filtered        [LaserScan, frame: base_link]
-   -> /autonomous/ftg/front_clearance      [Float32]
+\begin{enumerate}
+    \item LiDAR-Vorverarbeitung (Perception)
+    \item Reaktiver Planerkern (Follow-the-Gap)
+    \item Policy-basierte Entscheidungslogik (Planner)
+    \item Fahrzeugschnittstelle (Control)
+\end{enumerate}
 
- /autonomous/ftg/scan_filtered
-   -> follow_the_gap_v0                    [C++, input_mode=scan]
-   -> /final_heading_angle                 [Float32]
-   -> /gap_found                           [Bool]
+Die resultierende Datenflusskette ist in Abbildung~\ref{fig:system_pipeline} dargestellt.
 
- /final_heading_angle + /gap_found + /autonomous/ftg/front_clearance
-   -> ftg_planner_node                     [mxck_ftg_planner]
-   -> /autonomous/ftg/gap_angle            [Float32]
-   -> /autonomous/ftg/target_speed         [Float32]
-   -> /autonomous/ftg/planner_status       [String]
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Systemdiagramm
+    \includegraphics[width=0.85\textwidth]{images/Gesamtarch.JPG}
+    \caption{Gesamtarchitektur des scan-basierten FTG-Stacks. Die Pipeline reicht vom Rohscan bis zur Ackermann-Ausgabe und zeigt die klare Trennung zwischen Wahrnehmung, Planung und Steuerung.}
+    \label{fig:system_pipeline}
+\end{figure}
 
- /autonomous/ftg/gap_angle + /autonomous/ftg/target_speed
-   -> ftg_command_node                     [mxck_ftg_control]
-   -> /autonomous/ackermann_cmd            [AckermannDriveStamped]
-\end{lstlisting}
+Der vollständige Aufbau sowie alle Konfigurationsdateien sind im Repository \texttt{ftg\_mxck} dokumentiert. Im Rahmen dieser Arbeit wird auf eine vollständige Reproduktion aller Startbefehle verzichtet; stattdessen wird die Architektur konzeptionell beschrieben und auf die implementierten Komponenten verwiesen.
 
-Wichtig ist dabei, dass die Ackermann-Ausgabe bewusst nicht direkt in
-niedrigere VESC-Topics schreibt, sondern sich in die bestehende MXCK-
-Fahrzeugsteuerung einfügt.
+\section{Algorithmische Grundlage}
 
-\section{Paketübersicht}
+Der eingesetzte Planungsansatz basiert auf dem Follow-the-Gap-Verfahren nach Sezer und Gokasan~\cite{sezer2012}. Die konkrete Implementierung orientiert sich an der F1TENTH-/CTU-Referenz~\cite{ctu_ftg} und wurde unverändert als C++-Kern in den Stack integriert.
 
-\begin{table}[H]
-\centering
-\caption{Pakete des aktuellen FTG-Stacks}
-\label{tab:packages}
-\begin{tabular}{>{\raggedright\arraybackslash}p{3.8cm} >{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{6cm}}
-\toprule
-\textbf{Paket} & \textbf{Wesentliche Nodes} & \textbf{Rolle im Datenpfad} \\
-\midrule
-\texttt{mxck\_ftg\_perception} &
-\texttt{scan\_preprocessor\_node}, \texttt{scan\_front\_window\_check} &
-TF-basierte Scanvorverarbeitung und Diagnose \\
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Algorithmusbild aus deinem Repo
+    \includegraphics[width=0.75\textwidth]{images/ftg_algorithm.JPG}
+    \caption{Schematische Darstellung des verwendeten Follow-the-Gap-Algorithmus. Die Abbildung zeigt die Identifikation der größten freien Lücke sowie die Bestimmung des resultierenden Zielwinkels.}
+    \label{fig:ftg_algorithm}
+\end{figure}
 
-\texttt{follow\_the\_gap\_v0} &
-\texttt{follow\_the\_gap} &
-C++-FTG-Kern im Scan-Modus \\
-
-\texttt{mxck\_ftg\_planner} &
-\texttt{ftg\_planner\_node} &
-Gap-Winkel- und Geschwindigkeitsplanung \\
-
-\texttt{mxck\_ftg\_control} &
-\texttt{ftg\_command\_node} &
-Ackermann-Ausgabe aus Planner-Topics \\
-
-\texttt{mxck\_ftg\_bringup} &
-keine Laufzeit-Node &
-Startlogik für die komplette Pipeline \\
-\bottomrule
-\end{tabular}
-\end{table}
+Die zentrale Idee besteht darin, aus einem eindimensionalen Distanzprofil die größte kollisionsfreie Lücke zu bestimmen und das Fahrzeug entlang deren Mittelpunkt auszurichten. Diese Strategie ermöglicht eine robuste reaktive Navigation ohne globale Karteninformation.
 
 \section{Stufe 1: LiDAR-Vorverarbeitung}
 
-\subsection{\texttt{scan\_preprocessor\_node}}
+Die Vorverarbeitung transformiert den Rohscan in eine für den FTG-Kern geeignete Repräsentation.
 
-Der \texttt{scan\_preprocessor\_node} bildet den Eintrittspunkt des
-Produktivpfades. Seine Aufgabe besteht darin, aus dem rohen
-\texttt{/scan}-Topic einen für den FTG-Kern gut interpretierbaren
-Front-Scan zu erzeugen.
+\subsection{Funktionale Aufgaben}
 
-Dazu führt der Node folgende Schritte aus:
+Die implementierte Verarbeitung umfasst:
+
+\begin{itemize}
+    \item Transformation des Scans in den Fahrzeugrahmen mittels TF,
+    \item Definition eines frontalen Sichtfensters,
+    \item Entfernung ungültiger Messwerte,
+    \item Glättung des Signals zur Rauschreduktion,
+    \item Berechnung des minimalen Frontabstands.
+\end{itemize}
+
+Diese Schritte sind notwendig, um die geometrische Konsistenz zwischen Sensor und Fahrzeug sicherzustellen.
+
+\subsection{Ergebnis der Vorverarbeitung}
+
+Das Ergebnis ist ein gefilterter Scan, der ausschließlich den relevanten Frontbereich beschreibt und bereits im \texttt{base\_link}-Koordinatensystem vorliegt. Zusätzlich wird eine skalare Größe für den minimalen Hindernisabstand bereitgestellt.
+
+\section{Stufe 2: Follow-the-Gap-Kern}
+
+Der Planerkern bildet das algorithmische Zentrum des Systems. Er verarbeitet den vorbereiteten Scan und berechnet daraus einen Richtungswinkel.
+
+\subsection{Verarbeitungsschritte}
+
+Innerhalb des Algorithmus erfolgen:
 
 \begin{enumerate}
-    \item Abonnement von \texttt{/scan},
-    \item TF-Lookup von \texttt{base\_link <- laser},
-    \item Bestimmung der Fahrtrichtung im Basisrahmen,
-    \item Auswahl des Frontfensters (z.\,B.\ 100°),
-    \item Clipping auf gültige Minimal- und Maximalreichweiten,
-    \item Publikation des gefilterten Scans auf
-    \texttt{/autonomous/ftg/scan\_filtered},
-    \item Publikation des minimalen Frontabstands auf
-    \texttt{/autonomous/ftg/front\_clearance}.
+    \item Identifikation von Hindernisbereichen,
+    \item Bestimmung zusammenhängender freier Bereiche (Gaps),
+    \item Auswahl des größten befahrbaren Gaps,
+    \item Berechnung eines Zielwinkels innerhalb dieses Gaps.
 \end{enumerate}
 
-Die zentrale Designentscheidung ist dabei: \texttt{front\_center\_deg = 0.0}
-beschreibt ``vorne im \texttt{base\_link}-Frame''. Die reale Montagerotation des
-LiDAR wird ausschließlich durch TF aufgelöst. Dadurch muss kein fester
-Sensor-Offset mehr in die Dokumentation oder in die Laufzeitlogik
-eingebrannt werden.
+\subsection{Ausgabegrößen}
 
-\subsection{\texttt{scan\_front\_window\_check}}
+Der Algorithmus liefert:
 
-Der Diagnose-Node wird optional zugeschaltet und dient nicht der normalen
-Fahrt, sondern der Kalibrierung und Verifikation. Er hilft dabei,
-das konfigurierte Frontfenster mit der tatsächlichen Fahrzeugfront
-abzugleichen und die Wirkung des TF-Setups sichtbar zu machen.
-
-\section{Stufe 2: FTG-Kern im Scan-Modus}
-
-Die aktuelle FTG-Nutzung im MXCK geht bewusst \emph{nicht} über den alten
-Obstacle-Substitution-Pfad, sondern direkt über einen vorbereiteten
-\texttt{LaserScan}. Der C++-Node \texttt{follow\_the\_gap} wird daher mit
-\texttt{input\_mode=scan} gestartet.
-
-\subsection{Ein- und Ausgänge}
-
-Der aktuelle CTU-Kern nutzt konzeptionell:
 \begin{itemize}
-    \item einen Scan-Eingang,
-    \item optional einen Zielwinkel,
-    \item einen finalen Heading-Winkel als Ausgabe,
-    \item sowie Visualisierungstopics zur Diagnose.
+    \item einen kontinuierlichen Heading-Winkel,
+    \item ein binäres Signal zur Gap-Erkennung.
 \end{itemize}
 
-Im aktuellen MXCK-Stack werden insbesondere folgende Topics relevant:
-\begin{itemize}
-    \item Input: \texttt{/autonomous/ftg/scan\_filtered}
-    \item Output: \texttt{/final\_heading\_angle}
-    \item Output: \texttt{/gap\_found}
-    \item Debug: \texttt{/visualize\_obstacles}
-    \item Debug: \texttt{/visualize\_largest\_gap}
-    \item Debug: \texttt{/visualize\_final\_heading\_angle}
-\end{itemize}
-
-\subsection{Bedeutung für das Projekt}
-
-Diese Stufe ist fachlich der Kern des Systems: Hier wird aus der
-lokalen Hindernissituation ein Richtungsvektor berechnet.
-Die Entscheidung, den Node nicht umzuschreiben, sondern als
-C++-Kern beizubehalten und nur sauber scan-basiert einzubinden,
-erhält die algorithmische Nähe zur CTU-/F1TENTH-Vorlage.
+Diese Ausgabe ist bewusst fahrzeugagnostisch gehalten und enthält keine Informationen über Geschwindigkeit oder Dynamik.
 
 \section{Stufe 3: Planner}
 
-Der \texttt{ftg\_planner\_node} fasst die algorithmische Ausgabe des FTG-Kerns
-mit der Frontabstands Information aus der Vorverarbeitung zusammen.
-Er bildet damit die Brücke zwischen lokaler Richtungsplanung und einer
-fahrbaren, sicheren Sollvorgabe.
+Der Planner interpretiert die algorithmische Ausgabe im Kontext der Fahrzeugdynamik und Sicherheitsanforderungen.
 
-\subsection{Eingänge}
+\subsection{Funktionale Rolle}
 
-\begin{itemize}
-    \item \texttt{/final\_heading\_angle}
-    \item \texttt{/gap\_found}
-    \item \texttt{/autonomous/ftg/front\_clearance}
-\end{itemize}
-
-\subsection{Ausgänge}
+Im Gegensatz zum FTG-Kern handelt es sich hierbei nicht um einen Planungsalgorithmus im engeren Sinne, sondern um eine Entscheidungslogik, die folgende Aufgaben übernimmt:
 
 \begin{itemize}
-    \item \texttt{/autonomous/ftg/gap\_angle}
-    \item \texttt{/autonomous/ftg/target\_speed}
-    \item \texttt{/autonomous/ftg/planner\_status}
-\end{itemize}
-
-\subsection{Aufgabe des Planers}
-
-Der Planer übernimmt drei praktische Aufgaben:
-\begin{enumerate}
-    \item Freshness-Prüfung der Eingänge,
+    \item Validierung der Eingangsdaten (Freshness),
     \item Begrenzung des Lenkwinkels,
-    \item Geschwindigkeitsvorgabe abhängig von Clearance und Steering.
-\end{enumerate}
+    \item adaptive Geschwindigkeitswahl in Abhängigkeit vom Frontabstand,
+    \item Zustandsbewertung des Systems.
+\end{itemize}
 
-Damit ist der Planner keine zweite FTG-Implementierung, sondern eine
-\emph{Policy-Schicht}: Er interpretiert die Heading-Ausgabe im Kontext von
-Sicherheitsabstand und Fahrbarkeit.
+\subsection{Interpretation der Sensordaten}
+
+Die Geschwindigkeit wird als Funktion des minimalen Abstands gewählt. Dabei gilt:
+
+\begin{itemize}
+    \item große Abstände $\rightarrow$ hohe Geschwindigkeit,
+    \item kleine Abstände $\rightarrow$ reduzierte Geschwindigkeit,
+    \item kritische Abstände $\rightarrow$ Stopp.
+\end{itemize}
+
+Diese Policy stellt sicher, dass der reaktive Charakter des FTG-Ansatzes nicht zu unsicheren Fahrzuständen führt.
 
 \section{Stufe 4: Control}
 
-Der \texttt{ftg\_command\_node} transformiert die Planner-Ausgänge in einen
-Ackermann Befehl.
+Die letzte Stufe des Systems übernimmt die Transformation der Planner-Ausgabe in fahrzeugspezifische Steuerbefehle.
 
-\subsection{Eingänge und Ausgang}
+\subsection{Aufgabe}
+
+Die berechneten Sollwerte werden in ein Ackermann-kompatibles Nachrichtenformat überführt und an die bestehende Fahrzeugsteuerung übergeben.
+
+\subsection{Systemintegration}
+
+Ein wesentliches Designkriterium ist, dass die bestehende Sicherheits- und Steuerlogik des MXCarkit unverändert bleibt. Der entwickelte Stack liefert ausschließlich Sollwerte und greift nicht direkt in die Aktorik ein.
+
+\section{Versuchsdurchführung}
+
+Die Validierung des Systems erfolgte anhand realer Fahrversuche im Innenraum.
+
+\subsection{Versuchsaufbau}
+
+Die Tests wurden in einem strukturierten Korridor durchgeführt, der durch Möbel und gezielt platzierte Hindernisse definiert wurde.
+
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Teststrecke 1
+    \includegraphics[width=0.75\textwidth]{images/validation_course_A_schematic.png}
+    \caption{Versuchsaufbau Aufnahme 1: Korridor mit einem statischen Hindernis.}
+    \label{fig:test_track1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Teststrecke 2
+    \includegraphics[width=0.75\textwidth]{images/validation_course_B_schematic.png}
+    \caption{Versuchsaufbau Aufnahme 2: Mehrere Hindernisse und dynamische Veränderung der Umgebung.}
+    \label{fig:test_track2}
+\end{figure}
+
+\subsection{Messmethodik}
+
+Zur Analyse wurden alle relevanten Systemgrößen aufgezeichnet und anschließend ausgewertet. Dazu gehören insbesondere:
 
 \begin{itemize}
-    \item Input: \texttt{/autonomous/ftg/gap\_angle}
-    \item Input: \texttt{/autonomous/ftg/target\_speed}
-    \item Output: \texttt{/autonomous/ackermann\_cmd}
+    \item Distanzverlauf,
+    \item Heading-Winkel,
+    \item Geschwindigkeit,
+    \item Gap-Erkennung.
 \end{itemize}
 
-Zusätzlich veröffentlicht der Node ein Status-Topic
-\texttt{/autonomous/ftg/control\_status}, das für Debugging und End-to-End-
-Analyse nützlich ist.
-
-\section{Bringup und Startlogik}
-
-Die empfohlene Startdatei ist \texttt{ftg\_full\_system.launch.py}. Laut
-aktuellem Repository startet sie den scan-basierten Pfad und lädt dabei
-die YAML-Konfigurationen der Perception-, Planner- und Control-Stufe.
-Zusätzlich existiert eine vereinfachte Variante
-\texttt{ftg\_scan\_path.launch.py}.
-
-Wichtig ist: TF und \texttt{vehicle\_control} gehören \emph{nicht} automatisch
-zum FTG-Bringup, sondern werden separat über das MXCK-System gestartet.
-
-\section{Testmethodik}
-
-Für ein robustes Vorgehen wurde der Stack stufenweise verifiziert:
-
-\begin{enumerate}
-    \item TF und LiDAR separat prüfen,
-    \item nur \texttt{scan\_preprocessor\_node} starten,
-    \item \texttt{follow\_the\_gap\_v0} isoliert testen,
-    \item Planner prüfen,
-    \item Control prüfen,
-    \item Full-Stack testen,
-    \item erst danach Fahrzeug im Autonomous-Modus fahren.
-\end{enumerate}
-
-Diese Reihenfolge ist nicht nur praktisch, sondern auch
-architekturell sinnvoll: Jeder Fehler kann dadurch einer klaren
-Stufe zugeordnet werden.
-
-\section{Abgrenzung zu Legacy-Komponenten}
-
-Das Repository enthält weiterhin \texttt{obstacle\_msgs} und
-\texttt{obstacle\_substitution}. Diese Pakete bleiben aus Gründen der
-Kompatibilität erhalten, gehören aber nicht mehr zum primären Datenpfad.
-Für die Projektdokumentation bedeutet das:
-\begin{itemize}
-    \item Sie dürfen als Legacy- oder Alternativpfad erwähnt werden,
-    \item sie dürfen aber nicht mehr als aktuelle Hauptpipeline dargestellt werden.
-\end{itemize}
-
-Gerade diese Trennung war für die Überarbeitung der Dokumentation zentral, weil
-ältere Kapitelentwürfe den Legacy-Pfad teils noch als Hauptarchitektur
-beschrieben.
-
-\section{Konfigurierte Parameter}
-\label{sec:parameter}
-
-Für den stabilen Betrieb des FTG-Stacks im Versuchsraum wurden insgesamt sieben Parameter
-gegenüber den ursprünglichen Referenzwerten angepasst. Die Änderungen betreffen die
-Vorverarbeitungsstufe (\texttt{scan\_preprocessor.yaml}) und den Planner
-(\texttt{ftg\_planner.yaml}).
-
-\begin{table}[H]
-\centering
-\caption{Angepasste Parameter des FTG-Stacks (YAML-Konfiguration)}
-\label{tab:params}
-\begin{tabular}{>{\raggedright\arraybackslash}p{3.5cm}
-                >{\raggedright\arraybackslash}p{2.5cm}
-                >{\raggedright\arraybackslash}p{2.0cm}
-                >{\raggedright\arraybackslash}p{5.5cm}}
-\toprule
-\textbf{Parameter} & \textbf{Referenzwert} & \textbf{Neuer Wert} & \textbf{Begründung} \\
-\midrule
-\multicolumn{4}{l}{\textit{mxck\_ftg\_perception / scan\_preprocessor.yaml}} \\[2pt]
-\texttt{front\_fov\_deg}            & 100{,}0°  & \textbf{120{,}0°}  & Breiteres Frontfenster für enge Korridore \\
-\texttt{clip\_min\_range\_m}        & 0{,}18\,m & \textbf{0{,}25\,m} & Ignoriert Reflexionen direkt am Gehäuse \\
-\texttt{clip\_max\_range\_m}        & 5{,}0\,m  & \textbf{10{,}0\,m} & Längerer Horizont im Korridor \\
-\texttt{enable\_moving\_average}    & \texttt{false} & \textbf{\texttt{true}} & Glättet LiDAR-Rauschen (Fenster: 3) \\[6pt]
-\multicolumn{4}{l}{\textit{mxck\_ftg\_planner / ftg\_planner.yaml}} \\[2pt]
-\texttt{cruise\_speed\_mps}         & 0{,}60\,m/s & \textbf{0{,}45\,m/s} & Reduziert für enge Innenraumumgebung \\
-\texttt{caution\_clearance\_m}      & 0{,}90\,m   & \textbf{0{,}50\,m}   & Angepasst für ${\approx}$1\,m breiten Korridor \\
-\texttt{stop\_clearance\_m}         & 0{,}35\,m   & \textbf{0{,}20\,m}   & Erlaubt engeres Heranfahren an Hindernisse \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\noindent Die übrigen Parameter (z.\,B.\ \texttt{max\_abs\_gap\_angle\_rad},
-\texttt{heading\_smoothing\_alpha}, \texttt{angle\_to\_steering\_gain}) wurden auf
-ihren Standardwerten belassen, da sie in den Versuchsfahrten keine Anpassung erforderten.
-
-\section{Versuchsdurchführung und Rosbag-Aufnahmen}
-\label{sec:versuche}
-
-Die Validierung des FTG-Stacks erfolgte durch zwei Realfahrten im Seminarraum
-der Hochschule. Beide Aufnahmen wurden mit \texttt{ros2 bag} aufgezeichnet
-und anschließend auf dem Arbeitsrechner ausgewertet.
-
-\subsection{Rosbag-Aufnahme auf dem Jetson}
-
-Während das Fahrzeug fährt, wird auf dem Jetson eine neue Terminal-Session geöffnet
-und die Aufnahme gestartet:
-
-\begin{lstlisting}[language=bash, caption={Rosbag-Aufnahme auf dem Jetson (alle relevanten Topics)}]
-ros2 bag record -o /mxck2_ws/bags/ftg_test \
-  /scan /tf /tf_static \
-  /autonomous/ftg/scan_filtered \
-  /autonomous/ftg/front_clearance \
-  /final_heading_angle /gap_found \
-  /visualize_obstacles \
-  /visualize_largest_gap \
-  /visualize_final_heading_angle \
-  /autonomous/ftg/gap_angle \
-  /autonomous/ftg/target_speed \
-  /autonomous/ftg/planner_status \
-  /autonomous/ackermann_cmd \
-  /autonomous/ftg/control_status
-\end{lstlisting}
-
-Mit \texttt{Ctrl+C} wird die Aufnahme beendet. ROS~2 legt dabei einen Ordner mit
-einer \texttt{metadata.yaml} und einer SQLite-Datenbankdatei (\texttt{.db3}) an.
-
-\subsection{Bag-Datei auf den Arbeitsrechner übertragen}
-
-Der aufgezeichnete Bag-Ordner wird vom Jetson per \texttt{scp} auf den lokalen
-Rechner kopiert:
-
-\begin{lstlisting}[language=bash, caption={Übertragung des Bags vom Jetson auf den PC}]
-# Auf dem lokalen Rechner ausfuehren:
-scp -r mxck@<JETSON_IP>:/mxck2_ws/bags/ftg_test ./ftg_test
-\end{lstlisting}
-
-Für größere Bags empfiehlt sich \texttt{rsync} mit Fortschrittsanzeige:
-
-\begin{lstlisting}[language=bash, caption={Alternative: Übertragung mit rsync}]
-rsync -avh --progress \
-  mxck@<JETSON_IP>:/mxck2_ws/bags/ftg_test ./
-\end{lstlisting}
-
-Zum Wiedergeben der Aufnahme auf dem Arbeitsrechner:
-
-\begin{lstlisting}[language=bash, caption={Bag auf dem PC abspielen}]
-ros2 bag play ./ftg_test/ftg_test_0.db3 --loop
-\end{lstlisting}
-
-\subsection{Aufnahme~1 -- Geradeausfahrt mit Karton-Hindernis}
-\label{sec:aufnahme1}
-
-\subsubsection{Versuchsaufbau}
-
-Die erste Aufnahme fand im Seminarraum statt. Der Korridor zwischen der Tischreihe
-(links) und dem Fensterbrett (rechts) bildete die Fahrstrecke.
-Als einziges Hindernis wurde ein Karton an der rechten Seite des Korridors
-aufgestellt. Das Fahrzeug startete am Ende der Strecke und fuhr
-auf die Wandtafel zu.
-
-\subsubsection{Kennzahlen der Bag-Datei}
-
-\begin{table}[H]
-\centering
-\caption{Bag-Datei Aufnahme~1 (\texttt{ftg\_funktioniert1})}
-\label{tab:bag1}
-\begin{tabular}{lr}
-\toprule
-\textbf{Eigenschaft} & \textbf{Wert} \\
-\midrule
-Dauer                                    & 20{,}68\,s \\
-Gesamtanzahl Nachrichten                 & 4\,322 \\
-LiDAR-Scans (\texttt{/scan})             & 245 \\
-Fahrbefehle (\texttt{/ackermann\_cmd})   & 415 \\
-Zielgeschwindigkeit min / max / Ø        & 0{,}17 / 0{,}40 / 0{,}35\,m/s \\
-Frontabstand min / max / Ø              & 0{,}49 / 0{,}98 / 0{,}77\,m \\
-Gap-Winkel min / max                     & $-8{,}1°$ / $+25{,}8°$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.72\textwidth]{images/Erste_Aufnahme.jpg}
-    \caption{Aufnahme~1: Das MXCarkit navigiert durch den Seminarraum-Korridor.
-             Der Karton ist rechts neben dem Fensterbrett sichtbar.
-             Das Fahrzeug ist bereits leicht nach links ausgelenkt -- die
-             Gap-Erkennung hat reagiert.}
-    \label{fig:aufnahme1_foto}
-\end{figure}
+\subsection{Zeitreihenanalyse}
 
 
-\subsubsection{Zeitreihen-Auswertung}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{images/aufnahme1_plots.png}
-    \caption{Aufnahme~1: Zeitverlauf von Zielgeschwindigkeit (oben),
-             Frontabstand (Mitte) und Gap-Winkel (unten).
-             Bei $t \approx 4$\,s erkennt der Planner den Karton:
-             der Frontabstand unterschreitet 0{,}70\,m und die Geschwindigkeit
-             wird reduziert. Der Gap-Winkel springt auf $+25{,}8°$ --
-             das Fahrzeug lenkt nach links um den Karton herum.
-             Ab $t \approx 15$\,s steigt der Winkel dauerhaft an, da
-             die Stuhlreihe den verbleibenden Gap nach links begrenzt.}
-    \label{fig:aufnahme1_plots}
-\end{figure}
+\section{Zusammenfassung}
 
-\subsubsection{Ablauf der Fahrt}
-
-\begin{enumerate}
-    \item Das Fahrzeug beschleunigt auf die Maximalgeschwindigkeit ($0{,}40$\,m/s)
-          im freien Korridor.
-    \item Bei Annäherung an den Karton sinkt \texttt{front\_clearance} unter 0{,}70\,m;
-          die Geschwindigkeit wird gemäß der Clearance-Policy reduziert
-          (vgl.\ Tabelle~\ref{tab:params}).
-    \item Der FTG-Kern erkennt eine große Lücke links (\textit{gap\_angle} $\approx +25°$)
-          und lenkt das Fahrzeug am Karton vorbei.
-    \item Nach dem Passieren des Hindernisses beschleunigt das Fahrzeug erneut.
-    \item Im Bereich der Stuhlreihe am Raumende sinkt der Frontabstand unter den
-          \texttt{stop\_clearance}-Wert (0{,}20\,m), das Fahrzeug stoppt.
-\end{enumerate}
-
-\subsection{Aufnahme~2 -- Zwei Hindernisse und dynamische Hindernisbeseitigung}
-\label{sec:aufnahme2}
-
-\subsubsection{Versuchsaufbau}
-
-In der zweiten Aufnahme wurden zwei Hindernisse in Reihe platziert: ein Karton
-(näher) und ein Mülleimer (weiter entfernt). Eine Person stand hinter dem
-Fahrzeug und entfernte den Karton manuell, sobald das Fahrzeug davor stoppte.
-Damit wurde die Reaktion des Systems auf dynamische Umgebungsänderungen
-überprüft.
-
-\subsubsection{Kennzahlen der Bag-Datei}
-
-\begin{table}[H]
-\centering
-\caption{Bag-Datei Aufnahme~2 (\texttt{ftg\_funktioniert2})}
-\label{tab:bag2}
-\begin{tabular}{lr}
-\toprule
-\textbf{Eigenschaft} & \textbf{Wert} \\
-\midrule
-Dauer                                    & 17{,}38\,s \\
-Gesamtanzahl Nachrichten                 & 3\,816 \\
-LiDAR-Scans (\texttt{/scan})             & 206 \\
-Fahrbefehle (\texttt{/ackermann\_cmd})   & 357 \\
-Zielgeschwindigkeit min / max / Ø        & 0{,}15 / 0{,}40 / 0{,}26\,m/s \\
-Frontabstand min / max / Ø              & 0{,}41 / 1{,}11 / 0{,}59\,m \\
-Gap-Winkel min / max                     & $-8{,}6°$ / $+12{,}9°$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.72\textwidth]{images/zweite_Aufnahme.jpg}
-    \caption{Aufnahme~2: Blick durch den Korridor mit Karton (Mitte rechts)
-             und Mülleimer (vorne). Das Fahrzeug ist bereits zwischen
-             den beiden Hindernissen sichtbar.}
-    \label{fig:aufnahme2_foto}
-\end{figure}
-
-\subsubsection{Zeitreihen-Auswertung}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{images/aufnahme2_plots.png}
-    \caption{Aufnahme~2: Zeitverlauf von Zielgeschwindigkeit (oben),
-             Frontabstand (Mitte) und Gap-Winkel (unten).
-             Die Beschriftung \textit{``Karton entfernt''} markiert den Moment,
-             in dem der Karton manuell aus dem Weg geräumt wurde:
-             Der Frontabstand springt von ca.\ 0{,}42\,m auf über 1{,}10\,m,
-             und das Fahrzeug beschleunigt sofort wieder.
-             Ab $t \approx 12{,}5$\,s nähert sich das Fahrzeug dem Mülleimer;
-             der Frontabstand sinkt dauerhaft auf den Stop-Wert.}
-    \label{fig:aufnahme2_plots}
-\end{figure}
-
-\subsubsection{Ablauf der Fahrt}
-
-\begin{enumerate}
-    \item Das Fahrzeug startet und erkennt sofort den Karton. Die Geschwindigkeit
-          schwankt zwischen 0{,}15 und 0{,}40\,m/s, da der Planner
-          den engen Frontabstand registriert.
-    \item Das Fahrzeug stoppt nahe am Karton
-          (\texttt{front\_clearance}~$\approx$~0{,}42\,m).
-    \item Eine Person \textbf{entfernt den Karton} aus dem Weg.
-          Der Frontabstand springt auf über 1{,}10\,m; der Planner erkennt
-          die freie Bahn und beschleunigt das Fahrzeug ohne manuellen Eingriff.
-    \item Das Fahrzeug fährt weiter und nähert sich dem Mülleimer.
-    \item Der Frontabstand sinkt auf den \texttt{stop\_clearance}-Wert --
-          das Fahrzeug stoppt dauerhaft neben dem Mülleimer. Aufnahme~2 endet hier.
-\end{enumerate}
-
-\subsection{Vergleich beider Aufnahmen}
-
-\begin{table}[H]
-\centering
-\caption{Gegenüberstellung von Aufnahme~1 und Aufnahme~2}
-\label{tab:vergleich}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Kennzahl} & \textbf{Aufnahme~1} & \textbf{Aufnahme~2} \\
-\midrule
-Dauer (s)                        & 20{,}68  & 17{,}38 \\
-Mittlere Geschwindigkeit (m/s)   & 0{,}35   & 0{,}26 \\
-Max. Gap-Winkel ($°$)            & $+25{,}8$ & $+12{,}9$ \\
-Min. Frontabstand (m)            & 0{,}49   & 0{,}41 \\
-Mittlerer Frontabstand (m)       & 0{,}77   & 0{,}59 \\
-Anzahl Hindernisse               & 1 (Karton) & 2 (Karton + Mülleimer) \\
-Dynamisches Ereignis             & keines   & Karton entfernt (Person) \\
-Stoppursache                     & Stuhlreihe (Ecke) & Mülleimer \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\noindent Die niedrigere mittlere Geschwindigkeit in Aufnahme~2 (0{,}26\,m/s gegenüber 0{,}35\,m/s)
-erklärt sich dadurch, dass das Fahrzeug vor dem Karton mehrfach abbremste und kurz stoppte.
-Der maximale Gap-Winkel ist in Aufnahme~2 geringer ($+12{,}9°$ statt $+25{,}8°$), weil das
-Fahrzeug in dieser Aufnahme überwiegend geradeaus fuhr -- der Karton lag zentral in der
-Fahrspur und nicht seitlich versetzt wie in Aufnahme~1. Der hohe Frontabstand von 1{,}11\,m
-in Aufnahme~2 entspricht genau dem Moment nach der Karton-Entfernung: Der nun freie Korridor
-ist für den LiDAR auf über einen Meter sichtbar.
+Die Durchführung zeigt, dass der entwickelte Stack eine klar strukturierte und reproduzierbare Verarbeitungskette darstellt. Durch die Trennung von Wahrnehmung, Planung und Steuerung entsteht ein System, das sowohl robust als auch wartbar ist und sich gut in die bestehende MXCK-Architektur integriert.
