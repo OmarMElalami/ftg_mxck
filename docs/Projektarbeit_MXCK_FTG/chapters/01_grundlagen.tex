@@ -1,200 +1,244 @@
 \chapter{Grundlagen}
 \label{ch:grundlagen}
 
-Dieses Kapitel beschreibt die fachlichen und systemtechnischen Grundlagen der
-Arbeit. Zuerst wird das MXCK als Zielplattform eingeordnet. Danach werden die
-für die Arbeit relevanten ROS~2-Begriffe erklärt. Abschließend wird der
-Follow-the-Gap-Algorithmus sowohl in seiner ursprünglichen Form als auch in der
-für dieses Projekt relevanten scan-basierten Variante erläutert.
+Dieses Kapitel legt die fachlichen und systemtechnischen Grundlagen der
+vorliegenden Arbeit dar. Zunächst wird die Aufgabenstellung präzise
+eingeordnet und das Zielsystem beschrieben. Anschließend werden die
+relevanten Konzepte von ROS~2 erläutert, die für das Verständnis der
+implementierten Architektur notwendig sind. Abschließend wird der
+Follow-the-Gap-Algorithmus sowohl in seiner ursprünglichen Form als auch
+in der für diese Arbeit relevanten scan-basierten Ausprägung dargestellt.
+
+\section{Aufgabenstellung und Ziel der Arbeit}
+
+Ziel dieser Projektarbeit ist die Entwicklung, Integration und
+Validierung eines robusten, scan-basierten Hindernisvermeidungsverfahrens
+für ein automatisiertes Modellfahrzeug auf Basis von ROS~2.
+
+Im Mittelpunkt steht die Realisierung eines durchgängigen und
+reproduzierbaren Datenpfads von der LiDAR-Sensorik bis zur fahrbaren
+Ackermann-Steuerung. Dabei wird nicht lediglich ein einzelner Algorithmus
+betrachtet, sondern die vollständige Verarbeitungskette bestehend aus
+Sensorvorverarbeitung, lokaler Planung und fahrzeugspezifischer
+Ansteuerung.
+
+Die wesentlichen Teilziele der Arbeit sind:
+
+\begin{itemize}
+    \item Aufbau eines konsistenten ROS~2-Datenpfads vom Rohsensor
+    (\texttt{/scan}) bis zur Aktorik
+    (\texttt{/autonomous/ackermann\_cmd}),
+    \item Integration des Follow-the-Gap-Algorithmus in eine reale
+    Fahrzeugarchitektur,
+    \item Gewährleistung reproduzierbarer Systemzustände durch klar
+    definierte Launch- und Parameterkonfigurationen,
+    \item experimentelle Validierung des Systemverhaltens anhand realer
+    Fahrversuche,
+    \item sowie die konsistente Dokumentation der tatsächlich
+    implementierten Systemarchitektur im Repository
+    \texttt{ftg\_mxck}.
+\end{itemize}
+
+Im Unterschied zu rein theoretischen Arbeiten liegt der Fokus somit auf
+der praktischen Umsetzung innerhalb eines bestehenden Softwaresystems
+sowie dessen Interaktion mit realer Sensorik und Aktorik.
 
 \section{Das MXCarkit als Zielplattform}
 
-Das MXCarkit ist ein Jetson-basiertes, containerisiertes Versuchsfahrzeug für
-Lehre und Entwicklung im Bereich autonomer Fahrfunktionen. Laut der aktuellen
-MXCK-Dokumentation werden die Systembestandteile bewusst in Docker-Container
-aufgeteilt, wobei \texttt{mxck2\_ws} die Kernfunktionalität und
-\texttt{development\_ws} experimentelle bzw.\ GPU-nahe Entwicklung aufnimmt.
-Die zentrale Startlogik für Sensorik und Aktorik liegt im Paket
-\texttt{mxck\_run}; einzelne Teilfunktionen wie LiDAR oder Kamera werden über
-Launch-Argumente wie \texttt{run\_lidar:=true} aktiviert.
+Das MXCarkit (MXCK) stellt die physische und softwareseitige
+Zielplattform dieser Arbeit dar. Es handelt sich um ein
+Jetson-basiertes Versuchsfahrzeug, das für Lehre und Entwicklung im
+Bereich autonomer Fahrfunktionen konzipiert ist.
+
+Die Systemarchitektur des MXCK ist modular aufgebaut und nutzt eine
+containerisierte Umgebung. Zentrale Funktionalitäten sind in separaten
+Workspaces organisiert, insbesondere:
+\begin{itemize}
+    \item \texttt{mxck2\_ws} für die Kernsysteme (Sensorik, Steuerung),
+    \item \texttt{development\_ws} für experimentelle Erweiterungen.
+\end{itemize}
+
+Die Startlogik für Sensorik und Aktorik wird über das Paket
+\texttt{mxck\_run} realisiert, wobei einzelne Komponenten über
+Launch-Argumente gezielt aktiviert werden können.
 
 \begin{table}[H]
 \centering
-\caption{Relevante MXCK-Systemeigenschaften für diese Arbeit}
+\caption{Relevante Systemeigenschaften des MXCarkit}
 \label{tab:mxck_overview}
 \begin{tabular}{>{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{9.2cm}}
 \toprule
-\textbf{Aspekt} & \textbf{Bedeutung für den FTG-Stack} \\
+\textbf{Aspekt} & \textbf{Bedeutung für diese Arbeit} \\
 \midrule
-NVIDIA Jetson & Rechnerplattform für ROS~2, Paket-Build, Sensorverarbeitung und Debugging \\
-Docker-basierter Betrieb & Trennung von Sensor-/Control-Containern und Entwicklungsumgebung \\
-2D-LiDAR (\texttt{/scan}) & Primärer Sensor für den reaktiven FTG-Pfad \\
-Ackermann-Steuerung & Lenkwinkel- und Geschwindigkeitsvorgaben werden als Ackermann-Befehl ausgegeben \\
-Bestehende Fahrzeugsteuerung & Der FTG-Stack darf die vorhandene VESC-/Safety-Kette nicht umgehen \\
+NVIDIA Jetson & Ausführungsplattform für ROS~2, Sensorverarbeitung und Planung \\
+Docker-basierter Betrieb & Klare Trennung von Laufzeit- und Entwicklungsumgebung \\
+2D-LiDAR (\texttt{/scan}) & Primärer Sensor für die lokale Hinderniserkennung \\
+Ackermann-Steuerung & Umsetzung von Lenkwinkel- und Geschwindigkeitsvorgaben \\
+Bestehende Fahrzeuglogik & Integration des FTG-Stacks ohne Umgehung der Safety-Kette \\
 \bottomrule
 \end{tabular}
 \end{table}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.56\textwidth]{images/Plan_Car.png}
-    \caption{Draufsicht auf das MXCarkit ohne Karosserie: LiDAR-Sensor (Mitte), Recheneinheit (Jetson, schwarze Box), Akku (grauer Quader), VESC-ESC (gelber Stecker) und Lenkservo (roter Antrieb, vorne rechts).}
-    \label{fig:car_top_view}
-\end{figure}
 
-\begin{figure}[H]
-    \centering
-    \begin{minipage}[b]{0.54\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/Side_Car_Covered.png}
-        \small (a) Seitenansicht mit Karosserie.
-    \end{minipage}
-    \hfill
-    \begin{minipage}[b]{0.42\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{images/Front_Car_Covered.png}
-        \small (b) Frontansicht mit Karosserie.
-    \end{minipage}
-    \caption{MXCarkit (MX Carkit / M~Dynamix, THM) in Betriebskonfiguration mit montierter Karosserie. Der LiDAR-Sensor ist im Heckbereich über der Fahrzeugmitte sichtbar, die WLAN-Antenne ragt nach oben heraus.}
-    \label{fig:car_covered}
-\end{figure}
+Ein zentraler Aspekt ist die Einbettung des entwickelten Systems in die
+bestehende Fahrzeugsteuerung. Die Ausgabe erfolgt nicht direkt an
+hardware-nahe Steuer-Topics, sondern über
+\texttt{/autonomous/ackermann\_cmd}. Dadurch bleibt die vorhandene
+Sicherheits- und Moduslogik des MXCK vollständig erhalten.
 
-Die physikalische Position des LiDAR-Sensors in Abbildung \ref{fig:car_top_view} ist entscheidend für die mathematische Korrektheit der Hindernisprojektion. Wie in der Abbildung ersichtlich, befindet sich das optische Zentrum des Sensors mit einem signifikanten Versatz (Offset) vor der Hinterachse, was eine präzise Transformation in den \texttt{base\_link}-Frame erfordert.
+Der in dieser Arbeit betrachtete Softwarestand entspricht dem Repository
+\texttt{ftg\_mxck}, welches die vollständige Implementierung des
+beschriebenen FTG-Stacks enthält.
 
-Für diese Arbeit ist vor allem wichtig, dass der autonome Output nicht direkt an
-VESC-Topics gesendet wird, sondern an
-\texttt{/autonomous/ackermann\_cmd}. Dadurch bleibt die bestehende MXCK-
-Sicherheits- und Moduslogik erhalten.
+\section{Grundlagen von ROS~2}
 
-\section{ROS~2: Workspace, Paket, Node und Launch}
-
-Da der gesamte Stack auf ROS~2 basiert, ist ein sauberes Verständnis der
-Architekturelemente notwendig.
+Da die gesamte Systemarchitektur auf ROS~2 basiert, ist ein präzises
+Verständnis der zugrunde liegenden Konzepte erforderlich.
 
 \subsection{Workspace}
 
 Ein ROS~2-Workspace ist ein Verzeichnis, in dem mehrere Pakete gemeinsam
-gebaut werden. Gebräuchlich ist die Struktur
-\texttt{src/}, \texttt{build/}, \texttt{install/}, \texttt{log/}. Im MXCK-Projekt
-wird dieser Aufbau direkt genutzt: \texttt{mxck2\_ws} enthält die
-Kernfunktionalität, während \texttt{development\_ws} für zusätzliche
-Entwicklungsarbeit vorgesehen ist.
+verwaltet und gebaut werden. Die typische Struktur umfasst die
+Verzeichnisse \texttt{src/}, \texttt{build/}, \texttt{install/} und
+\texttt{log/}. Der Build-Prozess erfolgt üblicherweise über
+\texttt{colcon}.
+
+Im Kontext des MXCK wird diese Struktur direkt genutzt, wobei
+unterschiedliche Workspaces verschiedene Verantwortlichkeiten
+abdecken.
 
 \subsection{Paket}
 
-Ein Paket bündelt eine klar abgegrenzte Funktion. In dieser Arbeit werden
-Pakete für Perception, Planner, Control und Bringup verwendet. Für Python-Pakete
-sind insbesondere \texttt{package.xml}, \texttt{setup.py},
-\texttt{setup.cfg}, der Python-Modulordner und optionale Launch-/Config-Ordner
-relevant. Für C++-Pakete kommen stattdessen \texttt{CMakeLists.txt},
-\texttt{package.xml}, Header- und Source-Dateien zum Einsatz.
+Ein Paket stellt die zentrale organisatorische Einheit in ROS~2 dar. Es
+bündelt eine klar abgegrenzte Funktionalität, beispielsweise im Bereich
+Perception, Planung oder Steuerung.
+
+Je nach Implementierungssprache unterscheiden sich die notwendigen
+Dateien:
+\begin{itemize}
+    \item Python: \texttt{package.xml}, \texttt{setup.py},
+    \texttt{setup.cfg},
+    \item C++: \texttt{package.xml}, \texttt{CMakeLists.txt}.
+\end{itemize}
+
+Zusätzlich können Launch-Dateien und YAML-Konfigurationen Bestandteil
+eines Pakets sein.
 
 \subsection{Node}
 
-Ein Node ist ein laufender Prozess innerhalb des ROS~2-Graphs. Nodes abonnieren
-Topics, veröffentlichen Topics, verwenden Parameter und werden meist über
-Launch-Dateien gemeinsam gestartet.
+Ein Node ist ein eigenständiger Prozess innerhalb des ROS~2-Systems.
+Nodes kommunizieren über Topics, Services oder Actions und bilden
+gemeinsam einen verteilten Verarbeitungsgraphen.
 
-\subsection{Launch-Dateien und YAML-Parameter}
+Im vorliegenden System entspricht jede funktionale Stufe des
+FTG-Stacks einem eigenen Node, was eine klare Trennung der
+Verantwortlichkeiten ermöglicht.
 
-ROS~2 nutzt bevorzugt Python-basierte Launch-Dateien. Diese starten mehrere
-Nodes, reichen Parameter weiter und erlauben deklarative Startkonfigurationen.
-Für dieses Projekt ist das besonders wichtig, weil die Pipeline nur dann stabil
-und reproduzierbar ist, wenn Node-Namen, Executables, YAML-Dateien und Topics
-konsistent zusammenpassen.
+\subsection{Launch-Dateien und Parameter}
+
+ROS~2 verwendet bevorzugt Python-basierte Launch-Dateien zur
+Orchestrierung mehrerer Nodes. Diese definieren:
+\begin{itemize}
+    \item welche Nodes gestartet werden,
+    \item welche Parameter geladen werden,
+    \item sowie die verwendeten Topic-Namen und Namespaces.
+\end{itemize}
+
+YAML-Dateien dienen dabei der strukturierten Parametrierung der Nodes.
+Für die Reproduzierbarkeit des Systems ist die Konsistenz zwischen
+Launch-Dateien, Parametern und tatsächlicher Node-Konfiguration
+entscheidend.
 
 \section{Follow-the-Gap als reaktiver Planungsansatz}
 
-Der Ursprung des Follow-the-Gap-Verfahrens liegt in der Arbeit von Sezer und
-Gokasan. Dort wird FTG als lokaler Hindernisvermeidungsansatz formuliert, der
-die Umgebung nur anhand der aktuell sichtbaren Hindernisse bewertet. Statt eine
-globale Karte aufzubauen, sucht das Verfahren in jedem Zeitpunkt nach der
-größten passierbaren Lücke und richtet das Fahrzeug möglichst auf deren Mitte
-aus.
+Der Follow-the-Gap-Algorithmus (FTG) ist ein lokaler,
+reaktiver Planungsansatz zur Hindernisvermeidung. Im Gegensatz zu
+kartenbasierten Verfahren basiert FTG ausschließlich auf der aktuellen
+Sensorsicht und verzichtet auf eine globale Umgebungsrepräsentation.
 
-\subsection{Zentrale Idee der Originalarbeit}
+\subsection{Grundprinzip}
 
-Die Originalarbeit beschreibt drei Kernschritte:
+Die grundlegende Idee des Verfahrens besteht darin, aus den erfassten
+Hindernissen freie Bereiche (``Gaps'') zu bestimmen und die größte
+passierbare Lücke auszuwählen. Das Fahrzeug wird anschließend in Richtung
+des Zentrums dieser Lücke ausgerichtet.
 
-\begin{enumerate}[label=\arabic*)]
-    \item Aufbau einer Hindernis- bzw.\ Gap-Repräsentation,
-    \item Bestimmung eines sicheren Gap-Center-Winkels,
-    \item Fusion von Gap-Richtung und Zielrichtung zu einem finalen Heading.
+Die klassische Formulierung umfasst drei Schritte:
+\begin{enumerate}
+    \item Identifikation von Hindernissen und freien Bereichen,
+    \item Bestimmung eines geeigneten Gap-Zentrums,
+    \item Ableitung eines Fahrwinkels (Heading) basierend auf dieser Lücke.
 \end{enumerate}
 
-Wesentliche Eigenschaften des Verfahrens sind laut Originalarbeit:
+Ein wesentliches Merkmal ist die rein lokale Entscheidungsfindung, die
+eine schnelle Reaktion auf dynamische Umgebungsänderungen ermöglicht.
+
+\subsection{Eigenschaften des Verfahrens}
+
+Das FTG-Verfahren zeichnet sich durch folgende Eigenschaften aus:
 \begin{itemize}
-    \item Berücksichtigung des Sichtfelds,
-    \item Berücksichtigung nicht-holonomer Fahrdynamik,
-    \item keine lokale-Minimum-Problematik wie bei Potentialfeldern,
-    \item nur wenige Tuning-Parameter.
+    \item geringe Anzahl an Parametern,
+    \item robuste Reaktion in engen und unstrukturierten Umgebungen,
+    \item keine Abhängigkeit von globaler Lokalisierung,
+    \item Vermeidung klassischer lokaler Minima, wie sie bei
+    Potentialfeldmethoden auftreten können.
 \end{itemize}
 
-\subsection{Gap-Idee in vereinfachter Form}
+Gleichzeitig ist das Verfahren inhärent lokal und trifft keine
+langfristigen Planungsentscheidungen.
 
-Im klassischen FTG werden aus den Hindernisgrenzen aufeinanderfolgende
-``Gaps'' bestimmt. Die größte geeignete Lücke wird ausgewählt. Aus dieser
-Lücke wird ein Winkel $\varphi_{gap}$ bestimmt. Anschließend wird dieser mit
-einem Zielwinkel $\varphi_{goal}$ fusioniert, wobei nahe Hindernisse den
-Einfluss des Gap-Winkels erhöhen und freie Umgebung den Einfluss des
-Zielwinkels stärkt.
+\subsection{Scan-basierte Umsetzung im ROS~2-Kontext}
 
-Formal beschreibt die Originalarbeit die finale Heading-Bildung als gewichtete
-Fusion aus Gap-Winkel und Zielwinkel. Entscheidend ist dabei der kleinste
-Hindernisabstand $d_{min}$: je kleiner $d_{min}$ ist, desto stärker soll die
-Planung sicherheitsorientiert in Richtung des Gaps reagieren.
+In praktischen ROS~2-Systemen wird FTG typischerweise direkt auf
+LiDAR-Daten angewendet. Die Eingangsgröße ist ein
+\texttt{sensor\_msgs/LaserScan}, aus dem Hindernisabstände und freie
+Bereiche extrahiert werden.
 
-\subsection{Von der Originalformulierung zur praktischen Scan-Variante}
+Im Rahmen dieser Arbeit wird der Algorithmus nicht isoliert verwendet,
+sondern in eine mehrstufige Pipeline eingebettet. Dabei erfolgt eine
+explizite Vorverarbeitung des Scans, bevor dieser dem eigentlichen
+FTG-Kern übergeben wird.
 
-Die CTU-F1/10-Implementierung übernimmt die FTG-Idee in einen ROS-Node
-\texttt{follow\_the\_gap}. Dessen klassischer ROS-Eingang ist ein
-\texttt{sensor\_msgs/LaserScan} auf \texttt{/scan}; als Zielwinkel kann
-optional \texttt{/lsr/angle} vorgegeben werden. Als wesentliche Ausgänge nennt
-das CTU-Repository \texttt{/final\_heading\_angle},
-\texttt{/visualize\_final\_heading\_angle},
-\texttt{/visualize\_obstacles} und
-\texttt{/visualize\_largest\_gap}.
-
-Für das MXCK-Projekt wird dieser Kerngedanke nicht als
-\texttt{/scan}-Direkteingang verwendet, sondern als \emph{scan-basierter
-Vorverarbeitungspfad}:
+Der resultierende Datenfluss folgt konzeptionell der Struktur:
 
 \begin{lstlisting}
  /scan
-   -> scan_preprocessor_node
-   -> /autonomous/ftg/scan_filtered
-   -> follow_the_gap_v0 (input_mode=scan)
-   -> /final_heading_angle
-   -> /gap_found
+   -> Vorverarbeitung (Filterung, Transformation)
+   -> FTG-Kern (Heading-Bestimmung)
+   -> Planner (Policy und Geschwindigkeit)
+   -> Control (Ackermann-Ausgabe)
 \end{lstlisting}
 
-Damit wird der eigentliche C++-Planerkern entlastet: Das Re-Centering auf die
-Fahrzeugfront, die Clipping-Logik und die Front-Clearance-Bestimmung finden
-bereits vorher statt.
+Diese Aufteilung ermöglicht es, den algorithmischen Kern von
+fahrzeugspezifischen Anforderungen zu entkoppeln und gleichzeitig eine
+hohe Transparenz im Gesamtsystem zu gewährleisten.
 
-\section{Warum ROS~2 für dieses Thema relevant ist}
+\section{Bedeutung von ROS~2 für autonome Fahrketten}
 
-Die CTU-Arbeit von Endler zeigt, warum ROS~2 im Kontext schneller
-autonomer Fahrfunktionen relevant ist. Zentrale Punkte sind:
+ROS~2 bildet die technische Grundlage für die Umsetzung verteilter,
+echtzeitnaher Verarbeitungsketten in der Robotik.
+
+Im Vergleich zu ROS~1 ergeben sich mehrere relevante Vorteile:
 \begin{itemize}
-    \item DDS-basierte Kommunikation statt ROS~1-Master-Modell,
-    \item klare Trennung von \texttt{rcl}, \texttt{rmw} und DDS,
-    \item Build-System \texttt{ament} mit \texttt{colcon},
-    \item moderne Python-Launchfiles,
-    \item bessere Grundlage für Messung von Latenzen, Jitter und
-    End-to-End-Ketten.
+    \item DDS-basierte Kommunikation ohne zentralen Master,
+    \item verbesserte Skalierbarkeit und Robustheit,
+    \item klar strukturierte Middleware-Abstraktion,
+    \item moderne Build- und Launch-Systeme.
 \end{itemize}
 
-Für diese Projektarbeit ist das vor allem deshalb wichtig, weil das MXCK nicht
-nur einen Algorithmus ``irgendwie ausführt'', sondern als Prozesskette aus
-mehreren ROS~2-Nodes verstanden werden muss. Schon kleine Inkonsistenzen in
-Topic-Namen, QoS, Frames oder Startreihenfolge können das Gesamtsystem
-unbrauchbar machen.
+Für diese Arbeit ist insbesondere die Möglichkeit entscheidend,
+mehrere spezialisierte Nodes zu einer deterministischen
+Verarbeitungskette zu kombinieren. Die Gesamtfunktionalität ergibt sich
+erst aus dem Zusammenspiel aller Komponenten.
 
 \section{Zusammenfassung}
 
-Die theoretische Grundlage dieser Arbeit ist damit zweigeteilt:
-Einerseits liefert die FTG-Originalliteratur die mathematische und
-planungslogische Basis. Andererseits liefert der aktuelle ROS~2-/F1TENTH-
-Kontext die technische Form, in der diese Idee heute auf einem Jetson-basierten
-Lehrfahrzeug umgesetzt wird. Genau an dieser Schnittstelle setzt die
-vorliegende Arbeit an.
+Die Grundlagen dieser Arbeit verbinden zwei zentrale Perspektiven:
+Einerseits liefert der Follow-the-Gap-Ansatz die algorithmische Basis
+für eine reaktive Hindernisvermeidung. Andererseits stellt ROS~2 die
+technische Infrastruktur bereit, um diesen Ansatz in eine reale,
+mehrstufige Fahrzeugarchitektur zu integrieren.
+
+Die vorliegende Arbeit positioniert sich genau an dieser Schnittstelle
+zwischen Algorithmik und Systemintegration und betrachtet das Verhalten
+nicht isoliert, sondern als Teil einer vollständigen
+autonomen Verarbeitungskette.
