@@ -1,126 +1,222 @@
 \chapter{Diskussion und Bewertung}
 \label{ch:diskussion}
 
-Dieses Kapitel bewertet die entwickelte Systemarchitektur hinsichtlich ihrer technischen Eignung, Robustheit und Übertragbarkeit. Dabei werden sowohl algorithmische als auch systemtechnische Aspekte analysiert.
+Dieses Kapitel bewertet die entwickelte Systemarchitektur hinsichtlich ihrer technischen Eignung, Robustheit, Reaktionsfähigkeit und Übertragbarkeit. Im Mittelpunkt stehen dabei nicht nur die grundsätzliche Funktionsfähigkeit des scan-basierten Follow-the-Gap-Stacks, sondern auch die Frage, wie zuverlässig Hindernisse bzw. freie befahrbare Bereiche erkannt werden, wie sicher die resultierenden Ausweichmanöver ausfallen und wie stark die Parametrierung das Fahrverhalten beeinflusst.
 
 \section{Bewertung der gewählten Gesamtarchitektur}
 
-Die Entscheidung für eine strikt scan-basierte Pipeline stellt eine bewusste Abkehr von komplexeren, mehrstufigen Wahrnehmungsansätzen dar. Diese Reduktion des Datenpfads führt zu mehreren signifikanten Vorteilen.
+Die Entscheidung für eine strikt scan-basierte Pipeline stellt eine bewusste Abkehr von komplexeren, mehrstufigen Wahrnehmungsansätzen dar. Anstelle einer expliziten Objektextraktion oder einer modellbasierten Hindernisrepräsentation wird der freie und belegte Raum direkt aus dem LiDAR-Signal interpretiert. Dies entspricht dem Grundgedanken des Follow-the-Gap-Verfahrens, das auf eine reaktive Auswahl befahrbarer Lücken aus dem aktuellen Sichtfeld abzielt.
 
 \subsection{Reduktion von Komplexität}
 
-Durch den direkten Übergang von \texttt{/scan} zu einer gefilterten Scan-Repräsentation wird auf zusätzliche Abstraktionsebenen wie Objektextraktion oder Hindernismodellierung verzichtet. Dies reduziert:
+Durch den direkten Übergang von \texttt{/scan} zu einer gefilterten Scan-Repräsentation wird auf zusätzliche Abstraktionsebenen wie Objektdetektion, Segmentierung oder Kartierung verzichtet. Dies reduziert:
 
 \begin{itemize}
-    \item die Anzahl potenzieller Fehlerquellen,
-    \item den Parametrierungsaufwand,
-    \item die Latenz innerhalb der Verarbeitungskette.
+    \item die Anzahl potenzieller Fehlerquellen innerhalb der Verarbeitungskette,
+    \item den Parametrierungs- und Integrationsaufwand,
+    \item die Latenz zwischen Sensormessung und Fahrreaktion.
 \end{itemize}
 
-Gerade für reaktive Verfahren wie Follow-the-Gap ist diese Vereinfachung fachlich sinnvoll, da der Algorithmus explizit für rohnahe Sensordaten formuliert wurde~\cite{sezer2012}.
+Gerade für reaktive Verfahren wie Follow-the-Gap ist diese Vereinfachung fachlich sinnvoll, da der Algorithmus explizit für rohnahe Sensordaten formuliert wurde und seine Stärke in der schnellen lokalen Reaktion auf Hindernisse liegt.
 
 \subsection{Vergleich mit alternativen Ansätzen}
 
-Im Gegensatz zu globalen Planern oder kartengestützten Verfahren besitzt der implementierte Stack keine Kenntnis über die Umgebung außerhalb des aktuellen Sichtfelds. Dies führt zu folgenden Konsequenzen:
+Im Gegensatz zu globalen Planern oder kartengestützten Verfahren besitzt der implementierte Stack keine Kenntnis über die Umgebung außerhalb des aktuellen Sichtfelds. Daraus ergeben sich zwei zentrale Eigenschaften:
 
 \begin{itemize}
-    \item hohe Reaktionsfähigkeit auf lokale Hindernisse,
-    \item jedoch eingeschränkte Fähigkeit zur global optimalen Pfadplanung.
+    \item eine hohe Reaktionsfähigkeit auf lokale Änderungen der Umgebung,
+    \item jedoch eine eingeschränkte Fähigkeit zur global optimalen Pfadplanung.
 \end{itemize}
 
-Die Architektur ist daher klar als \textbf{lokaler reaktiver Planer} einzuordnen und nicht als vollständiges Navigationssystem.
-
-
+Die Architektur ist daher klar als \textbf{lokaler reaktiver Planer} einzuordnen und nicht als vollständiges Navigationssystem. Diese Einordnung ist für die Bewertung wesentlich, da Einschränkungen in komplexen Geometrien nicht als Integrationsfehler, sondern als systemimmanente Folge des gewählten Planungsansatzes zu interpretieren sind.
 
 \section{Analyse der Planner- und Control-Schicht}
 
-Die Trennung zwischen algorithmischem Kern, Planner und Control stellt eine klare funktionale Hierarchie dar.
+Die Trennung zwischen algorithmischem Kern, Planner und Control erzeugt eine klare funktionale Hierarchie innerhalb des Systems. Der FTG-Kern liefert eine fahrzeugagnostische Richtungsinformation, während Planner und Control diese Information in fahrbare und sicherheitsgerichtete Sollwerte überführen.
 
 Die gewählte Aufteilung ermöglicht:
 
 \begin{itemize}
-    \item Wiederverwendbarkeit des FTG-Kerns,
-    \item unabhängige Anpassung der Fahrstrategie,
+    \item Wiederverwendbarkeit des FTG-Kerns unabhängig von der Fahrzeugplattform,
+    \item unabhängige Anpassung der Fahrstrategie durch Parametrierung der Planner-Logik,
     \item klare Definition von Verantwortlichkeiten innerhalb der Pipeline.
 \end{itemize}
 
-Insbesondere fungiert der Planner als \textbf{Policy-Schicht}, die sicherstellt, dass die reaktive Planung in physikalisch realisierbare und sichere Fahrbefehle überführt wird.
-
+Insbesondere fungiert der Planner als \textbf{Policy-Schicht}, die sicherstellt, dass die reaktive Planung in physikalisch realisierbare und sichere Fahrbefehle überführt wird. Die Control-Schicht bildet anschließend die Schnittstelle zur bestehenden Fahrzeugsteuerung und begrenzt die Planner-Ausgabe entsprechend der fahrzeugspezifischen Randbedingungen.
 
 \section{Bewertung der experimentellen Ergebnisse}
 
-Die durchgeführten Fahrversuche zeigen, dass das System in strukturierten Innenräumen grundsätzlich funktionsfähig ist, jedoch klare Abhängigkeiten von der Umgebungskonfiguration aufweist.
+Die durchgeführten Fahrversuche zeigen, dass das System in strukturierten Innenräumen grundsätzlich funktionsfähig ist, die erreichte Qualität des Fahrverhaltens jedoch deutlich von Umgebungsgeometrie und Parametrierung abhängt. Besonders relevant sind dabei die Stabilität der Gap-Erkennung, das Auftreten von Stopps bzw. Fast-Stop-Zuständen, die Qualität der Eckdurchfahrt sowie der Einfluss des Sichtfelds und der geometrischen FTG-Konstanten.
 
 \subsection{Quantitativer Vergleich der Validierungsläufe}
 
-Tabelle~\ref{tab:validierung_vergleich} fasst die wichtigsten Metriken der beiden Testläufe zusammen.
+Tabelle~\ref{tab:validierung_vergleich} fasst die wichtigsten Kenngrößen der beiden Validierungsläufe zusammen. Die Werte basieren auf der Offline-Auswertung der aufgezeichneten Bags und beziehen sich sowohl auf die wahrnehmungsnahen Größen als auch auf die vom Planner und von der Control-Schicht erzeugten Signale.
 
 \begin{table}[H]
 \centering
-\caption{Vergleich der Metriken: Validierung Test 1 vs. Test 2}
+\caption{Vergleich zentraler Metriken der beiden Validierungsläufe.}
 \label{tab:validierung_vergleich}
-\begin{tabular}{l c c}
+\begin{tabular}{p{5.4cm} c c}
 \toprule
-\textbf{Metrik} & \textbf{Test 1} & \textbf{Test 2} \\
+\textbf{Metrik} & \textbf{Validierungslauf A} & \textbf{Validierungslauf B} \\
 \midrule
-Gap erkannt & 90\% & 56\% \\
-Speed = 0 (Zeitanteil) & 10\% & 44\% \\
-$\emptyset$ Geschwindigkeit & 0,37 m/s & 0,40 m/s \\
-Min. Clearance & 0,27 m & 0,34 m \\
+Gap-Erkennung (\texttt{gap\_found = true}) & 89{,}8\,\% & 56{,}0\,\% \\
+Planner-Zustand \textit{normal} & 90{,}0\,\% & 55{,}5\,\% \\
+Planner-Zustand \textit{stale} & 0{,}0\,\% & 32{,}8\,\% \\
+Planner-Zustand \textit{no valid gap found} & 10{,}0\,\% & 11{,}7\,\% \\
+Mittlere Sollgeschwindigkeit \texttt{target\_speed} & 0{,}335\,m/s & 0{,}226\,m/s \\
+Mittlerer Frontabstand \texttt{front\_clearance} & 0{,}601\,m & 0{,}685\,m \\
+Heading-Sättigung ($|heading| \geq 0{,}45$\,rad) & 11{,}4\,\% & -- \\
+Gap-Sättigung ($|gap\_angle| \geq 0{,}45$\,rad) & 5{,}2\,\% & -- \\
+Zeitanteil mit Stopp-Anforderung (\texttt{target\_speed = 0}) & gering & 44{,}2\,\% \\
 Kollisionen & 0 & 0 \\
-Heading-Bereich & $\pm$ 0,8 rad & $\pm$ 0,8 rad \\
-\midrule
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Detailbewertung der Szenarien}
+Die Gegenüberstellung zeigt, dass Validierungslauf~A insgesamt ein deutlich stabileres Verhalten aufweist. Lauf~B ist dagegen durch einen wesentlich höheren Anteil kritischer Zustände gekennzeichnet, insbesondere durch häufige Planner-Zustände \textit{stale} sowie einen hohen Anteil von Stopp-Anforderungen.
+
+\subsection{Zeitreihenbasierte Detailanalyse}
+
+Zur qualitativen Interpretation der numerischen Kennwerte wurden die wichtigsten Signalverläufe beider Fahrten zeitlich ausgewertet. Dabei wurden insbesondere Frontabstand, Heading-Winkel, Gap-Winkel, Sollgeschwindigkeit und Planner-Zustände herangezogen.
+
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Plot Validierungslauf A
+    \includegraphics[width=\textwidth]{images/ftgVal1_validation_plots.png}
+    \caption{Zeitreihenbasierte Auswertung von Validierungslauf~A. Dargestellt sind Frontabstand, Heading- und Gap-Winkel, Sollgeschwindigkeit sowie Zustandsgrößen des Planners.}
+    \label{fig:validation_plots_A}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Plot Validierungslauf B
+    \includegraphics[width=\textwidth]{images/ftgVal2_validation_plots.png}
+    \caption{Zeitreihenbasierte Auswertung von Validierungslauf~B. Die Darstellung verdeutlicht Unterschiede in Gap-Erkennung, Geschwindigkeitsfreigabe und Planner-Zuständen im Vergleich zu Validierungslauf~A.}
+    \label{fig:validation_plots_B}
+\end{figure}
+
+Die Zeitreihen zeigen, dass Lauf~A über weite Strecken stabile und konsistente Reaktionen des Systems aufweist. In Lauf~B treten dagegen deutlich häufiger Phasen auf, in denen keine valide Lücke erkannt wird oder der Planner auf veraltete Eingangsdaten reagiert. Dies führt zu einer größeren Zahl unterbrochener oder stark verlangsamter Fahrabschnitte.
+
+\subsection{Bewertung der Hinderniserkennung}
+
+Die Hinderniserkennung erfolgt im vorliegenden System nicht als semantische Objekterkennung, sondern als Interpretation freier und belegter Bereiche im LiDAR-Scan. Bewertet wird daher nicht die Klassifikation einzelner Objekte, sondern die Zuverlässigkeit, mit der der Stack befahrbare Lücken erkennt und den unmittelbaren Fahrweg als frei oder eingeschränkt bewertet.
+
+Die Ergebnisse zeigen:
 
 \begin{itemize}
-    \item \textbf{Test 1:} Alle Hindernisse wurden umfahren und die 90°-Ecke gemeistert. Der kurze Stopp an der Ecke resultiert aus dem \texttt{kCarRadius}-Parameter von 0,4\,m, der hier eine konservative Reaktion auslöste.
-    \item \textbf{Test 2:} Dieser Lauf ist als eingeschränkt zu bewerten. Ein Zeitanteil von 44\% mit Geschwindigkeit 0 sowie eine Gap-Erkennungsrate von nur 56\% weisen auf Instabilitäten hin. Die Ursache liegt im 180° FOV, das zu breit gewählt war, wodurch Seitenwände die Lückenerkennung störten.
+    \item Die Gap-Erkennung ist in Validierungslauf~A mit knapp 90\,\% sehr stabil.
+    \item In Validierungslauf~B sinkt die Gap-Erkennungsrate deutlich auf rund 56\,\%.
+    \item Der Unterschied ist nicht primär auf geringere Frontabstände zurückzuführen, sondern auf eine instabilere Interpretation der Umgebungssituation.
 \end{itemize}
 
+Dies ist ein wichtiges Ergebnis: Eine hohe mittlere Clearance allein garantiert noch kein robustes Fahrverhalten. Entscheidend ist, ob aus der gemessenen Umgebung eine konsistente und fahrbare Lücke abgeleitet werden kann.
+
+\subsection{Bewertung der Ausweichmanöver}
+
+Die Qualität der Ausweichmanöver wurde anhand folgender Kriterien bewertet:
+
+\begin{itemize}
+    \item Kollisionsfreiheit,
+    \item erfolgreiche Passage der Hindernisse,
+    \item Qualität der Seitenwahl an asymmetrischen Engstellen,
+    \item Eckdurchfahrt,
+    \item Kontinuität des Fahrverlaufs.
+\end{itemize}
+
+Beide Läufe verliefen kollisionsfrei. Dies ist ein zentraler Nachweis dafür, dass das System grundsätzlich in der Lage ist, auf statische Hindernisse sicher zu reagieren. Allerdings zeigt sich ein deutlicher Unterschied in der Qualität der Manöver:
+
+\begin{itemize}
+    \item \textbf{Validierungslauf A:} Das Fahrzeug umfuhr alle Hindernisse und meisterte die 90$^\circ$-Ecke grundsätzlich erfolgreich. Der Fahrverlauf ist als überwiegend stabil und funktional zu bewerten.
+    \item \textbf{Validierungslauf B:} Die Reaktion blieb zwar kollisionsfrei, war jedoch deutlich defensiver und weniger stabil. Häufige Stopps bzw. Fast-Stop-Zustände und eine geringere Verfügbarkeit der Gap-Erkennung weisen auf eine eingeschränkte Robustheit in dieser Konfiguration hin.
+\end{itemize}
+
+Damit ist der prinzipielle Nachweis der Reaktionsstrategie erbracht, jedoch nicht in gleicher Güte für beide Szenarien.
+
+\subsection{Einfluss der Parametrierung auf das Fahrverhalten}
+
+Ein zentrales Ergebnis der Validierung ist, dass die Parametrierung des Systems den resultierenden Fahrstil unmittelbar beeinflusst. Dieser Zusammenhang betrifft sowohl die Wahrnehmungsstufe als auch Planner und Control sowie die internen FTG-Konstanten.
+
+\subsubsection*{Einfluss des Sichtfelds}
+
+Das Frontsichtfeld bestimmt, wie breit die Umgebung in die lokale Reaktionsentscheidung einfließt. Ein zu großes Sichtfeld erhöht die Sensitivität gegenüber seitlichen Wänden und kann in engen Korridoren dazu führen, dass eigentlich passierbare Situationen als kritisch interpretiert werden. Ein reduziertes Sichtfeld führt dagegen zu einer robusteren Vorwärtsorientierung, kann jedoch seitliche Hindernisse später in die Entscheidungsfindung einbeziehen.
+
+\subsubsection*{Einfluss der Clearance-Schwellen}
+
+Die Parameter \texttt{stop\_clearance\_m} und \texttt{caution\_clearance\_m} bestimmen, wie defensiv das Fahrzeug auf Hindernisannäherungen reagiert. Höhere Schwellen führen zu früherem Bremsen und damit zu einem konservativen Fahrstil. Niedrigere Schwellen erhöhen die Flussfähigkeit, können aber die Sicherheitsreserve verringern.
+
+\subsubsection*{Einfluss der Steering-Slowdown-Parameter}
+
+Die Parameter \texttt{steering\_slowdown\_start\_rad} und \texttt{steering\_slowdown\_full\_rad} bestimmen, wie stark Kurven- bzw. Ausweichwinkel auf die Sollgeschwindigkeit wirken. Wird die maximale Geschwindigkeitsreduktion zu früh erreicht, kann dies insbesondere in Ecksituationen zu Corner-Blockaden oder unnötigen Stopps führen.
+
+\subsubsection*{Einfluss der internen FTG-Geometrie}
+
+Besonders relevant ist der interne Parameter \texttt{kCarRadius}. Er bestimmt über die Hindernis-Aufblähung, welche Lücken als passierbar betrachtet werden. Der derzeit verwendete Wert von 0{,}4\,m ist für ein Fahrzeug mit etwa 0{,}30\,m Breite stark konservativ und führt dazu, dass enge, real befahrbare Passagen im Algorithmus als blockiert erscheinen.
+
+Insgesamt zeigt sich: Die Parametrierung beeinflusst nicht nur die numerischen Signale des Systems, sondern den gesamten resultierenden Fahrstil, also etwa ob das Fahrzeug eher flüssig, defensiv, ruckartig oder blockierend reagiert.
+
+\subsection{Abgleich mit den Projektanforderungen}
+
+Die Aufgabenstellung fordert explizit den experimentellen Nachweis der Funktionalität, die Bewertung von Robustheit und Reaktionsfähigkeit sowie die kritische Analyse der Leistungsfähigkeit und Grenzen des Systems. Vor diesem Hintergrund ergibt sich der in Tabelle~\ref{tab:anforderungsabgleich} dargestellte Abgleich.
+
+\begin{table}[H]
+\centering
+\caption{Abgleich der wesentlichen Projektanforderungen mit den Validierungsergebnissen.}
+\label{tab:anforderungsabgleich}
+\begin{tabular}{p{5.0cm} p{4.0cm} p{4.5cm}}
+\toprule
+\textbf{Anforderung} & \textbf{Nachweis / Kennwert} & \textbf{Bewertung} \\
+\midrule
+Zuverlässige Reaktion auf statische Hindernisse & kollisionsfreie Fahrten, erfolgreiche Umfahrung in beiden Läufen & erfüllt \\
+Experimentelle Untersuchung unter Laborbedingungen & reproduzierbare Fahrversuche und rosbag-basierte Auswertung & erfüllt \\
+Bewertung von Robustheit und Reaktionsfähigkeit & Vergleich zweier Strecken, Zeitreihenanalyse, Planner-Zustände & teilweise erfüllt \\
+Modulare Integration in bestehende ROS~2-Infrastruktur & klar getrennter Pfad aus Perception, FTG, Planner und Control & erfüllt \\
+Kritische Analyse von Leistungsfähigkeit und Grenzen & Identifikation von Corner-Blockaden, Stale-Zuständen und Parametereinflüssen & erfüllt \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Damit kann festgehalten werden, dass die grundlegende Funktionalität und Integration erfolgreich nachgewiesen wurden. Die Robustheit ist jedoch noch nicht in allen Szenarien gleichermaßen gegeben und bleibt daher Gegenstand weiterer Optimierung.
+
 \subsection{Empfehlungen aus der Validierung}
-Bewertung für alle Parameter.
-Basierend auf den Ergebnissen wird empfohlen, das FOV auf 120° zurückzusetzen, um Störeinflüsse durch Wände zu minimieren. Zudem sollte der \texttt{kCarRadius} von 0,4\,m auf 0,20\,m reduziert werden, um dem realen 30\,cm breiten Fahrzeug besser gerecht zu werden.
+
+Aus den Messergebnissen ergeben sich mehrere konkrete Optimierungsempfehlungen:
+
+\begin{enumerate}
+    \item \textbf{Reduktion des effektiven Fahrzeugradius im FTG-Kern:} Der Parameter \texttt{kCarRadius} sollte von 0{,}4\,m auf etwa 0{,}20\,m reduziert bzw. künftig als konfigurierbarer ROS-Parameter umgesetzt werden.
+    \item \textbf{Trennung von FTG-Sichtfeld und Clearance-Sichtfeld:} Für die Berechnung von \texttt{front\_clearance} sollte ein engeres Sichtfenster verwendet werden als für den eigentlichen FTG-Scan, um Seitenwände in Korridoren weniger stark zu gewichten.
+    \item \textbf{Überprüfung der Stop-Propagation:} Stopp-Anforderungen des Planners sollten in der Control-Stufe konsequent bis zum Ackermann-Ausgang durchgereicht werden.
+    \item \textbf{Further Tuning der Planner-Policy:} Die Clearance- und Steering-Schwellen sollten so gewählt werden, dass Corner-Blockaden vermieden werden, ohne die Sicherheitsreserve unangemessen zu reduzieren.
+\end{enumerate}
 
 \subsection{Robustheit gegenüber statischen Hindernissen}
 
-In beiden Versuchsreihen konnte das Fahrzeug Hindernisse erkennen und geeignete Ausweichbewegungen berechnen. Die Anpassung der Geschwindigkeit in Abhängigkeit vom Frontabstand erwies sich als stabil und reproduzierbar.
+Die Experimente zeigen, dass das System statische Hindernisse grundsätzlich erkennen und in kollisionsfreie Ausweichmanöver überführen kann. Dies bestätigt die grundsätzliche Eignung des Stack-Aufbaus für strukturierte Innenraumumgebungen.
 
-\subsection{Verhalten bei dynamischen Änderungen}
+Die Robustheit ist jedoch nicht in jedem Szenario gleich hoch. Während Lauf~A eine stabile und konsistente Reaktion zeigt, offenbart Lauf~B eine höhere Sensitivität gegenüber Konfigurations- und Umgebungsunterschieden.
 
-Besonders relevant ist das Verhalten bei der Entfernung eines Hindernisses während der Fahrt. Hier zeigt sich ein charakteristischer Vorteil reaktiver Systeme:
+\subsection{Grenzfälle und Grenzen des Systems}
 
-\begin{itemize}
-    \item sofortige Anpassung an die neue Umgebung,
-    \item keine Notwendigkeit zur Replanung einer globalen Route.
-\end{itemize}
-
-Dieses Verhalten bestätigt die Eignung des FTG-Ansatzes für dynamische Szenarien.
-
-\subsection{Grenzfälle}
-
-Trotz der positiven Ergebnisse treten typische Einschränkungen auf:
+Trotz der positiven Ergebnisse treten typische Einschränkungen des gewählten Ansatzes auf:
 
 \begin{itemize}
-    \item keine strategische Entscheidung in Sackgassen,
-    \item potenziell suboptimale Pfadwahl in komplexen Geometrien,
-    \item Abhängigkeit von Sichtfeldbegrenzungen.
+    \item keine strategische Entscheidung in Sackgassen oder global komplexen Szenarien,
+    \item potenziell suboptimale Wahl in asymmetrischen oder mehrdeutigen Geometrien,
+    \item starke Abhängigkeit von Sichtfeld und Clearance-Parametrierung,
+    \item konservatives Verhalten bei übergroß gewählter Fahrzeuggeometrie,
+    \item mögliche Diskrepanzen zwischen Planner-Stop und tatsächlich ausgegebenem Fahrbefehl.
 \end{itemize}
 
-Diese Einschränkungen sind inhärent im Algorithmus begründet und nicht als Implementierungsfehler zu interpretieren.
+Diese Grenzen sind teils algorithmisch inhärent und teils durch die konkrete Implementierung und Parametrierung bedingt. Sie bilden damit zugleich die zentralen Ansatzpunkte für zukünftige Weiterentwicklungen.
 
 \section{Einordnung in den wissenschaftlichen Kontext}
 
-Die Kombination aus klassischem FTG-Ansatz~\cite{sezer2012}, CTU-Referenzimplementierung~\cite{ctu_ftg} und moderner ROS~2-Infrastruktur~\cite{ros2_docs} zeigt, wie etablierte Verfahren in aktuelle Softwarearchitekturen überführt werden können.
+Die Kombination aus klassischem FTG-Ansatz, CTU-Referenzimplementierung und moderner ROS~2-Infrastruktur zeigt, wie etablierte lokale Reaktionsverfahren in eine aktuelle modulare Fahrzeugsoftware integriert werden können. Die Arbeit leistet dabei keinen Beitrag zur Weiterentwicklung des mathematischen FTG-Algorithmus selbst, sondern zur systematischen Integration, reproduzierbaren Umsetzung und experimentellen Bewertung eines bestehenden Ansatzes unter realen Randbedingungen.
 
-Die vorliegende Arbeit leistet dabei keinen Beitrag zur Weiterentwicklung des Algorithmus selbst, sondern zur:
+Gerade im Kontext der Aufgabenstellung liegt der wissenschaftliche Mehrwert damit in drei Punkten:
 
 \begin{itemize}
-    \item systematischen Integration,
-    \item reproduzierbaren Umsetzung,
-    \item technischen Konsolidierung eines bestehenden Ansatzes.
+    \item der technisch sauberen Einbettung eines reaktiven Planers in eine reale ROS~2-Fahrzeugarchitektur,
+    \item der nachvollziehbaren experimentellen Validierung anhand definierter Kenngrößen,
+    \item sowie der kritischen Analyse von Robustheit, Reaktionsfähigkeit und Grenzen des Systems.
 \end{itemize}
-
