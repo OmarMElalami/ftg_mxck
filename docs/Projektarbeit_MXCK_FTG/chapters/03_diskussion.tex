@@ -7,8 +7,6 @@ Dieses Kapitel bewertet die entwickelte Systemarchitektur hinsichtlich ihrer tec
 
 Die Entscheidung für eine strikt scan-basierte Pipeline stellt eine bewusste Abkehr von komplexeren, mehrstufigen Wahrnehmungsansätzen dar. Anstelle einer expliziten Objektextraktion oder einer modellbasierten Hindernisrepräsentation wird der freie und belegte Raum direkt aus dem LiDAR-Signal interpretiert. Dies entspricht dem Grundgedanken des Follow-the-Gap-Verfahrens, das auf eine reaktive Auswahl befahrbarer Lücken aus dem aktuellen Sichtfeld abzielt.
 
-\subsection{Reduktion von Komplexität}
-
 Durch den direkten Übergang von \texttt{/scan} zu einer gefilterten Scan-Repräsentation wird auf zusätzliche Abstraktionsebenen wie Objektdetektion, Segmentierung oder Kartierung verzichtet. Dies reduziert:
 
 \begin{itemize}
@@ -19,16 +17,6 @@ Durch den direkten Übergang von \texttt{/scan} zu einer gefilterten Scan-Reprä
 
 Gerade für reaktive Verfahren wie Follow-the-Gap ist diese Vereinfachung fachlich sinnvoll, da der Algorithmus explizit für rohnahe Sensordaten formuliert wurde und seine Stärke in der schnellen lokalen Reaktion auf Hindernisse liegt.
 
-\subsection{Vergleich mit alternativen Ansätzen}
-
-Im Gegensatz zu globalen Planern oder kartengestützten Verfahren besitzt der implementierte Stack keine Kenntnis über die Umgebung außerhalb des aktuellen Sichtfelds. Daraus ergeben sich zwei zentrale Eigenschaften:
-
-\begin{itemize}
-    \item eine hohe Reaktionsfähigkeit auf lokale Änderungen der Umgebung,
-    \item jedoch eine eingeschränkte Fähigkeit zur global optimalen Pfadplanung.
-\end{itemize}
-
-Die Architektur ist daher klar als \textbf{lokaler reaktiver Planer} einzuordnen und nicht als vollständiges Navigationssystem. Diese Einordnung ist für die Bewertung wesentlich, da Einschränkungen in komplexen Geometrien nicht als Integrationsfehler, sondern als systemimmanente Folge des gewählten Planungsansatzes zu interpretieren sind.
 
 \section{Analyse der Planner- und Control-Schicht}
 
@@ -58,23 +46,23 @@ Tabelle~\ref{tab:validierung_vergleich} fasst die wichtigsten Kenngrößen der b
 \label{tab:validierung_vergleich}
 \begin{tabular}{p{5.4cm} c c}
 \toprule
-\textbf{Metrik} & \textbf{Validierungslauf A} & \textbf{Validierungslauf B} \\
+\textbf{Metrik} & \textbf{Validierungslauf Test 1} & \textbf{Validierungslauf Test 2} \\
 \midrule
-Gap-Erkennung (\texttt{gap\_found = true}) & 89{,}8\,\% & 56{,}0\,\% \\
+Gap-Erkennung & 89{,}8\,\% & 56{,}0\,\% \\
 Planner-Zustand \textit{normal} & 90{,}0\,\% & 55{,}5\,\% \\
 Planner-Zustand \textit{stale} & 0{,}0\,\% & 32{,}8\,\% \\
 Planner-Zustand \textit{no valid gap found} & 10{,}0\,\% & 11{,}7\,\% \\
-Mittlere Sollgeschwindigkeit \texttt{target\_speed} & 0{,}335\,m/s & 0{,}226\,m/s \\
-Mittlerer Frontabstand \texttt{front\_clearance} & 0{,}601\,m & 0{,}685\,m \\
-Heading-Sättigung ($|heading| \geq 0{,}45$\,rad) & 11{,}4\,\% & -- \\
-Gap-Sättigung ($|gap\_angle| \geq 0{,}45$\,rad) & 5{,}2\,\% & -- \\
-Zeitanteil mit Stopp-Anforderung (\texttt{target\_speed = 0}) & gering & 44{,}2\,\% \\
+Mittlere-Sollgeschwindigkeit \texttt{target\_speed} & 0{,}335\,m/s & 0{,}226\,m/s \\
+Mittlerer-Frontabstand \texttt{front\_clearance} & 0{,}601\,m & 0{,}685\,m \\
+Heading-Sättigung & 11{,}4\,\% & -- \\
+Gap-Sättigung & 5{,}2\,\% & -- \\
+Stopp-Anforderung  & gering & 44{,}2\,\% \\
 Kollisionen & 0 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Die Gegenüberstellung zeigt, dass Validierungslauf~A insgesamt ein deutlich stabileres Verhalten aufweist. Lauf~B ist dagegen durch einen wesentlich höheren Anteil kritischer Zustände gekennzeichnet, insbesondere durch häufige Planner-Zustände \textit{stale} sowie einen hohen Anteil von Stopp-Anforderungen.
+Die Gegenüberstellung zeigt, dass Validierungslauf Test 1 insgesamt ein deutlich stabileres Verhalten aufweist. Lauf Test 2 ist dagegen durch einen wesentlich höheren Anteil kritischer Zustände gekennzeichnet, insbesondere durch häufige Planner-Zustände \textit{stale} sowie einen hohen Anteil von Stopp-Anforderungen.
 
 \subsection{Zeitreihenbasierte Detailanalyse}
 
@@ -84,7 +72,7 @@ Zur qualitativen Interpretation der numerischen Kennwerte wurden die wichtigsten
     \centering
     % PLACEHOLDER: Plot Validierungslauf A
     \includegraphics[width=\textwidth]{images/ftgVal1_validation_plots.png}
-    \caption{Zeitreihenbasierte Auswertung von Validierungslauf~A. Dargestellt sind Frontabstand, Heading- und Gap-Winkel, Sollgeschwindigkeit sowie Zustandsgrößen des Planners.}
+    \caption{Zeitreihenbasierte Auswertung von Validierungslauf Test 1. Dargestellt sind Frontabstand, Heading- und Gap-Winkel, Sollgeschwindigkeit sowie Zustandsgrößen des Planners.}
     \label{fig:validation_plots_A}
 \end{figure}
 
@@ -92,11 +80,11 @@ Zur qualitativen Interpretation der numerischen Kennwerte wurden die wichtigsten
     \centering
     % PLACEHOLDER: Plot Validierungslauf B
     \includegraphics[width=\textwidth]{images/ftgVal2_validation_plots.png}
-    \caption{Zeitreihenbasierte Auswertung von Validierungslauf~B. Die Darstellung verdeutlicht Unterschiede in Gap-Erkennung, Geschwindigkeitsfreigabe und Planner-Zuständen im Vergleich zu Validierungslauf~A.}
+    \caption{Zeitreihenbasierte Auswertung von Validierungslauf Test 2. Dargestellt sind Frontabstand, Heading- und Gap-Winkel, Sollgeschwindigkeit sowie Zustandsgrößen des Planners.}
     \label{fig:validation_plots_B}
 \end{figure}
 
-Die Zeitreihen zeigen, dass Lauf~A über weite Strecken stabile und konsistente Reaktionen des Systems aufweist. In Lauf~B treten dagegen deutlich häufiger Phasen auf, in denen keine valide Lücke erkannt wird oder der Planner auf veraltete Eingangsdaten reagiert. Dies führt zu einer größeren Zahl unterbrochener oder stark verlangsamter Fahrabschnitte.
+Die Zeitreihen zeigen, dass Lauf Test 1 über weite Strecken stabile und konsistente Reaktionen des Systems aufweist. In Lauf Test 2 treten dagegen deutlich häufiger Phasen auf, in denen keine valide Lücke erkannt wird oder der Planner auf veraltete Eingangsdaten reagiert. Dies führt zu einer größeren Zahl unterbrochener oder verlangsamter Fahrabschnitte.
 
 \subsection{Bewertung der Hinderniserkennung}
 
@@ -155,29 +143,6 @@ Besonders relevant ist der interne Parameter \texttt{kCarRadius}. Er bestimmt ü
 
 Insgesamt zeigt sich: Die Parametrierung beeinflusst nicht nur die numerischen Signale des Systems, sondern den gesamten resultierenden Fahrstil, also etwa ob das Fahrzeug eher flüssig, defensiv, ruckartig oder blockierend reagiert.
 
-\subsection{Abgleich mit den Projektanforderungen}
-
-Die Aufgabenstellung fordert explizit den experimentellen Nachweis der Funktionalität, die Bewertung von Robustheit und Reaktionsfähigkeit sowie die kritische Analyse der Leistungsfähigkeit und Grenzen des Systems. Vor diesem Hintergrund ergibt sich der in Tabelle~\ref{tab:anforderungsabgleich} dargestellte Abgleich.
-
-\begin{table}[H]
-\centering
-\caption{Abgleich der wesentlichen Projektanforderungen mit den Validierungsergebnissen.}
-\label{tab:anforderungsabgleich}
-\begin{tabular}{p{5.0cm} p{4.0cm} p{4.5cm}}
-\toprule
-\textbf{Anforderung} & \textbf{Nachweis / Kennwert} & \textbf{Bewertung} \\
-\midrule
-Zuverlässige Reaktion auf statische Hindernisse & kollisionsfreie Fahrten, erfolgreiche Umfahrung in beiden Läufen & erfüllt \\
-Experimentelle Untersuchung unter Laborbedingungen & reproduzierbare Fahrversuche und rosbag-basierte Auswertung & erfüllt \\
-Bewertung von Robustheit und Reaktionsfähigkeit & Vergleich zweier Strecken, Zeitreihenanalyse, Planner-Zustände & teilweise erfüllt \\
-Modulare Integration in bestehende ROS~2-Infrastruktur & klar getrennter Pfad aus Perception, FTG, Planner und Control & erfüllt \\
-Kritische Analyse von Leistungsfähigkeit und Grenzen & Identifikation von Corner-Blockaden, Stale-Zuständen und Parametereinflüssen & erfüllt \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Damit kann festgehalten werden, dass die grundlegende Funktionalität und Integration erfolgreich nachgewiesen wurden. Die Robustheit ist jedoch noch nicht in allen Szenarien gleichermaßen gegeben und bleibt daher Gegenstand weiterer Optimierung.
-
 \subsection{Empfehlungen aus der Validierung}
 
 Aus den Messergebnissen ergeben sich mehrere konkrete Optimierungsempfehlungen:
@@ -188,12 +153,6 @@ Aus den Messergebnissen ergeben sich mehrere konkrete Optimierungsempfehlungen:
     \item \textbf{Überprüfung der Stop-Propagation:} Stopp-Anforderungen des Planners sollten in der Control-Stufe konsequent bis zum Ackermann-Ausgang durchgereicht werden.
     \item \textbf{Further Tuning der Planner-Policy:} Die Clearance- und Steering-Schwellen sollten so gewählt werden, dass Corner-Blockaden vermieden werden, ohne die Sicherheitsreserve unangemessen zu reduzieren.
 \end{enumerate}
-
-\subsection{Robustheit gegenüber statischen Hindernissen}
-
-Die Experimente zeigen, dass das System statische Hindernisse grundsätzlich erkennen und in kollisionsfreie Ausweichmanöver überführen kann. Dies bestätigt die grundsätzliche Eignung des Stack-Aufbaus für strukturierte Innenraumumgebungen.
-
-Die Robustheit ist jedoch nicht in jedem Szenario gleich hoch. Während Lauf~A eine stabile und konsistente Reaktion zeigt, offenbart Lauf~B eine höhere Sensitivität gegenüber Konfigurations- und Umgebungsunterschieden.
 
 \subsection{Grenzfälle und Grenzen des Systems}
 
@@ -209,14 +168,3 @@ Trotz der positiven Ergebnisse treten typische Einschränkungen des gewählten A
 
 Diese Grenzen sind teils algorithmisch inhärent und teils durch die konkrete Implementierung und Parametrierung bedingt. Sie bilden damit zugleich die zentralen Ansatzpunkte für zukünftige Weiterentwicklungen.
 
-\section{Einordnung in den wissenschaftlichen Kontext}
-
-Die Kombination aus klassischem FTG-Ansatz, CTU-Referenzimplementierung und moderner ROS~2-Infrastruktur zeigt, wie etablierte lokale Reaktionsverfahren in eine aktuelle modulare Fahrzeugsoftware integriert werden können. Die Arbeit leistet dabei keinen Beitrag zur Weiterentwicklung des mathematischen FTG-Algorithmus selbst, sondern zur systematischen Integration, reproduzierbaren Umsetzung und experimentellen Bewertung eines bestehenden Ansatzes unter realen Randbedingungen.
-
-Gerade im Kontext der Aufgabenstellung liegt der wissenschaftliche Mehrwert damit in drei Punkten:
-
-\begin{itemize}
-    \item der technisch sauberen Einbettung eines reaktiven Planers in eine reale ROS~2-Fahrzeugarchitektur,
-    \item der nachvollziehbaren experimentellen Validierung anhand definierter Kenngrößen,
-    \item sowie der kritischen Analyse von Robustheit, Reaktionsfähigkeit und Grenzen des Systems.
-\end{itemize}
