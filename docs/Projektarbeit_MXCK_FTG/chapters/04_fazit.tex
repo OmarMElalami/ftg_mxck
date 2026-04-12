@@ -49,46 +49,4 @@ ROS~2-Stacks für ein reales Lehr- und Entwicklungsfahrzeug.
 
 \section{Ausblick}
 
-Auf Basis des nun konsistent dokumentierten Stacks bieten sich die folgenden
-nächsten Schritte an:
 
-\begin{enumerate}
-    \item \textbf{PDF-Build automatisieren:}
-    Die Projektdokumentation sollte über einen korrekt im
-    Repository-Root platzierten GitHub-Action-Workflow automatisch gebaut
-    werden. Gleichzeitig sollten LaTeX-Hilfsdateien konsequent ignoriert
-    werden.
-
-    \item \textbf{Dokumentation und Code synchron halten:}
-    Änderungen an Pipeline, Topic-Namen, YAML-Dateien oder Launchfiles
-    sollten künftig immer gleichzeitig in README und Ausarbeitung
-    nachgeführt werden.
-
-    \item \textbf{Rosbag-basierte Evaluation:}
-    Für reproduzierbare Tests empfiehlt sich ein standardisierter Satz an
-    Rosbags mit \texttt{/scan}, \texttt{/tf}, \texttt{/final\_heading\_angle},
-    \texttt{/gap\_found}, Planner- und Control-Topics.
-
-    \item \textbf{Foxglove-Standardlayout:}
-    Ein gemeinsames Debugging-Layout für
-    \texttt{/scan}, \texttt{/autonomous/ftg/scan\_filtered},
-    \texttt{/visualize\_obstacles},
-    \texttt{/visualize\_final\_heading\_angle},
-    \texttt{/autonomous/ackermann\_cmd} und die Status-Topics würde
-    künftige Fehlersuche deutlich beschleunigen.
-
-    \item \textbf{Erweiterung über lokalen FTG hinaus:}
-    Nach erfolgreicher Stabilisierung des lokalen Hindernisvermeidungsstacks
-    kann die Einbindung globaler Routenplanung, Lokalisierung oder
-    zusätzlicher Sensorfusion betrachtet werden.
-\end{enumerate}
-
-\section*{Schlussbemerkung}
-\addcontentsline{toc}{section}{Schlussbemerkung}
-
-Der wichtigste Erkenntnisgewinn dieser Arbeit ist, dass ein robuster
-autonomer Stack nicht nur aus einem guten Algorithmus besteht.
-Er benötigt ebenso eine stimmige Prozesskette, korrekte Frame- und
-Topic-Semantik, nachvollziehbare Startlogik und eine Dokumentation,
-die exakt dem laufenden System entspricht. Erst das Zusammenspiel
-dieser Elemente macht den FTG-Stack auf dem MXCK tatsächlich nutzbar.
