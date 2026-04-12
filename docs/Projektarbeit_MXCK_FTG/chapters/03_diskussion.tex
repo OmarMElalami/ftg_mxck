@@ -1,183 +1,190 @@
 \chapter{Diskussion und Bewertung}
 \label{ch:diskussion}
 
-In diesem Kapitel werden die wesentlichen technischen Entscheidungen des
-aktuellen Stacks diskutiert. Ziel ist nicht nur eine Fehlerliste, sondern eine
-strukturierte Einordnung der Architektur in Bezug auf Robustheit,
-Wartbarkeit und Übertragbarkeit auf das MXCK.
+Dieses Kapitel bewertet die entwickelte Systemarchitektur hinsichtlich ihrer technischen Eignung, Robustheit und Übertragbarkeit. Dabei werden sowohl algorithmische als auch systemtechnische Aspekte analysiert.
 
-\section{Warum der direkte Scan-Pfad die richtige Hauptarchitektur ist}
+\section{Bewertung der gewählten Gesamtarchitektur}
 
-Eine der wichtigsten Klärungen im Projekt war die Abkehr vom alten
-Obstacle-Pfad als Standardlaufzeitpfad. Fachlich ist diese Entscheidung aus
-mehreren Gründen sinnvoll:
+Die Entscheidung für eine strikt scan-basierte Pipeline stellt eine bewusste Abkehr von komplexeren, mehrstufigen Wahrnehmungsansätzen dar. Diese Reduktion des Datenpfads führt zu mehreren signifikanten Vorteilen.
 
-\begin{enumerate}
-    \item Der FTG-Kern war ursprünglich scan-basiert formuliert.
-    \item Die Hindernis-Substitution bringt eine zusätzliche
-    Interpretations- und Parametrierungsschicht ins System.
-    \item Für ``schnell robuster FTG auf dem MXCK'' ist ein klarer und kurzer
-    Datenpfad vorteilhaft.
-\end{enumerate}
+\subsection{Reduktion von Komplexität}
 
-Der direkte Pfad
-\texttt{/scan -> scan\_filtered -> follow\_the\_gap} reduziert
-Fehlerquellen, verkürzt Debugging-Wege und bleibt näher an den
-ursprünglichen FTG-Annahmen der CTU/F1TENTH-Implementierung.
-
-\section{Rolle von TF und Geometrie}
-
-Die überarbeitete Dokumentation und die aktuelle Codeausrichtung machen
-deutlich, dass das Hauptproblem früherer Inkonsistenzen nicht im
-FTG-Kern selbst lag, sondern in der geometrischen Einordnung der Scandaten.
-
-\subsection{Fallstudie: Analyse der Kollision durch Transformationsfehler}
-Im Rahmen der Validierung wurde eine Kollision mit einem statischen Hindernis (Karton) dokumentiert. Die Analyse der Log-Daten und des Videomaterials ergab, dass der FTG-Kern zwar einen freien Pfad berechnete, dieser jedoch physikalisch nicht existierte.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.8\textwidth]{Side_Car} % Oder ein Frame aus dem Video
-    \caption{Seitenansicht des MXCarkit: Deutlich erkennbar ist die Montageposition des LiDARs oberhalb der Vorderachse.}
-    \label{fig:side_view}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.55\textwidth]{images/Front_Car.png}
-    \caption{Frontansicht des MXCarkit ohne Karosserie: Die Position des LiDAR-Sensors relativ zur Fahrzeugfront und der physische Abstand zur Vorderachse sind gut erkennbar. Dieser Versatz muss im \texttt{static\_transform\_publisher} korrekt hinterlegt sein.}
-    \label{fig:front_view_bare}
-\end{figure}
-
-Die Diskrepanz lässt sich auf eine fehlerhafte Definition im \texttt{static\_transform\_publisher} zurückführen. Wenn der Software-Offset (z.B. in der \texttt{mxck\_ftg\_perception}) kleiner gewählt ist als der reale physische Abstand (siehe Abb. \ref{fig:side_view}), projiziert der Algorithmus Hindernisse zu nah an das Fahrzeugzentrum. 
-
-\textbf{Mathematische Folge:}
-Ein Hindernis bei $x_{real}$ wird im System als $x_{sys} = x_{real} - \Delta_{offset}$ verarbeitet. Bei einer Linkskurve führt dies dazu, dass das Heck des Fahrzeugs oder die kurveninnere Seite das Hindernis touchiert, da der Planer von einem größeren Freiraum ausgeht, als physikalisch vorhanden ist. Dies erklärt das im Video beobachtete Verhalten, bei dem das Fahrzeug ohne Ausweichbewegung frontal in das Hindernis steuert.
-
-\subsection{Warum \texttt{front\_center\_deg = 0.0} fachlich richtig ist}
-
-Sobald der Preprocessor mit TF arbeitet, ist die Fahrzeugfront eine Eigenschaft des
-\texttt{base\_link}-Rahmens und nicht mehr des rohen LiDAR-Winkelsystems.
-Der Parameter \texttt{front\_center\_deg = 0.0} ist deshalb
-eine semantische Aussage über den Fahrzeugrahmen:
-``vorne ist 0° im Basisrahmen''.
-
-Die tatsächliche LiDAR-Montage wird dann ausschließlich durch
-\texttt{base\_link <- laser} beschrieben. Das ist robuster, weil
-Montagefehler oder andere Sensorrahmen nicht in mehreren Paketen und
-Dokumenten manuell nachgeführt werden müssen.
-
-\subsection{Folgen falscher Frame-Annahmen}
-
-Wenn Dokumentation, Launch-Logik und tatsächliche TF-Struktur nicht
-zusammenpassen, entstehen typische Symptome:
-\begin{itemize}
-    \item falsche Scan-Rezentrierung,
-    \item unplausibler \texttt{/final\_heading\_angle},
-    \item scheinbar ``richtige'', aber physikalisch falsch orientierte Marker,
-    \item falsche Interpretation des Frontfensters in Foxglove.
-\end{itemize}
-
-Gerade deshalb muss die Dokumentation dem Code folgen und nicht umgekehrt.
-
-\section{Bewertung der Planner-/Control-Aufteilung}
-
-Die aktuelle Aufteilung in
-\texttt{follow\_the\_gap\_v0} (Heading),
-\texttt{ftg\_planner\_node} (Policy) und
-\texttt{ftg\_command\_node} (Ackermann-Ausgabe) ist architektonisch sinnvoll.
-
-\subsection{Vorteile dieser Trennung}
+Durch den direkten Übergang von \texttt{/scan} zu einer gefilterten Scan-Repräsentation wird auf zusätzliche Abstraktionsebenen wie Objektextraktion oder Hindernismodellierung verzichtet. Dies reduziert:
 
 \begin{itemize}
-    \item \textbf{C++-Kern bleibt schlank:} Der eigentliche FTG-Kern muss keine
-    Geschwindigkeitsregeln oder MXCK-Hardwaregrenzen kennen.
-    \item \textbf{Planner als Policy-Schicht:} Geschwindigkeitsvorgaben können
-    geändert werden, ohne den FTG-Algorithmus selbst anzufassen.
-    \item \textbf{Control als Safety-Grenze:} Ackermann-Sättigung und Stop bei
-    stale Inputs liegen in einer klaren, letzten Softwarestufe.
+    \item die Anzahl potenzieller Fehlerquellen,
+    \item den Parametrierungsaufwand,
+    \item die Latenz innerhalb der Verarbeitungskette.
 \end{itemize}
 
-\subsection{Mögliche Schwächen}
+Gerade für reaktive Verfahren wie Follow-the-Gap ist diese Vereinfachung fachlich sinnvoll, da der Algorithmus explizit für rohnahe Sensordaten formuliert wurde~\cite{sezer2012}.
 
-Die Aufteilung erzeugt mehr ROS~2-Knoten und damit mehr
-Kommunikationsstellen. Für ein kleines Versuchssystem ist das tolerierbar,
-erfordert aber:
-\begin{itemize}
-    \item konsistente Topic-Namen,
-    \item korrekte YAML-Einbindung,
-    \item klare Freshness-Regeln,
-    \item reproduzierbare Bringup-Dateien.
-\end{itemize}
+\subsection{Vergleich mit alternativen Ansätzen}
 
-Die Dokumentation muss diese Prozesskette präzise abbilden, da schon eine
-kleine Abweichung zwischen README, Launchfile und Kapiteltext zu realen
-Fehlstarts führen kann.
-
-\section{Einordnung der CTU- und ROS~2-Quellen}
-
-\subsection{Beitrag der Original-FTG-Publikation}
-
-Die Arbeit von Sezer und Gokasan liefert die fachliche Begründung dafür,
-warum FTG in engem, unstrukturiertem Umfeld gut funktioniert:
-Largest-gap-Suche, sichere Heading-Wahl und gewichtete Fusion
-mit Zielrichtung. Für das MXCK ist besonders wichtig, dass das Verfahren
-von Natur aus lokal und reaktiv ist und keine vollständige Umgebungsmap
-benötigt.
-
-\subsection{Beitrag der CTU-Implementierung}
-
-Das CTU-Repository zeigt, wie diese Idee praktisch als ROS-Node umgesetzt wird:
-Scan-Eingang, Zielwinkel-Option und mehrere Diagnose-Ausgänge. Dadurch wird
-klar, welche Teile algorithmischer Kern sind und welche Teile in einem
-fahrzeugspezifischen Stack ausgelagert werden dürfen.
-
-\subsection{Beitrag der ROS~2-/F1TENTH-Thesis}
-
-Die CTU-Arbeit von Endler liefert keine MXCK-spezifische Architektur,
-aber zwei wichtige Perspektiven:
-\begin{itemize}
-    \item warum ROS~2 für autonome Fahrketten interessant ist,
-    \item warum Messung, Tracing und Prozesskettenverständnis entscheidend sind.
-\end{itemize}
-
-Für diese Projektarbeit ist dieser Blick besonders nützlich, weil das
-MXCK nicht nur algorithmisch, sondern auch als Kommunikationskette
-betrachtet wird.
-
-\section{Dokumentationsqualität als Teil der Systemqualität}
-
-Ein zentrales Ergebnis der Überarbeitung ist, dass Dokumentation in diesem
-Projekt nicht bloß ``Begleittext'' ist, sondern Teil der technischen Qualität.
-Mehrere frühere Problemstellen waren rein dokumentationsbedingt:
+Im Gegensatz zu globalen Planern oder kartengestützten Verfahren besitzt der implementierte Stack keine Kenntnis über die Umgebung außerhalb des aktuellen Sichtfelds. Dies führt zu folgenden Konsequenzen:
 
 \begin{itemize}
-    \item veraltete Diagramme mit \texttt{obstacle\_substitution} als Hauptpfad,
-    \item falsche Startreihenfolgen,
-    \item nicht mehr aktuelle Node-Listen,
-    \item uneinheitliche Plattformangaben,
-    \item Workflow-Dateien am falschen Ort,
-    \item versehentlich versionierte LaTeX-Build-Artefakte.
+    \item hohe Reaktionsfähigkeit auf lokale Hindernisse,
+    \item jedoch eingeschränkte Fähigkeit zur global optimalen Pfadplanung.
 \end{itemize}
 
-Gerade bei einem ROS~2-Stack mit mehreren Containern, mehreren Workspaces und
-mehreren Paketen ist eine fehlerhafte Doku praktisch gleichbedeutend mit einer
-fehlerhaften Betriebsanleitung.
+Die Architektur ist daher klar als \textbf{lokaler reaktiver Planer} einzuordnen und nicht als vollständiges Navigationssystem.
 
-\section{Grenzen des aktuellen Stands}
+\section{Rolle der geometrischen Konsistenz}
 
-Trotz der klaren Architektur und der verbesserten Dokumentation bleiben noch
-offene technische Grenzen:
+Eine zentrale Erkenntnis der Arbeit ist, dass die Systemstabilität maßgeblich von der korrekten geometrischen Transformation der Sensordaten abhängt.
+
+\subsection{Einfluss von TF-Fehlern}
+
+Bereits geringe Abweichungen im Transformationsbaum können zu systematischen Fehlinterpretationen führen. Insbesondere wirkt sich ein falscher Offset zwischen LiDAR und Fahrzeugrahmen direkt auf die Hindernisprojektion aus.
+
+Formal ergibt sich für die Positionsabbildung:
+
+\begin{equation}
+x_{\text{sys}} = x_{\text{real}} - \Delta_{\text{offset}}
+\end{equation}
+
+Ein zu kleiner Offset führt dazu, dass Hindernisse im Modell näher am Fahrzeugzentrum erscheinen als in der Realität. Dies resultiert in einer Überschätzung des verfügbaren Freiraums.
+
+\subsection{Praktische Auswirkungen}
+
+Die experimentell beobachteten Kollisionen lassen sich direkt auf diesen Effekt zurückführen. Der Planer berechnet in solchen Fällen einen scheinbar sicheren Fahrpfad, der physikalisch nicht existiert.
+
+Diese Beobachtung unterstreicht, dass:
 
 \begin{itemize}
-    \item Der FTG-Ansatz bleibt ein lokaler, reaktiver Planer.
-    \item Engstellen, Sackgassen und komplexe globale Fahrentscheidungen sind
-    nicht seine Stärke.
-    \item Die jetzige Arbeit dokumentiert den robusten Grundpfad, ersetzt aber
-    keine globale Navigation oder Lokalisierung.
-    \item Für höhere Fahrgeschwindigkeiten werden Laufzeitmessung, Jitter-Analyse
-    und reproduzierbare rosbag-basierte Evaluation wichtiger.
+    \item die Korrektheit der TF-Struktur kritischer ist als die Wahl des Planungsalgorithmus,
+    \item geometrische Inkonsistenzen nicht durch nachgelagerte Logik kompensiert werden können.
 \end{itemize}
 
-Diese Grenzen sind jedoch keine Schwäche des Projekts, sondern eine saubere
-Einordnung seines Ziels: ein transparenter, robuster, scan-basierter
-Hindernisvermeidungsstack für das MXCK.
+\section{Analyse der Planner- und Control-Schicht}
+
+Die Trennung zwischen algorithmischem Kern, Planner und Control stellt eine klare funktionale Hierarchie dar.
+
+\subsection{Vorteile der modularen Struktur}
+
+Die gewählte Aufteilung ermöglicht:
+
+\begin{itemize}
+    \item Wiederverwendbarkeit des FTG-Kerns,
+    \item unabhängige Anpassung der Fahrstrategie,
+    \item klare Definition von Verantwortlichkeiten innerhalb der Pipeline.
+\end{itemize}
+
+Insbesondere fungiert der Planner als \textbf{Policy-Schicht}, die sicherstellt, dass die reaktive Planung in physikalisch realisierbare und sichere Fahrbefehle überführt wird.
+
+\subsection{Systemische Nachteile}
+
+Die erhöhte Modularität führt gleichzeitig zu:
+
+\begin{itemize}
+    \item zusätzlichem Kommunikationsaufwand,
+    \item erhöhter Abhängigkeit von korrekter Topic-Synchronisation,
+    \item potenziellen Verzögerungen durch asynchrone Verarbeitung.
+\end{itemize}
+
+Diese Effekte sind im vorliegenden System aufgrund der moderaten Geschwindigkeit tolerierbar, würden jedoch bei höheren Dynamiken stärker ins Gewicht fallen.
+
+\section{Bewertung der experimentellen Ergebnisse}
+
+Die durchgeführten Fahrversuche zeigen, dass das System in strukturierten Innenräumen grundsätzlich funktionsfähig ist, jedoch klare Abhängigkeiten von der Umgebungskonfiguration aufweist.
+
+\subsection{Quantitativer Vergleich der Validierungsläufe}
+
+Tabelle~\ref{tab:validierung_vergleich} fasst die wichtigsten Metriken der beiden Testläufe zusammen.
+
+\begin{table}[H]
+\centering
+\caption{Vergleich der Metriken: Validierung Kurs A vs. Kurs B}
+\label{tab:validierung_vergleich}
+\begin{tabular}{l c c}
+\toprule
+\textbf{Metrik} & \textbf{Test 1 (Kurs A)} & \textbf{Test 2 (Kurs B)} \\
+\midrule
+Gap erkannt & 90\% & 56\% \\
+Speed = 0 (Zeitanteil) & 10\% & 44\% \\
+$\varnothing$ Geschwindigkeit & 0,37 m/s & 0,40 m/s \\
+Min. Clearance & 0,27 m & 0,34 m \\
+Kollisionen & 0 & 0 \\
+Heading-Bereich & $\pm$ 0,8 rad & $\pm$ 0,8 rad \\
+\midrule
+\textbf{Bewertung} & \textbf{Erfolgreich} & \textbf{Eingeschränkt} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Detailbewertung der Szenarien}
+
+\begin{itemize}
+    \item \textbf{Kurs A:} Die Navigation verlief erfolgreich. Alle Hindernisse wurden umfahren und die 90°-Ecke gemeistert. Der kurze Stopp an der Ecke resultiert aus dem \texttt{kCarRadius}-Parameter von 0,4\,m, der hier eine konservative Reaktion auslöste.
+    \item \textbf{Kurs B:} Dieser Lauf ist als eingeschränkt zu bewerten. Ein Zeitanteil von 44\% mit Geschwindigkeit 0 sowie eine Gap-Erkennungsrate von nur 56\% weisen auf Instabilitäten hin. Die Ursache liegt im 180° FOV, das zu breit gewählt war, wodurch Seitenwände die Lückenerkennung störten.
+\end{itemize}
+
+\subsection{Empfehlungen aus der Validierung}
+
+Basierend auf den Ergebnissen wird empfohlen, das FOV auf 120° zurückzusetzen, um Störeinflüsse durch Wände zu minimieren. Zudem sollte der \texttt{kCarRadius} von 0,4\,m auf 0,20\,m reduziert werden, um dem realen 30\,cm breiten Fahrzeug besser gerecht zu werden.
+
+\subsection{Robustheit gegenüber statischen Hindernissen}
+
+In beiden Versuchsreihen konnte das Fahrzeug Hindernisse erkennen und geeignete Ausweichbewegungen berechnen. Die Anpassung der Geschwindigkeit in Abhängigkeit vom Frontabstand erwies sich als stabil und reproduzierbar.
+
+\subsection{Verhalten bei dynamischen Änderungen}
+
+Besonders relevant ist das Verhalten bei der Entfernung eines Hindernisses während der Fahrt. Hier zeigt sich ein charakteristischer Vorteil reaktiver Systeme:
+
+\begin{itemize}
+    \item sofortige Anpassung an die neue Umgebung,
+    \item keine Notwendigkeit zur Replanung einer globalen Route.
+\end{itemize}
+
+Dieses Verhalten bestätigt die Eignung des FTG-Ansatzes für dynamische Szenarien.
+
+\subsection{Grenzfälle}
+
+Trotz der positiven Ergebnisse treten typische Einschränkungen auf:
+
+\begin{itemize}
+    \item keine strategische Entscheidung in Sackgassen,
+    \item potenziell suboptimale Pfadwahl in komplexen Geometrien,
+    \item Abhängigkeit von Sichtfeldbegrenzungen.
+\end{itemize}
+
+Diese Einschränkungen sind inhärent im Algorithmus begründet und nicht als Implementierungsfehler zu interpretieren.
+
+\section{Einordnung in den wissenschaftlichen Kontext}
+
+Die Kombination aus klassischem FTG-Ansatz~\cite{sezer2012}, CTU-Referenzimplementierung~\cite{ctu_ftg} und moderner ROS~2-Infrastruktur~\cite{ros2_docs} zeigt, wie etablierte Verfahren in aktuelle Softwarearchitekturen überführt werden können.
+
+Die vorliegende Arbeit leistet dabei keinen Beitrag zur Weiterentwicklung des Algorithmus selbst, sondern zur:
+
+\begin{itemize}
+    \item systematischen Integration,
+    \item reproduzierbaren Umsetzung,
+    \item technischen Konsolidierung eines bestehenden Ansatzes.
+\end{itemize}
+
+\section{Bedeutung der Dokumentation}
+
+Ein wesentliches Ergebnis der Arbeit ist die Erkenntnis, dass die Qualität der Dokumentation direkten Einfluss auf die Funktionsfähigkeit des Systems hat.
+
+Fehlerhafte oder veraltete Dokumentation führte in früheren Versionen zu:
+
+\begin{itemize}
+    \item inkorrekten Startsequenzen,
+    \item falschen Architekturannahmen,
+    \item widersprüchlichen Systembeschreibungen.
+\end{itemize}
+
+Die Synchronisation von Codebasis und Dokumentation ist daher als integraler Bestandteil der Systementwicklung zu betrachten.
+
+\section{Zusammenfassung der Bewertung}
+
+Die entwickelte Lösung stellt einen robusten und klar strukturierten Ansatz für reaktive Hindernisvermeidung dar. Ihre Stärken liegen in:
+
+\begin{itemize}
+    \item Einfachheit der Architektur,
+    \item hoher Reaktivität,
+    \item guter Integrierbarkeit in bestehende Systeme.
+\end{itemize}
+
+Die Grenzen ergeben sich primär aus der lokalen Natur des Algorithmus und nicht aus der konkreten Implementierung.
