@@ -114,7 +114,7 @@ Zusätzlich publiziert der Node Visualisierungstopics, insbesondere:
     \item \texttt{/visualize\_final\_heading\_angle}.
 \end{itemize}
 
-Diese Visualisierungstopics wurden im Rahmen der Arbeit nicht als Teil der eigentlichen Steuerlogik, wohl aber als wichtige Hilfsmittel bei Debugging und Validierung verwendet. Sie ermöglichen, die vom FTG-Kern interpretierten Hindernispunkte, die gewählte größte Lücke sowie die resultierende Fahrtrichtung unmittelbar in einer 3D-Ansicht nachzuvollziehen.
+Diese Visualisierungstopics wurden im Rahmen der Arbeit nicht als Teil der eigentlichen Steuerlogik, wohl aber als wichtige Hilfsmittel bei Debugging und Validierung verwendet. Sie ermöglichen, die vom FTG-Kern interpretierten Hindernispunkte, die gewählte größte Lücke sowie die resultierende Fahrtrichtung unmittelbar in einer 3D-Ansicht nachzuvollziehen. :contentReference[oaicite:6]{index=6}
 
 \subsection{Interne geometrische Modellannahmen}
 
@@ -255,8 +255,6 @@ Die Versuchsabfolge umfasste danach typischerweise:
     \item Aufzeichnung aller relevanten Topics mittels \texttt{rosbag2}.
 \end{enumerate}
 
-Die Testläufe wurden so durchgeführt, dass die Aktivierung des autonomen Modus erst nach erfolgreicher Kalibrierung, stabiler Sensorverfügbarkeit und plausiblen Zwischenwerten erfolgte. Dadurch konnte sichergestellt werden, dass erkannte Fehlzustände nicht durch die Testumgebung, sondern möglichst eindeutig durch die FTG-Pipeline selbst verursacht wurden.
-
 \subsection{Parametrierung des Systems}
 \label{sec:parametrierung_system}
 
@@ -278,7 +276,7 @@ Tabelle~\ref{tab:ftg_runtime_parameter} fasst die im Validierungsbetrieb verwend
 \endhead
 
 Perception & \texttt{front\_center\_deg} & 0.0 & Definiert Fahrtrichtung im \texttt{base\_link}-Frame; TF berücksichtigt Montage. \\
-Perception & \texttt{front\_fov\_deg} & 120.0 & Sichtfenster des FTG; größer = mehr Abdeckung, aber mehr Rand-Einfluss. \\
+Perception & \texttt{front\_fov\_deg} & \textit{} & Sichtfenster des FTG; größer = mehr Abdeckung, aber mehr Rand-Einfluss. \\
 Perception & \texttt{clip\_min\_range\_m} & 0.25 & Filtert sehr nahe Punkte und Eigenreflexionen. \\
 Perception & \texttt{clip\_max\_range\_m} & 10.0 & Begrenzt Auswertung auf relevanten Messbereich. \\
 Perception & \texttt{enable\_moving\_average} & \texttt{true} & Glättet Distanzsignal zur Ausreißerreduktion. \\
@@ -299,7 +297,7 @@ Planner & \texttt{speed\_smoothing\_alpha} & 0.3 & Glättet Beschleunigung (Brem
 Control & \texttt{input\_timeout\_sec} & 0.50 & Sicherheitsstopp bei veralteten Planner-Daten. \\
 Control & \texttt{angle\_to\_steering\_gain} & -1.00 & Skaliert/invertiert Lenkwinkel auf Lenkung. \\
 Control & \texttt{max\_steering\_angle\_rad} & 0.45 & Hardware-Limit des Lenkwinkels. \\
-Control & \texttt{min\_speed\_mps} & 0.0 & Minimale Ausgabegeschwindigkeit. \\
+Control & \texttt{min\_speed\_mps} & 0.18 & Minimale Ausgabegeschwindigkeit. \\
 Control & \texttt{max\_speed\_mps} & 1.80 & Maximale Ausgabegeschwindigkeit. \\
 \bottomrule
 \end{longtable}
@@ -324,7 +322,6 @@ Neben den Laufzeitparametern verwendet der C++-Kern \texttt{follow\_the\_gap\_v0
 \end{tabularx}
 \end{table}
 
-Die tabellarische Zusammenstellung ist für die Reproduzierbarkeit der Ergebnisse essenziell, da bereits moderate Änderungen einzelner Parameter zu deutlich unterschiedlichem Fahrverhalten führen können. Insbesondere Sichtfeld, Clearance-Schwellen, Glättungsparameter und effektive Fahrzeuggeometrie beeinflussen, ob das Fahrzeug eher flüssig, defensiv oder blockierend reagiert.
 
 \subsection{Messmethodik und Datenerfassung}
 \label{sec:messmethodik}
@@ -339,34 +336,6 @@ Die Auswertung fokussierte sich auf vier zentrale Beobachtungsgrößen:
     \item \textbf{Geschwindigkeit:} Analyse der Sollgeschwindigkeit des Planners und der tatsächlich ausgegebenen Ackermann-Geschwindigkeit,
     \item \textbf{Gap-Erkennung:} Bewertung, ob und wie stabil freie, befahrbare Lücken detektiert wurden.
 \end{itemize}
-
-Die aufgezeichneten Topics deckten sowohl den sensorischen Eingang als auch alle relevanten Zwischenstufen des Verarbeitungsgraphen ab. Tabelle~\ref{tab:recorded_topics} zeigt die für die Validierung herangezogenen Nachrichtenströme.
-
-\begin{table}[H]
-\centering
-\caption{Für die Validierung aufgezeichnete Topics des FTG-Stacks.}
-\label{tab:recorded_topics}
-\begin{tabular}{p{5.2cm} p{3.2cm} p{6.0cm}}
-\toprule
-\textbf{Topic} & \textbf{Nachrichtentyp} & \textbf{Funktion in der Auswertung} \\
-\midrule
-\texttt{/scan} & \texttt{sensor\_msgs/LaserScan} & Rohdaten des LiDARs als Eingangssignal \\
-\texttt{/autonomous/ftg/scan\_filtered} & \texttt{sensor\_msgs/LaserScan} & vorverarbeiteter, rezentrierter Scan für FTG \\
-\texttt{/autonomous/ftg/front\_clearance} & \texttt{std\_msgs/Float32} & minimaler Frontabstand als Eingangsgröße der Speed-Policy \\
-\texttt{/final\_heading\_angle} & \texttt{std\_msgs/Float32} & vom FTG-Kern berechnete Zielrichtung \\
-\texttt{/gap\_found} & \texttt{std\_msgs/Bool} & binäre Information über erkannte befahrbare Lücken \\
-\texttt{/autonomous/ftg/gap\_angle} & \texttt{std\_msgs/Float32} & begrenzter Planner-Lenkwinkel \\
-\texttt{/autonomous/ftg/target\_speed} & \texttt{std\_msgs/Float32} & vom Planner berechnete Sollgeschwindigkeit \\
-\texttt{/autonomous/ackermann\_cmd} & \texttt{ackermann\_msgs/AckermannDriveStamped} & tatsächlich ausgegebener Fahrbefehl \\
-\texttt{/autonomous/ftg/planner\_status} & \texttt{std\_msgs/String} & textuelle Zustandsdiagnose des Planners \\
-\texttt{/autonomous/ftg/control\_status} & \texttt{std\_msgs/String} & textuelle Zustandsdiagnose der Control-Stufe \\
-\texttt{/visualize\_obstacles} & \texttt{visualization\_msgs/Marker} & Visualisierung erkannter Hindernispunkte \\
-\texttt{/visualize\_largest\_gap} & \texttt{geometry\_msgs/PointStamped} & Visualisierung der größten detektierten Lücke \\
-\texttt{/visualize\_final\_heading\_angle} & \texttt{geometry\_msgs/PoseStamped} & Visualisierung der resultierenden Fahrtrichtung \\
-\texttt{/tf}, \texttt{/tf\_static} & \texttt{tf2\_msgs/TFMessage} & geometrische Referenz zwischen Sensor- und Fahrzeugrahmen \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 Zur Online-Beobachtung des Systemzustands wurde zusätzlich \textit{Foxglove Studio} eingesetzt. Die Live-Visualisierung diente insbesondere der Plausibilitätsprüfung von Scan, Heading, Gap-Erkennung, Planner-Zuständen, Ackermann-Ausgabe und Visualisierungstopics während der Testdurchführung.
 
