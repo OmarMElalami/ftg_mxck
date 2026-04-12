@@ -114,7 +114,7 @@ Zusätzlich publiziert der Node Visualisierungstopics, insbesondere:
     \item \texttt{/visualize\_final\_heading\_angle}.
 \end{itemize}
 
-Diese Visualisierungstopics wurden im Rahmen der Arbeit nicht als Teil der eigentlichen Steuerlogik, wohl aber als wichtige Hilfsmittel bei Debugging und Validierung verwendet. Sie ermöglichen, die vom FTG-Kern interpretierten Hindernispunkte, die gewählte größte Lücke sowie die resultierende Fahrtrichtung unmittelbar in einer 3D-Ansicht nachzuvollziehen. :contentReference[oaicite:6]{index=6}
+Diese Visualisierungstopics wurden im Rahmen der Arbeit nicht als Teil der eigentlichen Steuerlogik, wohl aber als wichtige Hilfsmittel bei Debugging und Validierung verwendet. Sie ermöglichen, die vom FTG-Kern interpretierten Hindernispunkte, die gewählte größte Lücke sowie die resultierende Fahrtrichtung unmittelbar in einer 3D-Ansicht nachzuvollziehen.
 
 \subsection{Interne geometrische Modellannahmen}
 
@@ -278,7 +278,7 @@ Tabelle~\ref{tab:ftg_runtime_parameter} fasst die im Validierungsbetrieb verwend
 \endhead
 
 Perception & \texttt{front\_center\_deg} & 0.0 & Definiert Fahrtrichtung im \texttt{base\_link}-Frame; TF berücksichtigt Montage. \\
-Perception & \texttt{front\_fov\_deg} & \textit{} & Sichtfenster des FTG; größer = mehr Abdeckung, aber mehr Rand-Einfluss. \\
+Perception & \texttt{front\_fov\_deg} & 120.0 & Sichtfenster des FTG; größer = mehr Abdeckung, aber mehr Rand-Einfluss. \\
 Perception & \texttt{clip\_min\_range\_m} & 0.25 & Filtert sehr nahe Punkte und Eigenreflexionen. \\
 Perception & \texttt{clip\_max\_range\_m} & 10.0 & Begrenzt Auswertung auf relevanten Messbereich. \\
 Perception & \texttt{enable\_moving\_average} & \texttt{true} & Glättet Distanzsignal zur Ausreißerreduktion. \\
@@ -299,7 +299,7 @@ Planner & \texttt{speed\_smoothing\_alpha} & 0.3 & Glättet Beschleunigung (Brem
 Control & \texttt{input\_timeout\_sec} & 0.50 & Sicherheitsstopp bei veralteten Planner-Daten. \\
 Control & \texttt{angle\_to\_steering\_gain} & -1.00 & Skaliert/invertiert Lenkwinkel auf Lenkung. \\
 Control & \texttt{max\_steering\_angle\_rad} & 0.45 & Hardware-Limit des Lenkwinkels. \\
-Control & \texttt{min\_speed\_mps} & 0.18 & Minimale Ausgabegeschwindigkeit. \\
+Control & \texttt{min\_speed\_mps} & 0.0 & Minimale Ausgabegeschwindigkeit. \\
 Control & \texttt{max\_speed\_mps} & 1.80 & Maximale Ausgabegeschwindigkeit. \\
 \bottomrule
 \end{longtable}
