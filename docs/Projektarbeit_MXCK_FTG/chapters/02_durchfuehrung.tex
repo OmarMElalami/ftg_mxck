@@ -16,14 +16,14 @@ Die entwickelte Pipeline folgt einer strikt modularen Struktur, die sich in vier
 
 Die resultierende Datenflusskette ist in Abbildung~\ref{fig:system_pipeline} dargestellt.
 
+Die Architektur ist so ausgelegt, dass der entwickelte FTG-Stack nicht direkt in die Aktorik eingreift, sondern ausschließlich Sollwerte an die bestehende Fahrzeugsteuerung übergibt. Dadurch bleibt die vorhandene Sicherheits- und Moduslogik des MXCarkit unverändert erhalten, während die reaktive Hindernisvermeidung als zusätzlicher autonomer Entscheidungsweg integriert wird.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{images/Gesamtarch.JPG}
-    \caption{Gesamtarchitektur des scan-basierten FTG-Stacks. Die Pipeline reicht vom Rohscan bis zur Ackermann-Ausgabe und zeigt die funktionale Trennung zwischen Wahrnehmung, Planung und Steuerung.}
+    \caption{Gesamtarchitektur des scan-basierten FTG-Stacks. Die Pipeline reicht vom Rohscan bis zur Ackermann-Ausgabe und zeigt die funktionale Trennung zwischen Wahrnehmung, Planung und Steuerung. \cite{mxck_repo}}
     \label{fig:system_pipeline}
 \end{figure}
-
-Die Architektur ist so ausgelegt, dass der entwickelte FTG-Stack nicht direkt in die Aktorik eingreift, sondern ausschließlich Sollwerte an die bestehende Fahrzeugsteuerung übergibt. Dadurch bleibt die vorhandene Sicherheits- und Moduslogik des MXCarkit unverändert erhalten, während die reaktive Hindernisvermeidung als zusätzlicher autonomer Entscheidungsweg integriert wird.
 
 \section{Algorithmische Grundlage}
 
@@ -32,7 +32,7 @@ Der eingesetzte Planungsansatz basiert auf dem Follow-the-Gap-Verfahren nach Sez
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\textwidth]{images/ftg_algorithm1.JPG}
-    \caption{Schematische Darstellung des Follow-the-Gap-Prinzips.}
+    \caption{Schematische Darstellung des Follow-the-Gap-Prinzips. \cite{ai2026}}
     \label{fig:ftg_algorithm}
 \end{figure}
 
@@ -43,27 +43,14 @@ Die Grundidee besteht darin, aus einem eindimensionalen Distanzprofil des LiDARs
 
 Die erste Stufe transformiert den Rohscan in eine für den FTG-Kern geeignete Repräsentation. Ziel ist es, die geometrische Beziehung zwischen Sensor und Fahrzeug konsistent aufzulösen und aus dem vollständigen 360$^\circ$-LiDAR-Signal einen für die lokale Fahrentscheidung relevanten Frontbereich abzuleiten.
 
-\subsection{Funktionale Aufgaben}
-
-Die implementierte Verarbeitung umfasst:
-
-\begin{itemize}
-    \item Transformation des Scans in den Fahrzeugrahmen mittels TF,
-    \item Definition eines frontalen Sichtfensters,
-    \item Entfernung ungültiger oder unplausibler Messwerte,
-    \item Glättung des Signals zur Rauschreduktion,
-    \item Berechnung des minimalen Frontabstands.
-\end{itemize}
-
-Diese Schritte sind notwendig, um die geometrische Konsistenz zwischen Sensor und Fahrzeug sicherzustellen und gleichzeitig eine robuste Eingangsgröße für die weitere reaktive Planung bereitzustellen.
 
 \subsection{Node-Detailbeschreibung der Perception-Stufe}
 
-Die Perception-Stufe besteht aus zwei Nodes: dem eigentlichen \texttt{scan\_preprocessor\_node} als produktiver Vorverarbeitungsstufe und dem optionalen Diagnose-Node \texttt{scan\_front\_window\_check}. Beide Nodes arbeiten auf Basis des LiDAR-Topics \texttt{/scan} und der TF-Beziehung zwischen \texttt{laser} und \texttt{base\_link}. Der aktuelle Repository-Stand beschreibt diese Trennung ebenfalls explizit. :contentReference[oaicite:2]{index=2}
+Die Perception-Stufe besteht aus zwei Nodes: dem eigentlichen \texttt{scan\_preprocessor\_node} als produktiver Vorverarbeitungsstufe und dem optionalen Diagnose-Node \texttt{scan\_front\_window\_check}. Beide Nodes arbeiten auf Basis des LiDAR-Topics \texttt{/scan} und der TF-Beziehung zwischen \texttt{laser} und \texttt{base\_link}. Der aktuelle Repository-Stand beschreibt diese Trennung ebenfalls explizit. 
 
 \subsubsection*{\texttt{scan\_preprocessor\_node}}
 
-Der \texttt{scan\_preprocessor\_node} bildet die zentrale Wahrnehmungsstufe des Stacks. Er liest den Rohscan, bestimmt mit Hilfe von TF die Orientierung des LiDARs relativ zum Fahrzeugrahmen und berechnet daraus, welche Messstrahlen zur Fahrtrichtung gehören. Im aktuellen Code werden hierzu unter anderem ein \texttt{scan\_topic}, ein \texttt{base\_frame}, ein frontales Sichtfeld sowie Distanzgrenzen und optionale Glättungsparameter deklariert. :contentReference[oaicite:3]{index=3}
+Der \texttt{scan\_preprocessor\_node} bildet die zentrale Wahrnehmungsstufe des Stacks. Er liest den Rohscan, bestimmt mit Hilfe von TF die Orientierung des LiDARs relativ zum Fahrzeugrahmen und berechnet daraus, welche Messstrahlen zur Fahrtrichtung gehören. Im aktuellen Code werden hierzu unter anderem ein \texttt{scan\_topic}, ein \texttt{base\_frame}, ein frontales Sichtfeld sowie Distanzgrenzen und optionale Glättungsparameter deklariert.
 
 Funktional führt der Node folgende Schritte aus:
 
@@ -83,7 +70,7 @@ Die wesentliche fachliche Funktion dieses Nodes besteht somit darin, die sensori
 
 \subsubsection*{\texttt{scan\_front\_window\_check}}
 
-Der optionale Diagnose-Node \texttt{scan\_front\_window\_check} dient nicht der eigentlichen Fahrentscheidung, sondern der Plausibilitätsprüfung des frontalen Wahrnehmungsfensters. Er analysiert den Rohscan im selben geometrischen Bezug wie der Preprocessor und ermittelt den jeweils nächstgelegenen Punkt im Frontbereich. Zusätzlich können Marker veröffentlicht werden, um die Interpretation des Frontfensters in RViz oder Foxglove direkt sichtbar zu machen. :contentReference[oaicite:4]{index=4}
+Der optionale Diagnose-Node \texttt{scan\_front\_window\_check} dient nicht der eigentlichen Fahrentscheidung, sondern der Plausibilitätsprüfung des frontalen Wahrnehmungsfensters. Er analysiert den Rohscan im selben geometrischen Bezug wie der Preprocessor und ermittelt den jeweils nächstgelegenen Punkt im Frontbereich. Zusätzlich können Marker veröffentlicht werden, um die Interpretation des Frontfensters in RViz oder Foxglove direkt sichtbar zu machen.
 
 Im Rahmen dieser Arbeit wurde dieser Node primär als Diagnosewerkzeug genutzt, um sicherzustellen, dass die durch TF definierte Fahrzeugvorwärtsrichtung mit der tatsächlich ausgewerteten Scan-Geometrie übereinstimmt.
 
@@ -94,7 +81,7 @@ Die Vorverarbeitung ist nicht bloß ein Vorfilter, sondern eine entscheidende ge
 \section{Stufe 2: Follow-the-Gap-Kern}
 \label{sec:ftg_core_stage}
 
-Der FTG-Kern bildet das algorithmische Zentrum des Systems. Er verarbeitet den vorbereiteten Frontscan und leitet daraus eine lokale Zielrichtung ab. Im aktuellen Stack ist dieser Kern als C++-Node \texttt{follow\_the\_gap} im Paket \texttt{follow\_the\_gap\_v0} realisiert. Er kann zwar grundsätzlich sowohl auf Scan- als auch auf Hindernis-Inputs arbeiten, im hier betrachteten Hauptpfad wird er jedoch explizit im scan-basierten Modus betrieben. :contentReference[oaicite:5]{index=5}
+Der FTG-Kern bildet das algorithmische Zentrum des Systems. Er verarbeitet den vorbereiteten Frontscan und leitet daraus eine lokale Zielrichtung ab. Im aktuellen Stack ist dieser Kern als C++-Node \texttt{follow\_the\_gap} im Paket \texttt{follow\_the\_gap\_v0} realisiert. Er kann zwar grundsätzlich sowohl auf Scan- als auch auf Hindernis-Inputs arbeiten, im hier betrachteten Hauptpfad wird er jedoch explizit im scan-basierten Modus betrieben.
 
 \subsection{Verarbeitungsschritte}
 
@@ -151,7 +138,6 @@ Die Planner-Stufe übernimmt insbesondere folgende Aufgaben:
     \item textuelle Zustandsbewertung des aktuellen Planner-Zustands.
 \end{itemize}
 
-Der aktuelle Repository-Stand dokumentiert zusätzlich, dass der Planner heute explizit als einziger aktiver Planner-Knoten betrieben wird und Heading- sowie Speed-Smoothing unterstützt. :contentReference[oaicite:7]{index=7}
 
 \subsection{Node-Detailbeschreibung des Planners}
 
@@ -214,11 +200,7 @@ Der \texttt{ftg\_command\_node} liest die beiden Planner-Ausgänge \texttt{/auto
     \item publiziert das Ergebnis als \texttt{/autonomous/ackermann\_cmd}.
 \end{itemize}
 
-Zusätzlich publiziert der Node einen textuellen Diagnosezustand auf \texttt{/autonomous/ftg/control\_status}. Diese Trennung zwischen funktionalem Ausgang und Diagnoseinformation ist für Debugging und Validierung besonders nützlich, da sich Sollwertbildung und tatsächlich weitergereichter Fahrbefehl getrennt analysieren lassen. :contentReference[oaicite:8]{index=8}
-
-\subsection{Systemintegration}
-
-Ein wesentliches Designkriterium ist, dass die bestehende Sicherheits- und Steuerlogik des MXCarkit unverändert bleibt. Der entwickelte Stack liefert ausschließlich Sollwerte und greift nicht direkt in die Aktorik ein. Insbesondere werden keine direkten VESC-Kommandos publiziert; stattdessen wird ausschließlich der vorgesehene autonome Ackermann-Pfad genutzt.
+Zusätzlich publiziert der Node einen textuellen Diagnosezustand auf \texttt{/autonomous/ftg/control\_status}. Diese Trennung zwischen funktionalem Ausgang und Diagnoseinformation ist für Debugging und Validierung besonders nützlich, da sich Sollwertbildung und tatsächlich weitergereichter Fahrbefehl getrennt analysieren lassen.
 
 \section{Versuchsdurchführung}
 \label{sec:versuchsdurchfuehrung}
@@ -231,15 +213,15 @@ Die Testumgebung bestand aus einem L-förmigen Korridor mit definierten Breiten 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.6\textwidth]{images/validation_course_A_schematic.png}
-    \caption{Validierungsstrecke A: L-förmiger Korridor mit asymmetrischer Hindernisfolge und Eckrestriktion.}
+    \includegraphics[width=0.45\textwidth]{images/validation_course_A_schematic.png}
+    \caption{Validierungsstrecke Test 1: L-förmiger Korridor mit asymmetrischer Hindernisfolge und Eckrestriktion.}
     \label{fig:test_track1}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.6\textwidth]{images/validation_course_B_schematic.png}
-    \caption{Validierungsstrecke B: Spiegelbildliche Hindernisanordnung zur Untersuchung der Robustheit gegenüber variierter lateraler Objektreihenfolge.}
+    \includegraphics[width=0.45\textwidth]{images/validation_course_B_schematic.png}
+    \caption{Validierungsstrecke Test 2: Spiegelbildliche Hindernisanordnung zur Untersuchung der Robustheit gegenüber variierter lateraler Objektreihenfolge.}
     \label{fig:test_track2}
 \end{figure}
 
@@ -281,7 +263,6 @@ Die Testläufe wurden so durchgeführt, dass die Aktivierung des autonomen Modus
 Die Validierungsfahrten wurden mit einer fest definierten Konfiguration des FTG-Stacks durchgeführt. Die Parametrierung ist für die Bewertung des Systemverhaltens von zentraler Bedeutung, da sie sowohl die geometrische Interpretation der Umgebung als auch die resultierende Fahrdynamik direkt beeinflusst. Insbesondere wirken sich Sichtfeld, Distanzgrenzen, Geschwindigkeitsgrenzen, Glättung und Abbremslogik unmittelbar auf das Ausweich- und Kurvenverhalten des Fahrzeugs aus.
 
 Tabelle~\ref{tab:ftg_runtime_parameter} fasst die im Validierungsbetrieb verwendeten Laufzeitparameter der drei zentralen Softwarestufen Perception, Planner und Control zusammen.
-
 \renewcommand{\arraystretch}{1.2}
 \begin{longtable}{p{2.6cm} p{3.0cm} p{1.8cm} p{6.2cm}}
 \caption{Verwendete Laufzeitparameter des FTG-Stacks während der Validierungsfahrten.}
@@ -296,30 +277,30 @@ Tabelle~\ref{tab:ftg_runtime_parameter} fasst die im Validierungsbetrieb verwend
 \midrule
 \endhead
 
-Perception & \texttt{front\_center\_deg} & 0.0 & Definition der Fahrtrichtung im \texttt{base\_link}-Frame; die physische LiDAR-Montage wird über TF berücksichtigt. \\
-Perception & \texttt{front\_fov\_deg} & \textit{versuchsabhängig} & Breite des für FTG verwendeten Sichtfensters; größere Werte erhöhen die Umgebungsabdeckung, lassen aber seitliche Wände stärker in die Entscheidungsfindung einfließen. Für die Auswertung ist jeweils die tatsächlich aktive Testkonfiguration maßgeblich. \\
-Perception & \texttt{clip\_min\_range\_m} & 0.25 & Untere Distanzgrenze; unterdrückt sehr nahe Punkte und mögliche Eigenreflexionen des Fahrzeugs. \\
-Perception & \texttt{clip\_max\_range\_m} & 10.0 & Obere Distanzgrenze; begrenzt die Auswertung auf den relevanten Messbereich. \\
-Perception & \texttt{enable\_moving\_average} & \texttt{true} & Aktiviert eine Glättung des Distanzsignals zur Reduktion einzelner Ausreißer. \\
-Perception & \texttt{moving\_average\_window} & 3 & Fenstergröße der Mittelung; größere Werte erhöhen die Glättung, reduzieren aber die Reaktivität. \\
+Perception & \texttt{front\_center\_deg} & 0.0 & Definiert Fahrtrichtung im \texttt{base\_link}-Frame; TF berücksichtigt Montage. \\
+Perception & \texttt{front\_fov\_deg} & \textit{} & Sichtfenster des FTG; größer = mehr Abdeckung, aber mehr Rand-Einfluss. \\
+Perception & \texttt{clip\_min\_range\_m} & 0.25 & Filtert sehr nahe Punkte und Eigenreflexionen. \\
+Perception & \texttt{clip\_max\_range\_m} & 10.0 & Begrenzt Auswertung auf relevanten Messbereich. \\
+Perception & \texttt{enable\_moving\_average} & \texttt{true} & Glättet Distanzsignal zur Ausreißerreduktion. \\
+Perception & \texttt{moving\_average\_window} & 3 & Bestimmt Glättungsstärke (größer = stabiler, aber träger). \\
 
-Planner & \texttt{input\_timeout\_sec} & 0.50 & Maximales Alter der Eingangsdaten; bei Überschreitung wird aus Sicherheitsgründen gestoppt. \\
-Planner & \texttt{max\_abs\_gap\_angle\_rad} & 0.45 & Begrenzung des resultierenden Lenkwinkels. \\
-Planner & \texttt{cruise\_speed\_mps} & 0.45 & Maximale Sollgeschwindigkeit bei freier Umgebung. \\
-Planner & \texttt{min\_speed\_mps} & 0.20 & Untergrenze der Fahrgeschwindigkeit im normalen Betrieb. \\
-Planner & \texttt{stop\_speed\_mps} & 0.00 & Sollgeschwindigkeit im Stoppfall. \\
-Planner & \texttt{stop\_clearance\_m} & 0.25 & Kritischer Frontabstand, unterhalb dessen das Fahrzeug anhalten soll. \\
-Planner & \texttt{caution\_clearance\_m} & 0.50 & Abstand, ab dem wieder die volle Clearance-Freigabe erreicht wird. \\
-Planner & \texttt{steering\_slowdown\_start\_rad} & 0.40 & Ab diesem Lenkwinkel wird die Geschwindigkeit schrittweise reduziert. \\
-Planner & \texttt{steering\_slowdown\_full\_rad} & 0.70 & Lenkwinkelbereich für maximale Geschwindigkeitsreduktion; bewusst größer als der maximal zulässige Gap-Winkel gewählt, um Corner-Blockaden zu vermeiden. \\
-Planner & \texttt{heading\_smoothing\_alpha} & 0.4 & Glättungsfaktor für den Heading-Winkel; reduziert sprunghafte Richtungswechsel zwischen aufeinanderfolgenden Scans. \\
-Planner & \texttt{speed\_smoothing\_alpha} & 0.3 & Glättungsfaktor für die Beschleunigungsphase; Bremsvorgänge bleiben davon unberührt und werden direkt umgesetzt. \\
+Planner & \texttt{input\_timeout\_sec} & 0.50 & Stopp bei zu alten Eingangsdaten. \\
+Planner & \texttt{max\_abs\_gap\_angle\_rad} & 0.45 & Begrenzung des maximalen Lenkwinkels. \\
+Planner & \texttt{cruise\_speed\_mps} & 0.45 & Maximale Geschwindigkeit in freier Fahrt. \\
+Planner & \texttt{min\_speed\_mps} & 0.20 & Untergrenze der Fahrgeschwindigkeit. \\
+Planner & \texttt{stop\_speed\_mps} & 0.00 & Geschwindigkeit im Stoppfall. \\
+Planner & \texttt{stop\_clearance\_m} & 0.25 & Sicherheitsabstand für Stop. \\
+Planner & \texttt{caution\_clearance\_m} & 0.50 & Abstand für Wiederfreigabe. \\
+Planner & \texttt{steering\_slowdown\_start\_rad} & 0.40 & Start der Geschwindigkeitsreduktion bei starkem Lenken. \\
+Planner & \texttt{steering\_slowdown\_full\_rad} & 0.70 & Maximale Reduktion bei großem Lenkwinkel. \\
+Planner & \texttt{heading\_smoothing\_alpha} & 0.4 & Glättet Richtungswechsel zwischen Scans. \\
+Planner & \texttt{speed\_smoothing\_alpha} & 0.3 & Glättet Beschleunigung (Bremsen direkt). \\
 
-Control & \texttt{input\_timeout\_sec} & 0.50 & Sicherheitsgrenze für veraltete Planner-Daten; bei Überschreitung wird ein Nullkommando ausgegeben. \\
-Control & \texttt{angle\_to\_steering\_gain} & -1.00 & Vorzeichen- und Skalierungsfaktor für die Lenkabbildung; negative Werte invertieren die physische Lenkreaktion. \\
-Control & \texttt{max\_steering\_angle\_rad} & 0.45 & Hardwarebedingte Begrenzung des Lenkwinkels. \\
-Control & \texttt{min\_speed\_mps} & 0.18 & Untere Grenze der ausgegebenen Sollgeschwindigkeit. \\
-Control & \texttt{max\_speed\_mps} & 1.80 & Obergrenze der ausgegebenen Sollgeschwindigkeit. \\
+Control & \texttt{input\_timeout\_sec} & 0.50 & Sicherheitsstopp bei veralteten Planner-Daten. \\
+Control & \texttt{angle\_to\_steering\_gain} & -1.00 & Skaliert/invertiert Lenkwinkel auf Lenkung. \\
+Control & \texttt{max\_steering\_angle\_rad} & 0.45 & Hardware-Limit des Lenkwinkels. \\
+Control & \texttt{min\_speed\_mps} & 0.18 & Minimale Ausgabegeschwindigkeit. \\
+Control & \texttt{max\_speed\_mps} & 1.80 & Maximale Ausgabegeschwindigkeit. \\
 \bottomrule
 \end{longtable}
 
@@ -392,7 +373,7 @@ Zur Online-Beobachtung des Systemzustands wurde zusätzlich \textit{Foxglove Stu
 \begin{figure}[H]
     \centering
     % PLACEHOLDER: Foxglove-Screenshot einfügen
-    \includegraphics[width=0.95\textwidth]{images/foxglove_validation_overview.JPG}
+    \includegraphics[width=0.99\textwidth]{images/foxglove_validation_overview.JPG}
     \caption{Exemplarisches Foxglove-Layout zur Online-Beobachtung des FTG-Stacks während der Validierungsfahrten. Dargestellt sind Sensorik, Visualisierungstopics und zentrale Zustandsgrößen des Planungs- und Steuerpfads.}
     \label{fig:foxglove_validation}
 \end{figure}
