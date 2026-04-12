@@ -1,412 +1,222 @@
-02_durchfuehrung.tex
-\chapter{Systembeschreibung und Durchführung}
-\label{ch:durchfuehrung}
+\chapter{Diskussion und Bewertung}
+\label{ch:diskussion}
 
-Dieses Kapitel beschreibt die konkret umgesetzte Systemarchitektur sowie die methodische Durchführung der Implementierung und Validierung des Follow-the-Gap-Stacks im Repository \texttt{ftg\_mxck}. Im Mittelpunkt steht der scan-basierte Hauptpfad, der als primäre Laufzeitarchitektur des Systems definiert wurde. Ziel dieses Kapitels ist es, die funktionale Rolle der einzelnen Softwarestufen, deren Zusammenspiel innerhalb der ROS~2-Pipeline sowie die experimentelle Vorgehensweise bei der Validierung nachvollziehbar darzustellen.
+Dieses Kapitel bewertet die entwickelte Systemarchitektur hinsichtlich ihrer technischen Eignung, Robustheit, Reaktionsfähigkeit und Übertragbarkeit. Im Mittelpunkt stehen dabei nicht nur die grundsätzliche Funktionsfähigkeit des scan-basierten Follow-the-Gap-Stacks, sondern auch die Frage, wie zuverlässig Hindernisse bzw. freie befahrbare Bereiche erkannt werden, wie sicher die resultierenden Ausweichmanöver ausfallen und wie stark die Parametrierung das Fahrverhalten beeinflusst.
 
-\section{Gesamtarchitektur des Systems}
+\section{Bewertung der gewählten Gesamtarchitektur}
 
-Die entwickelte Pipeline folgt einer strikt modularen Struktur, die sich in vier logisch getrennte Verarbeitungsebenen gliedert:
+Die Entscheidung für eine strikt scan-basierte Pipeline stellt eine bewusste Abkehr von komplexeren, mehrstufigen Wahrnehmungsansätzen dar. Anstelle einer expliziten Objektextraktion oder einer modellbasierten Hindernisrepräsentation wird der freie und belegte Raum direkt aus dem LiDAR-Signal interpretiert. Dies entspricht dem Grundgedanken des Follow-the-Gap-Verfahrens, das auf eine reaktive Auswahl befahrbarer Lücken aus dem aktuellen Sichtfeld abzielt.
 
-\begin{enumerate}
-    \item LiDAR-Vorverarbeitung (\textit{Perception})
-    \item reaktiver Planerkern (\textit{Follow-the-Gap})
-    \item policy-basierte Entscheidungslogik (\textit{Planner})
-    \item fahrzeugspezifische Schnittstelle (\textit{Control})
-\end{enumerate}
+\subsection{Reduktion von Komplexität}
 
-Die resultierende Datenflusskette ist in Abbildung~\ref{fig:system_pipeline} dargestellt.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{images/Gesamtarch.JPG}
-    \caption{Gesamtarchitektur des scan-basierten FTG-Stacks. Die Pipeline reicht vom Rohscan bis zur Ackermann-Ausgabe und zeigt die funktionale Trennung zwischen Wahrnehmung, Planung und Steuerung.}
-    \label{fig:system_pipeline}
-\end{figure}
-
-Die Architektur ist so ausgelegt, dass der entwickelte FTG-Stack nicht direkt in die Aktorik eingreift, sondern ausschließlich Sollwerte an die bestehende Fahrzeugsteuerung übergibt. Dadurch bleibt die vorhandene Sicherheits- und Moduslogik des MXCarkit unverändert erhalten, während die reaktive Hindernisvermeidung als zusätzlicher autonomer Entscheidungsweg integriert wird.
-
-\section{Algorithmische Grundlage}
-
-Der eingesetzte Planungsansatz basiert auf dem Follow-the-Gap-Verfahren nach Sezer und Gokasan. Die konkrete Implementierung orientiert sich an der F1TENTH-/CTU-Referenz und wurde als C++-Kern in den Stack integriert. Der Algorithmus arbeitet rein lokal und benötigt weder globale Karteninformation noch eine explizite semantische Objekterkennung.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\textwidth]{images/ftg_algorithm1.JPG}
-    \caption{Schematische Darstellung des Follow-the-Gap-Prinzips.}
-    \label{fig:ftg_algorithm}
-\end{figure}
-
-Die Grundidee besteht darin, aus einem eindimensionalen Distanzprofil des LiDARs freie und belegte Bereiche abzuleiten, die größte befahrbare Lücke zu bestimmen und daraus eine geeignete Zielrichtung abzuleiten. Das Verfahren ist damit als lokaler reaktiver Planer einzuordnen. Seine Stärke liegt in der geringen Latenz und der direkten Reaktion auf lokale Hindernisse; seine Grenze besteht darin, dass keine globale Pfadstrategie oder Umgebungsrepräsentation aufgebaut wird.
-
-\section{Stufe 1: LiDAR-Vorverarbeitung}
-\label{sec:perception_stage}
-
-Die erste Stufe transformiert den Rohscan in eine für den FTG-Kern geeignete Repräsentation. Ziel ist es, die geometrische Beziehung zwischen Sensor und Fahrzeug konsistent aufzulösen und aus dem vollständigen 360$^\circ$-LiDAR-Signal einen für die lokale Fahrentscheidung relevanten Frontbereich abzuleiten.
-
-\subsection{Funktionale Aufgaben}
-
-Die implementierte Verarbeitung umfasst:
+Durch den direkten Übergang von \texttt{/scan} zu einer gefilterten Scan-Repräsentation wird auf zusätzliche Abstraktionsebenen wie Objektdetektion, Segmentierung oder Kartierung verzichtet. Dies reduziert:
 
 \begin{itemize}
-    \item Transformation des Scans in den Fahrzeugrahmen mittels TF,
-    \item Definition eines frontalen Sichtfensters,
-    \item Entfernung ungültiger oder unplausibler Messwerte,
-    \item Glättung des Signals zur Rauschreduktion,
-    \item Berechnung des minimalen Frontabstands.
+    \item die Anzahl potenzieller Fehlerquellen innerhalb der Verarbeitungskette,
+    \item den Parametrierungs- und Integrationsaufwand,
+    \item die Latenz zwischen Sensormessung und Fahrreaktion.
 \end{itemize}
 
-Diese Schritte sind notwendig, um die geometrische Konsistenz zwischen Sensor und Fahrzeug sicherzustellen und gleichzeitig eine robuste Eingangsgröße für die weitere reaktive Planung bereitzustellen.
+Gerade für reaktive Verfahren wie Follow-the-Gap ist diese Vereinfachung fachlich sinnvoll, da der Algorithmus explizit für rohnahe Sensordaten formuliert wurde und seine Stärke in der schnellen lokalen Reaktion auf Hindernisse liegt.
 
-\subsection{Node-Detailbeschreibung der Perception-Stufe}
+\subsection{Vergleich mit alternativen Ansätzen}
 
-Die Perception-Stufe besteht aus zwei Nodes: dem eigentlichen \texttt{scan\_preprocessor\_node} als produktiver Vorverarbeitungsstufe und dem optionalen Diagnose-Node \texttt{scan\_front\_window\_check}. Beide Nodes arbeiten auf Basis des LiDAR-Topics \texttt{/scan} und der TF-Beziehung zwischen \texttt{laser} und \texttt{base\_link}. Der aktuelle Repository-Stand beschreibt diese Trennung ebenfalls explizit. :contentReference[oaicite:2]{index=2}
-
-\subsubsection*{\texttt{scan\_preprocessor\_node}}
-
-Der \texttt{scan\_preprocessor\_node} bildet die zentrale Wahrnehmungsstufe des Stacks. Er liest den Rohscan, bestimmt mit Hilfe von TF die Orientierung des LiDARs relativ zum Fahrzeugrahmen und berechnet daraus, welche Messstrahlen zur Fahrtrichtung gehören. Im aktuellen Code werden hierzu unter anderem ein \texttt{scan\_topic}, ein \texttt{base\_frame}, ein frontales Sichtfeld sowie Distanzgrenzen und optionale Glättungsparameter deklariert. :contentReference[oaicite:3]{index=3}
-
-Funktional führt der Node folgende Schritte aus:
-
-\begin{enumerate}
-    \item Einlesen des Rohscans von \texttt{/scan}.
-    \item TF-Abfrage der Transformation \texttt{base\_link} $\leftarrow$ \texttt{laser}.
-    \item Bestimmung der Fahrzeugvorwärtsrichtung im Scan unter Berücksichtigung der Sensorrotation.
-    \item Auswahl aller Messstrahlen innerhalb des definierten Frontfensters.
-    \item Clipping der Messwerte auf den zugelassenen Distanzbereich.
-    \item Optionale Glättung der Distanzwerte mittels gleitendem Mittelwert.
-    \item Publikation des rezentrierten Frontscans auf \texttt{/autonomous/ftg/scan\_filtered}.
-    \item Publikation des minimalen Frontabstands auf \texttt{/autonomous/ftg/front\_clearance}.
-    \item Ausgabe eines textuellen Diagnosezustands auf \texttt{/autonomous/ftg/status}.
-\end{enumerate}
-
-Die wesentliche fachliche Funktion dieses Nodes besteht somit darin, die sensorische Umgebung in eine für den FTG-Kern geeignete, fahrzeugbezogene Darstellung zu überführen. Der resultierende Scan besitzt im \texttt{base\_link}-Bezug eine direkte Interpretation der Fahrtrichtung, wodurch der nachfolgende Algorithmus nicht mehr auf die physische Sensormontage reagieren muss.
-
-\subsubsection*{\texttt{scan\_front\_window\_check}}
-
-Der optionale Diagnose-Node \texttt{scan\_front\_window\_check} dient nicht der eigentlichen Fahrentscheidung, sondern der Plausibilitätsprüfung des frontalen Wahrnehmungsfensters. Er analysiert den Rohscan im selben geometrischen Bezug wie der Preprocessor und ermittelt den jeweils nächstgelegenen Punkt im Frontbereich. Zusätzlich können Marker veröffentlicht werden, um die Interpretation des Frontfensters in RViz oder Foxglove direkt sichtbar zu machen. :contentReference[oaicite:4]{index=4}
-
-Im Rahmen dieser Arbeit wurde dieser Node primär als Diagnosewerkzeug genutzt, um sicherzustellen, dass die durch TF definierte Fahrzeugvorwärtsrichtung mit der tatsächlich ausgewerteten Scan-Geometrie übereinstimmt.
-
-\subsection{Rolle der Perception-Stufe im Gesamtsystem}
-
-Die Vorverarbeitung ist nicht bloß ein Vorfilter, sondern eine entscheidende geometrische Konsolidierungsstufe. Fehler in dieser Stufe --- etwa ein falscher TF-Bezug, ein ungeeignetes Sichtfeld oder eine unpassende Clipping-Grenze --- wirken sich unmittelbar auf die Gap-Erkennung und damit auf das gesamte Fahrverhalten aus. In der späteren Validierung zeigt sich genau dieser Zusammenhang: Parameter wie Sichtfeld und Clearance-Definition beeinflussen, ob das Fahrzeug eher flüssig oder konservativ reagiert.
-
-\section{Stufe 2: Follow-the-Gap-Kern}
-\label{sec:ftg_core_stage}
-
-Der FTG-Kern bildet das algorithmische Zentrum des Systems. Er verarbeitet den vorbereiteten Frontscan und leitet daraus eine lokale Zielrichtung ab. Im aktuellen Stack ist dieser Kern als C++-Node \texttt{follow\_the\_gap} im Paket \texttt{follow\_the\_gap\_v0} realisiert. Er kann zwar grundsätzlich sowohl auf Scan- als auch auf Hindernis-Inputs arbeiten, im hier betrachteten Hauptpfad wird er jedoch explizit im scan-basierten Modus betrieben. :contentReference[oaicite:5]{index=5}
-
-\subsection{Verarbeitungsschritte}
-
-Innerhalb des Algorithmus erfolgen im Wesentlichen:
-
-\begin{enumerate}
-    \item Umwandlung des vorbereiteten Scans in eine interne Hindernisrepräsentation,
-    \item Identifikation von Hindernisbereichen,
-    \item Bestimmung zusammenhängender freier Bereiche (\textit{Gaps}),
-    \item Auswahl der größten bzw. geeignetsten befahrbaren Lücke,
-    \item Berechnung eines Zielwinkels innerhalb dieser Lücke.
-\end{enumerate}
-
-Die resultierende Zielrichtung ist ein rein geometrisches Ergebnis und enthält bewusst noch keine Aussage über Geschwindigkeit oder fahrzeugspezifische Dynamik.
-
-\subsection{Node-Detailbeschreibung des FTG-Kerns}
-
-Der Node \texttt{follow\_the\_gap} empfängt im scan-basierten Betrieb den Topic \texttt{/autonomous/ftg/scan\_filtered}. Als primäre Ausgänge publiziert er:
+Im Gegensatz zu globalen Planern oder kartengestützten Verfahren besitzt der implementierte Stack keine Kenntnis über die Umgebung außerhalb des aktuellen Sichtfelds. Daraus ergeben sich zwei zentrale Eigenschaften:
 
 \begin{itemize}
-    \item \texttt{/final\_heading\_angle} als kontinuierlichen Richtungswinkel,
-    \item \texttt{/gap\_found} als binäre Information, ob eine befahrbare Lücke detektiert wurde.
+    \item eine hohe Reaktionsfähigkeit auf lokale Änderungen der Umgebung,
+    \item jedoch eine eingeschränkte Fähigkeit zur global optimalen Pfadplanung.
 \end{itemize}
 
-Zusätzlich publiziert der Node Visualisierungstopics, insbesondere:
+Die Architektur ist daher klar als \textbf{lokaler reaktiver Planer} einzuordnen und nicht als vollständiges Navigationssystem. Diese Einordnung ist für die Bewertung wesentlich, da Einschränkungen in komplexen Geometrien nicht als Integrationsfehler, sondern als systemimmanente Folge des gewählten Planungsansatzes zu interpretieren sind.
+
+\section{Analyse der Planner- und Control-Schicht}
+
+Die Trennung zwischen algorithmischem Kern, Planner und Control erzeugt eine klare funktionale Hierarchie innerhalb des Systems. Der FTG-Kern liefert eine fahrzeugagnostische Richtungsinformation, während Planner und Control diese Information in fahrbare und sicherheitsgerichtete Sollwerte überführen.
+
+Die gewählte Aufteilung ermöglicht:
 
 \begin{itemize}
-    \item \texttt{/visualize\_obstacles},
-    \item \texttt{/visualize\_largest\_gap},
-    \item \texttt{/visualize\_final\_heading\_angle}.
+    \item Wiederverwendbarkeit des FTG-Kerns unabhängig von der Fahrzeugplattform,
+    \item unabhängige Anpassung der Fahrstrategie durch Parametrierung der Planner-Logik,
+    \item klare Definition von Verantwortlichkeiten innerhalb der Pipeline.
 \end{itemize}
 
-Diese Visualisierungstopics wurden im Rahmen der Arbeit nicht als Teil der eigentlichen Steuerlogik, wohl aber als wichtige Hilfsmittel bei Debugging und Validierung verwendet. Sie ermöglichen, die vom FTG-Kern interpretierten Hindernispunkte, die gewählte größte Lücke sowie die resultierende Fahrtrichtung unmittelbar in einer 3D-Ansicht nachzuvollziehen. :contentReference[oaicite:6]{index=6}
+Insbesondere fungiert der Planner als \textbf{Policy-Schicht}, die sicherstellt, dass die reaktive Planung in physikalisch realisierbare und sichere Fahrbefehle überführt wird. Die Control-Schicht bildet anschließend die Schnittstelle zur bestehenden Fahrzeugsteuerung und begrenzt die Planner-Ausgabe entsprechend der fahrzeugspezifischen Randbedingungen.
 
-\subsection{Interne geometrische Modellannahmen}
+\section{Bewertung der experimentellen Ergebnisse}
 
-Ein wesentlicher Punkt des integrierten FTG-Kerns ist, dass die Fahrzeuggestalt nicht direkt als Breite oder Kontur parametrisiert wird, sondern indirekt über interne C++-Konstanten in die Gap-Bewertung eingeht. Besonders relevant ist hierbei \texttt{kCarRadius}, der zur Hindernis-Aufblähung genutzt wird. Dadurch wird algorithmisch entschieden, welche Lücken als passierbar und welche als blockiert interpretiert werden.
+Die durchgeführten Fahrversuche zeigen, dass das System in strukturierten Innenräumen grundsätzlich funktionsfähig ist, die erreichte Qualität des Fahrverhaltens jedoch deutlich von Umgebungsgeometrie und Parametrierung abhängt. Besonders relevant sind dabei die Stabilität der Gap-Erkennung, das Auftreten von Stopps bzw. Fast-Stop-Zuständen, die Qualität der Eckdurchfahrt sowie der Einfluss des Sichtfelds und der geometrischen FTG-Konstanten.
 
-Aus wissenschaftlicher Sicht ist dies besonders wichtig, da die Bewertung der experimentellen Ergebnisse nicht allein aus den sichtbaren ROS-Parametern erklärt werden kann. Vielmehr wirken auch interne Geometrieannahmen auf das resultierende Verhalten, insbesondere in engen Korridoren und Corner-Situationen.
+\subsection{Quantitativer Vergleich der Validierungsläufe}
 
-\section{Stufe 3: Planner}
-\label{sec:planner_stage}
-
-Der Planner interpretiert die Ausgabe des FTG-Kerns im Kontext von Fahrzeugdynamik und Sicherheitsanforderungen. Im Gegensatz zum FTG-Kern handelt es sich hierbei nicht um einen Planungsalgorithmus im engeren Sinne, sondern um eine Entscheidungs- und Policy-Stufe, die aus einem reinen Richtungsvektor fahrbare Sollwerte ableitet.
-
-\subsection{Funktionale Rolle}
-
-Die Planner-Stufe übernimmt insbesondere folgende Aufgaben:
-
-\begin{itemize}
-    \item Validierung der Eingangsdaten hinsichtlich Aktualität (\textit{Freshness}),
-    \item Begrenzung des resultierenden Lenkwinkels,
-    \item adaptive Geschwindigkeitswahl in Abhängigkeit vom Frontabstand,
-    \item textuelle Zustandsbewertung des aktuellen Planner-Zustands.
-\end{itemize}
-
-Der aktuelle Repository-Stand dokumentiert zusätzlich, dass der Planner heute explizit als einziger aktiver Planner-Knoten betrieben wird und Heading- sowie Speed-Smoothing unterstützt. :contentReference[oaicite:7]{index=7}
-
-\subsection{Node-Detailbeschreibung des Planners}
-
-Der \texttt{ftg\_planner\_node} liest drei zentrale Eingangsgrößen:
-
-\begin{itemize}
-    \item den vom FTG-Kern gelieferten Heading-Winkel \texttt{/final\_heading\_angle},
-    \item das Gap-Erkennungssignal \texttt{/gap\_found},
-    \item den vom Preprocessor berechneten Frontabstand \texttt{/autonomous/ftg/front\_clearance}.
-\end{itemize}
-
-Auf dieser Basis erzeugt er drei zentrale Ausgangssignale:
-
-\begin{itemize}
-    \item \texttt{/autonomous/ftg/gap\_angle},
-    \item \texttt{/autonomous/ftg/target\_speed},
-    \item \texttt{/autonomous/ftg/planner\_status}.
-\end{itemize}
-
-Der Planner kombiniert damit die geometrische Richtungsauswahl des FTG-Kerns mit einer fahrdynamischen Sicherheitslogik. Die Geschwindigkeitswahl erfolgt über eine lineare Kombination zweier Einflüsse:
-
-\begin{itemize}
-    \item eines Clearance-basierten Faktors in Abhängigkeit vom minimalen Frontabstand,
-    \item eines Steering-basierten Faktors in Abhängigkeit von der Stärke des Ausweichwinkels.
-\end{itemize}
-
-Zusätzlich glättet der Planner sowohl den Heading-Winkel als auch den Geschwindigkeitsverlauf. Dadurch wird ein zu starkes Springen der Sollwerte zwischen aufeinanderfolgenden Scans reduziert, ohne die Möglichkeit zum schnellen Abbremsen in kritischen Situationen aufzugeben.
-
-\subsection{Interpretation der Sensordaten}
-
-Die Planner-Policy kann in vereinfachter Form wie folgt beschrieben werden:
-
-\begin{itemize}
-    \item große Frontabstände $\rightarrow$ hohe Geschwindigkeit,
-    \item kleine Frontabstände $\rightarrow$ reduzierte Geschwindigkeit,
-    \item kritische Frontabstände $\rightarrow$ Stopp,
-    \item große Ausweichwinkel $\rightarrow$ zusätzliche Geschwindigkeitsreduktion.
-\end{itemize}
-
-Diese Policy stellt sicher, dass der reaktive Charakter des FTG-Ansatzes nicht zu unsicheren Fahrzuständen führt, sondern in eine kontrollierte und physikalisch realisierbare Fahrstrategie überführt wird.
-
-\section{Stufe 4: Control}
-\label{sec:control_stage}
-
-Die letzte Stufe des Systems übernimmt die Transformation der Planner-Ausgabe in fahrzeugspezifische Steuerbefehle.
-
-\subsection{Aufgabe}
-
-Die vom Planner berechneten Sollwerte für Winkel und Geschwindigkeit werden in ein Ackermann-kompatibles Nachrichtenformat überführt und an die bestehende Fahrzeugsteuerung übergeben. Dadurch entsteht die Schnittstelle zwischen dem autonomen FTG-Stack und der realen Aktorik des MXCarkit.
-
-\subsection{Node-Detailbeschreibung der Control-Stufe}
-
-Der \texttt{ftg\_command\_node} liest die beiden Planner-Ausgänge \texttt{/autonomous/ftg/gap\_angle} und \texttt{/autonomous/ftg/target\_speed}. Anschließend:
-
-\begin{itemize}
-    \item prüft er die Aktualität der Eingangsdaten,
-    \item skaliert bzw. invertiert den Lenkwinkel über \texttt{angle\_to\_steering\_gain},
-    \item begrenzt den Lenkwinkel auf die physisch zulässige Obergrenze,
-    \item begrenzt die Sollgeschwindigkeit auf den vorgegebenen Bereich,
-    \item publiziert das Ergebnis als \texttt{/autonomous/ackermann\_cmd}.
-\end{itemize}
-
-Zusätzlich publiziert der Node einen textuellen Diagnosezustand auf \texttt{/autonomous/ftg/control\_status}. Diese Trennung zwischen funktionalem Ausgang und Diagnoseinformation ist für Debugging und Validierung besonders nützlich, da sich Sollwertbildung und tatsächlich weitergereichter Fahrbefehl getrennt analysieren lassen. :contentReference[oaicite:8]{index=8}
-
-\subsection{Systemintegration}
-
-Ein wesentliches Designkriterium ist, dass die bestehende Sicherheits- und Steuerlogik des MXCarkit unverändert bleibt. Der entwickelte Stack liefert ausschließlich Sollwerte und greift nicht direkt in die Aktorik ein. Insbesondere werden keine direkten VESC-Kommandos publiziert; stattdessen wird ausschließlich der vorgesehene autonome Ackermann-Pfad genutzt.
-
-\section{Versuchsdurchführung}
-\label{sec:versuchsdurchfuehrung}
-
-Die Validierung des Systems erfolgte anhand realer Fahrversuche in einer strukturierten Innenraumumgebung. Ziel war es, die grundsätzliche Funktionsfähigkeit des scan-basierten Hindernisvermeidungsstacks experimentell nachzuweisen, den Einfluss zentraler Parameter auf das Fahrverhalten zu untersuchen und die Grenzen des Systems in typischen Engstellen- und Corner-Situationen sichtbar zu machen.
-
-\subsection{Versuchsaufbau}
-
-Die Testumgebung bestand aus einem L-förmigen Korridor mit definierten Breiten und gezielt platzierten statischen Hindernissen. Zur Untersuchung der Robustheit wurden zwei spiegelbildlich aufgebaute Validierungsstrecken verwendet, die sich in der lateralen Reihenfolge der Hindernisse unterschieden.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.6\textwidth]{images/validation_course_A_schematic.png}
-    \caption{Validierungsstrecke A: L-förmiger Korridor mit asymmetrischer Hindernisfolge und Eckrestriktion.}
-    \label{fig:test_track1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.6\textwidth]{images/validation_course_B_schematic.png}
-    \caption{Validierungsstrecke B: Spiegelbildliche Hindernisanordnung zur Untersuchung der Robustheit gegenüber variierter lateraler Objektreihenfolge.}
-    \label{fig:test_track2}
-\end{figure}
-
-Die gewählte Versuchsanordnung erlaubt die Untersuchung mehrerer für das System kritischer Situationen:
-
-\begin{itemize}
-    \item freie Gerade mit stabiler Vorwärtsfahrt,
-    \item asymmetrische Hindernisannäherung links bzw. rechts,
-    \item Wahl zwischen unterschiedlich breiten Passagen,
-    \item Eckdurchfahrt in einer 90$^\circ$-Korridorstruktur.
-\end{itemize}
-
-\subsection{Durchführung der Testläufe}
-
-Vor jedem Versuch wurden zunächst die sicherheitsrelevanten und plattformbezogenen Systemkomponenten gestartet. Dazu gehörten:
-
-\begin{itemize}
-    \item die manuelle Fahrzeugsteuerung und Sicherheitslogik im \texttt{mxck2\_control}-Container,
-    \item die TF- und LiDAR-Bereitstellung,
-    \item sowie der FTG-Stack im \texttt{mxck2\_development}-Container.
-\end{itemize}
-
-Die Versuchsabfolge umfasste danach typischerweise:
-
-\begin{enumerate}
-    \item Start der Vehicle-Control-Kette und Kalibrierung des Funksenders,
-    \item Start von TF und LiDAR,
-    \item Start einzelner FTG-Komponenten bzw. des vollständigen FTG-Stacks,
-    \item Plausibilitätsprüfung der zentralen Topics,
-    \item Durchführung der Fahrt im Modus \textit{Autonomous},
-    \item Aufzeichnung aller relevanten Topics mittels \texttt{rosbag2}.
-\end{enumerate}
-
-Die Testläufe wurden so durchgeführt, dass die Aktivierung des autonomen Modus erst nach erfolgreicher Kalibrierung, stabiler Sensorverfügbarkeit und plausiblen Zwischenwerten erfolgte. Dadurch konnte sichergestellt werden, dass erkannte Fehlzustände nicht durch die Testumgebung, sondern möglichst eindeutig durch die FTG-Pipeline selbst verursacht wurden.
-
-\subsection{Parametrierung des Systems}
-\label{sec:parametrierung_system}
-
-Die Validierungsfahrten wurden mit einer fest definierten Konfiguration des FTG-Stacks durchgeführt. Die Parametrierung ist für die Bewertung des Systemverhaltens von zentraler Bedeutung, da sie sowohl die geometrische Interpretation der Umgebung als auch die resultierende Fahrdynamik direkt beeinflusst. Insbesondere wirken sich Sichtfeld, Distanzgrenzen, Geschwindigkeitsgrenzen, Glättung und Abbremslogik unmittelbar auf das Ausweich- und Kurvenverhalten des Fahrzeugs aus.
-
-Tabelle~\ref{tab:ftg_runtime_parameter} fasst die im Validierungsbetrieb verwendeten Laufzeitparameter der drei zentralen Softwarestufen Perception, Planner und Control zusammen.
-
-\renewcommand{\arraystretch}{1.2}
-\begin{longtable}{p{2.6cm} p{3.0cm} p{1.8cm} p{6.2cm}}
-\caption{Verwendete Laufzeitparameter des FTG-Stacks während der Validierungsfahrten.}
-\label{tab:ftg_runtime_parameter}\\
-\toprule
-\textbf{Node} & \textbf{Parameter} & \textbf{Wert} & \textbf{Einfluss} \\
-\midrule
-\endfirsthead
-
-\toprule
-\textbf{Node} & \textbf{Parameter} & \textbf{Wert} & \textbf{Einfluss} \\
-\midrule
-\endhead
-
-Perception & \texttt{front\_center\_deg} & 0.0 & Definition der Fahrtrichtung im \texttt{base\_link}-Frame; die physische LiDAR-Montage wird über TF berücksichtigt. \\
-Perception & \texttt{front\_fov\_deg} & \textit{versuchsabhängig} & Breite des für FTG verwendeten Sichtfensters; größere Werte erhöhen die Umgebungsabdeckung, lassen aber seitliche Wände stärker in die Entscheidungsfindung einfließen. Für die Auswertung ist jeweils die tatsächlich aktive Testkonfiguration maßgeblich. \\
-Perception & \texttt{clip\_min\_range\_m} & 0.25 & Untere Distanzgrenze; unterdrückt sehr nahe Punkte und mögliche Eigenreflexionen des Fahrzeugs. \\
-Perception & \texttt{clip\_max\_range\_m} & 10.0 & Obere Distanzgrenze; begrenzt die Auswertung auf den relevanten Messbereich. \\
-Perception & \texttt{enable\_moving\_average} & \texttt{true} & Aktiviert eine Glättung des Distanzsignals zur Reduktion einzelner Ausreißer. \\
-Perception & \texttt{moving\_average\_window} & 3 & Fenstergröße der Mittelung; größere Werte erhöhen die Glättung, reduzieren aber die Reaktivität. \\
-
-Planner & \texttt{input\_timeout\_sec} & 0.50 & Maximales Alter der Eingangsdaten; bei Überschreitung wird aus Sicherheitsgründen gestoppt. \\
-Planner & \texttt{max\_abs\_gap\_angle\_rad} & 0.45 & Begrenzung des resultierenden Lenkwinkels. \\
-Planner & \texttt{cruise\_speed\_mps} & 0.45 & Maximale Sollgeschwindigkeit bei freier Umgebung. \\
-Planner & \texttt{min\_speed\_mps} & 0.20 & Untergrenze der Fahrgeschwindigkeit im normalen Betrieb. \\
-Planner & \texttt{stop\_speed\_mps} & 0.00 & Sollgeschwindigkeit im Stoppfall. \\
-Planner & \texttt{stop\_clearance\_m} & 0.25 & Kritischer Frontabstand, unterhalb dessen das Fahrzeug anhalten soll. \\
-Planner & \texttt{caution\_clearance\_m} & 0.50 & Abstand, ab dem wieder die volle Clearance-Freigabe erreicht wird. \\
-Planner & \texttt{steering\_slowdown\_start\_rad} & 0.40 & Ab diesem Lenkwinkel wird die Geschwindigkeit schrittweise reduziert. \\
-Planner & \texttt{steering\_slowdown\_full\_rad} & 0.70 & Lenkwinkelbereich für maximale Geschwindigkeitsreduktion; bewusst größer als der maximal zulässige Gap-Winkel gewählt, um Corner-Blockaden zu vermeiden. \\
-Planner & \texttt{heading\_smoothing\_alpha} & 0.4 & Glättungsfaktor für den Heading-Winkel; reduziert sprunghafte Richtungswechsel zwischen aufeinanderfolgenden Scans. \\
-Planner & \texttt{speed\_smoothing\_alpha} & 0.3 & Glättungsfaktor für die Beschleunigungsphase; Bremsvorgänge bleiben davon unberührt und werden direkt umgesetzt. \\
-
-Control & \texttt{input\_timeout\_sec} & 0.50 & Sicherheitsgrenze für veraltete Planner-Daten; bei Überschreitung wird ein Nullkommando ausgegeben. \\
-Control & \texttt{angle\_to\_steering\_gain} & -1.00 & Vorzeichen- und Skalierungsfaktor für die Lenkabbildung; negative Werte invertieren die physische Lenkreaktion. \\
-Control & \texttt{max\_steering\_angle\_rad} & 0.45 & Hardwarebedingte Begrenzung des Lenkwinkels. \\
-Control & \texttt{min\_speed\_mps} & 0.18 & Untere Grenze der ausgegebenen Sollgeschwindigkeit. \\
-Control & \texttt{max\_speed\_mps} & 1.80 & Obergrenze der ausgegebenen Sollgeschwindigkeit. \\
-\bottomrule
-\end{longtable}
-
-Neben den Laufzeitparametern verwendet der C++-Kern \texttt{follow\_the\_gap\_v0} zusätzlich interne, nicht zur Laufzeit parametrierbare Geometrie- und Gewichtungskonstanten. Diese sind in Tabelle~\ref{tab:ftg_internal_constants} zusammengefasst, da sie die Passierbarkeit von Lücken und damit das resultierende Fahrverhalten ebenfalls wesentlich beeinflussen.
+Tabelle~\ref{tab:validierung_vergleich} fasst die wichtigsten Kenngrößen der beiden Validierungsläufe zusammen. Die Werte basieren auf der Offline-Auswertung der aufgezeichneten Bags und beziehen sich sowohl auf die wahrnehmungsnahen Größen als auch auf die vom Planner und von der Control-Schicht erzeugten Signale.
 
 \begin{table}[H]
 \centering
-\caption{Interne FTG-Konstanten des C++-Kerns \texttt{follow\_the\_gap\_v0}.}
-\label{tab:ftg_internal_constants}
-\begin{tabularx}{\textwidth}{l l X}
+\caption{Vergleich zentraler Metriken der beiden Validierungsläufe.}
+\label{tab:validierung_vergleich}
+\begin{tabular}{p{5.4cm} c c}
 \toprule
-\textbf{Konstante} & \textbf{Wert} & \textbf{Bedeutung} \\
+\textbf{Metrik} & \textbf{Validierungslauf A} & \textbf{Validierungslauf B} \\
 \midrule
-\texttt{kCarRadius} & 0.40 m & Effektiver Sicherheitsradius zur Hindernis-Aufblähung und damit maßgeblich für die als passierbar bewertete Gap-Breite. \\
-\texttt{kTurnRadius} & 0.30 m & Modellannahme für die Kurvenfähigkeit des Fahrzeugs. \\
-\texttt{kTrackMinWidth} & 0.35 m & Mindestbreite für bestimmte Corner- und Gap-Bewertungen. \\
-\texttt{kDistanceToCorner} & 0.22 m & Sicherheitsabstand bei Corner-bezogenem Verhalten. \\
-\texttt{kGapWeightCoefficient} & 100.0 & Gewichtung der Gap-Richtung in der Zielrichtungsbestimmung. \\
-\texttt{kCornerWeightCoefficient} & 100.0 & Gewichtung corner-spezifischer Anteile in der Zielwahl. \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-Die tabellarische Zusammenstellung ist für die Reproduzierbarkeit der Ergebnisse essenziell, da bereits moderate Änderungen einzelner Parameter zu deutlich unterschiedlichem Fahrverhalten führen können. Insbesondere Sichtfeld, Clearance-Schwellen, Glättungsparameter und effektive Fahrzeuggeometrie beeinflussen, ob das Fahrzeug eher flüssig, defensiv oder blockierend reagiert.
-
-\subsection{Messmethodik und Datenerfassung}
-\label{sec:messmethodik}
-
-Zur experimentellen Bewertung des Systems wurden sämtliche relevanten Systemgrößen während der Fahrt zeitlich synchron aufgezeichnet und anschließend offline ausgewertet. Die Datenerfassung erfolgte mit \texttt{rosbag2}, sodass sowohl Rohdaten als auch Zwischen- und Ausgangsgrößen des gesamten FTG-Stacks reproduzierbar analysiert werden konnten.
-
-Die Auswertung fokussierte sich auf vier zentrale Beobachtungsgrößen:
-
-\begin{itemize}
-    \item \textbf{Distanzverlauf:} Charakterisierung der Umgebungssituation über den gefilterten Scan sowie den minimalen Frontabstand,
-    \item \textbf{Heading-Winkel:} Bewertung der vom FTG-Kern bestimmten Zielrichtung und deren Weiterverarbeitung im Planner,
-    \item \textbf{Geschwindigkeit:} Analyse der Sollgeschwindigkeit des Planners und der tatsächlich ausgegebenen Ackermann-Geschwindigkeit,
-    \item \textbf{Gap-Erkennung:} Bewertung, ob und wie stabil freie, befahrbare Lücken detektiert wurden.
-\end{itemize}
-
-Die aufgezeichneten Topics deckten sowohl den sensorischen Eingang als auch alle relevanten Zwischenstufen des Verarbeitungsgraphen ab. Tabelle~\ref{tab:recorded_topics} zeigt die für die Validierung herangezogenen Nachrichtenströme.
-
-\begin{table}[H]
-\centering
-\caption{Für die Validierung aufgezeichnete Topics des FTG-Stacks.}
-\label{tab:recorded_topics}
-\begin{tabular}{p{5.2cm} p{3.2cm} p{6.0cm}}
-\toprule
-\textbf{Topic} & \textbf{Nachrichtentyp} & \textbf{Funktion in der Auswertung} \\
-\midrule
-\texttt{/scan} & \texttt{sensor\_msgs/LaserScan} & Rohdaten des LiDARs als Eingangssignal \\
-\texttt{/autonomous/ftg/scan\_filtered} & \texttt{sensor\_msgs/LaserScan} & vorverarbeiteter, rezentrierter Scan für FTG \\
-\texttt{/autonomous/ftg/front\_clearance} & \texttt{std\_msgs/Float32} & minimaler Frontabstand als Eingangsgröße der Speed-Policy \\
-\texttt{/final\_heading\_angle} & \texttt{std\_msgs/Float32} & vom FTG-Kern berechnete Zielrichtung \\
-\texttt{/gap\_found} & \texttt{std\_msgs/Bool} & binäre Information über erkannte befahrbare Lücken \\
-\texttt{/autonomous/ftg/gap\_angle} & \texttt{std\_msgs/Float32} & begrenzter Planner-Lenkwinkel \\
-\texttt{/autonomous/ftg/target\_speed} & \texttt{std\_msgs/Float32} & vom Planner berechnete Sollgeschwindigkeit \\
-\texttt{/autonomous/ackermann\_cmd} & \texttt{ackermann\_msgs/AckermannDriveStamped} & tatsächlich ausgegebener Fahrbefehl \\
-\texttt{/autonomous/ftg/planner\_status} & \texttt{std\_msgs/String} & textuelle Zustandsdiagnose des Planners \\
-\texttt{/autonomous/ftg/control\_status} & \texttt{std\_msgs/String} & textuelle Zustandsdiagnose der Control-Stufe \\
-\texttt{/visualize\_obstacles} & \texttt{visualization\_msgs/Marker} & Visualisierung erkannter Hindernispunkte \\
-\texttt{/visualize\_largest\_gap} & \texttt{geometry\_msgs/PointStamped} & Visualisierung der größten detektierten Lücke \\
-\texttt{/visualize\_final\_heading\_angle} & \texttt{geometry\_msgs/PoseStamped} & Visualisierung der resultierenden Fahrtrichtung \\
-\texttt{/tf}, \texttt{/tf\_static} & \texttt{tf2\_msgs/TFMessage} & geometrische Referenz zwischen Sensor- und Fahrzeugrahmen \\
+Gap-Erkennung (\texttt{gap\_found = true}) & 89{,}8\,\% & 56{,}0\,\% \\
+Planner-Zustand \textit{normal} & 90{,}0\,\% & 55{,}5\,\% \\
+Planner-Zustand \textit{stale} & 0{,}0\,\% & 32{,}8\,\% \\
+Planner-Zustand \textit{no valid gap found} & 10{,}0\,\% & 11{,}7\,\% \\
+Mittlere Sollgeschwindigkeit \texttt{target\_speed} & 0{,}335\,m/s & 0{,}226\,m/s \\
+Mittlerer Frontabstand \texttt{front\_clearance} & 0{,}601\,m & 0{,}685\,m \\
+Heading-Sättigung ($|heading| \geq 0{,}45$\,rad) & 11{,}4\,\% & -- \\
+Gap-Sättigung ($|gap\_angle| \geq 0{,}45$\,rad) & 5{,}2\,\% & -- \\
+Zeitanteil mit Stopp-Anforderung (\texttt{target\_speed = 0}) & gering & 44{,}2\,\% \\
+Kollisionen & 0 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Zur Online-Beobachtung des Systemzustands wurde zusätzlich \textit{Foxglove Studio} eingesetzt. Die Live-Visualisierung diente insbesondere der Plausibilitätsprüfung von Scan, Heading, Gap-Erkennung, Planner-Zuständen, Ackermann-Ausgabe und Visualisierungstopics während der Testdurchführung.
+Die Gegenüberstellung zeigt, dass Validierungslauf~A insgesamt ein deutlich stabileres Verhalten aufweist. Lauf~B ist dagegen durch einen wesentlich höheren Anteil kritischer Zustände gekennzeichnet, insbesondere durch häufige Planner-Zustände \textit{stale} sowie einen hohen Anteil von Stopp-Anforderungen.
+
+\subsection{Zeitreihenbasierte Detailanalyse}
+
+Zur qualitativen Interpretation der numerischen Kennwerte wurden die wichtigsten Signalverläufe beider Fahrten zeitlich ausgewertet. Dabei wurden insbesondere Frontabstand, Heading-Winkel, Gap-Winkel, Sollgeschwindigkeit und Planner-Zustände herangezogen.
 
 \begin{figure}[H]
     \centering
-    % PLACEHOLDER: Foxglove-Screenshot einfügen
-    \includegraphics[width=0.95\textwidth]{images/foxglove_validation_overview.JPG}
-    \caption{Exemplarisches Foxglove-Layout zur Online-Beobachtung des FTG-Stacks während der Validierungsfahrten. Dargestellt sind Sensorik, Visualisierungstopics und zentrale Zustandsgrößen des Planungs- und Steuerpfads.}
-    \label{fig:foxglove_validation}
+    % PLACEHOLDER: Plot Validierungslauf A
+    \includegraphics[width=\textwidth]{images/ftgVal1_validation_plots.png}
+    \caption{Zeitreihenbasierte Auswertung von Validierungslauf~A. Dargestellt sind Frontabstand, Heading- und Gap-Winkel, Sollgeschwindigkeit sowie Zustandsgrößen des Planners.}
+    \label{fig:validation_plots_A}
 \end{figure}
 
-Die eigentliche quantitative Bewertung erfolgte auf Basis der aufgezeichneten Bags in einer anschließenden Offline-Analyse. Hierzu wurden die Signalverläufe der Validierungsläufe zeitlich ausgewertet und in Form von Metriken und Zeitreihenplots aufbereitet. Zu den wesentlichen Kenngrößen zählten unter anderem:
+\begin{figure}[H]
+    \centering
+    % PLACEHOLDER: Plot Validierungslauf B
+    \includegraphics[width=\textwidth]{images/ftgVal2_validation_plots.png}
+    \caption{Zeitreihenbasierte Auswertung von Validierungslauf~B. Die Darstellung verdeutlicht Unterschiede in Gap-Erkennung, Geschwindigkeitsfreigabe und Planner-Zuständen im Vergleich zu Validierungslauf~A.}
+    \label{fig:validation_plots_B}
+\end{figure}
+
+Die Zeitreihen zeigen, dass Lauf~A über weite Strecken stabile und konsistente Reaktionen des Systems aufweist. In Lauf~B treten dagegen deutlich häufiger Phasen auf, in denen keine valide Lücke erkannt wird oder der Planner auf veraltete Eingangsdaten reagiert. Dies führt zu einer größeren Zahl unterbrochener oder stark verlangsamter Fahrabschnitte.
+
+\subsection{Bewertung der Hinderniserkennung}
+
+Die Hinderniserkennung erfolgt im vorliegenden System nicht als semantische Objekterkennung, sondern als Interpretation freier und belegter Bereiche im LiDAR-Scan. Bewertet wird daher nicht die Klassifikation einzelner Objekte, sondern die Zuverlässigkeit, mit der der Stack befahrbare Lücken erkennt und den unmittelbaren Fahrweg als frei oder eingeschränkt bewertet.
+
+Die Ergebnisse zeigen:
 
 \begin{itemize}
-    \item mittlerer und minimaler Frontabstand,
-    \item mittlere Sollgeschwindigkeit und Zeitanteil mit Stopp-Anforderung,
-    \item Zeitanteil mit erfolgreicher Gap-Erkennung,
-    \item Auftreten von Sättigungen im Heading- bzw. Gap-Winkel,
-    \item Auftreten von Planner-Zuständen wie \textit{normal}, \textit{stale} oder \textit{no valid gap found},
-    \item qualitative Bewertung von Ausweichmanövern, Passagewahl und Eckdurchfahrt.
+    \item Die Gap-Erkennung ist in Validierungslauf~A mit knapp 90\,\% sehr stabil.
+    \item In Validierungslauf~B sinkt die Gap-Erkennungsrate deutlich auf rund 56\,\%.
+    \item Der Unterschied ist nicht primär auf geringere Frontabstände zurückzuführen, sondern auf eine instabilere Interpretation der Umgebungssituation.
 \end{itemize}
 
-Die daraus resultierenden Validierungsplots, Vergleichstabellen und Anforderungsabgleiche werden in Kapitel~\ref{ch:diskussion} zur Diskussion und Bewertung der Teststrecken herangezogen.
+Dies ist ein wichtiges Ergebnis: Eine hohe mittlere Clearance allein garantiert noch kein robustes Fahrverhalten. Entscheidend ist, ob aus der gemessenen Umgebung eine konsistente und fahrbare Lücke abgeleitet werden kann.
+
+\subsection{Bewertung der Ausweichmanöver}
+
+Die Qualität der Ausweichmanöver wurde anhand folgender Kriterien bewertet:
+
+\begin{itemize}
+    \item Kollisionsfreiheit,
+    \item erfolgreiche Passage der Hindernisse,
+    \item Qualität der Seitenwahl an asymmetrischen Engstellen,
+    \item Eckdurchfahrt,
+    \item Kontinuität des Fahrverlaufs.
+\end{itemize}
+
+Beide Läufe verliefen kollisionsfrei. Dies ist ein zentraler Nachweis dafür, dass das System grundsätzlich in der Lage ist, auf statische Hindernisse sicher zu reagieren. Allerdings zeigt sich ein deutlicher Unterschied in der Qualität der Manöver:
+
+\begin{itemize}
+    \item \textbf{Validierungslauf A:} Das Fahrzeug umfuhr alle Hindernisse und meisterte die 90$^\circ$-Ecke grundsätzlich erfolgreich. Der Fahrverlauf ist als überwiegend stabil und funktional zu bewerten.
+    \item \textbf{Validierungslauf B:} Die Reaktion blieb zwar kollisionsfrei, war jedoch deutlich defensiver und weniger stabil. Häufige Stopps bzw. Fast-Stop-Zustände und eine geringere Verfügbarkeit der Gap-Erkennung weisen auf eine eingeschränkte Robustheit in dieser Konfiguration hin.
+\end{itemize}
+
+Damit ist der prinzipielle Nachweis der Reaktionsstrategie erbracht, jedoch nicht in gleicher Güte für beide Szenarien.
+
+\subsection{Einfluss der Parametrierung auf das Fahrverhalten}
+
+Ein zentrales Ergebnis der Validierung ist, dass die Parametrierung des Systems den resultierenden Fahrstil unmittelbar beeinflusst. Dieser Zusammenhang betrifft sowohl die Wahrnehmungsstufe als auch Planner und Control sowie die internen FTG-Konstanten.
+
+\subsubsection*{Einfluss des Sichtfelds}
+
+Das Frontsichtfeld bestimmt, wie breit die Umgebung in die lokale Reaktionsentscheidung einfließt. Ein zu großes Sichtfeld erhöht die Sensitivität gegenüber seitlichen Wänden und kann in engen Korridoren dazu führen, dass eigentlich passierbare Situationen als kritisch interpretiert werden. Ein reduziertes Sichtfeld führt dagegen zu einer robusteren Vorwärtsorientierung, kann jedoch seitliche Hindernisse später in die Entscheidungsfindung einbeziehen.
+
+\subsubsection*{Einfluss der Clearance-Schwellen}
+
+Die Parameter \texttt{stop\_clearance\_m} und \texttt{caution\_clearance\_m} bestimmen, wie defensiv das Fahrzeug auf Hindernisannäherungen reagiert. Höhere Schwellen führen zu früherem Bremsen und damit zu einem konservativen Fahrstil. Niedrigere Schwellen erhöhen die Flussfähigkeit, können aber die Sicherheitsreserve verringern.
+
+\subsubsection*{Einfluss der Steering-Slowdown-Parameter}
+
+Die Parameter \texttt{steering\_slowdown\_start\_rad} und \texttt{steering\_slowdown\_full\_rad} bestimmen, wie stark Kurven- bzw. Ausweichwinkel auf die Sollgeschwindigkeit wirken. Wird die maximale Geschwindigkeitsreduktion zu früh erreicht, kann dies insbesondere in Ecksituationen zu Corner-Blockaden oder unnötigen Stopps führen.
+
+\subsubsection*{Einfluss der internen FTG-Geometrie}
+
+Besonders relevant ist der interne Parameter \texttt{kCarRadius}. Er bestimmt über die Hindernis-Aufblähung, welche Lücken als passierbar betrachtet werden. Der derzeit verwendete Wert von 0{,}4\,m ist für ein Fahrzeug mit etwa 0{,}30\,m Breite stark konservativ und führt dazu, dass enge, real befahrbare Passagen im Algorithmus als blockiert erscheinen.
+
+Insgesamt zeigt sich: Die Parametrierung beeinflusst nicht nur die numerischen Signale des Systems, sondern den gesamten resultierenden Fahrstil, also etwa ob das Fahrzeug eher flüssig, defensiv, ruckartig oder blockierend reagiert.
+
+\subsection{Abgleich mit den Projektanforderungen}
+
+Die Aufgabenstellung fordert explizit den experimentellen Nachweis der Funktionalität, die Bewertung von Robustheit und Reaktionsfähigkeit sowie die kritische Analyse der Leistungsfähigkeit und Grenzen des Systems. Vor diesem Hintergrund ergibt sich der in Tabelle~\ref{tab:anforderungsabgleich} dargestellte Abgleich.
+
+\begin{table}[H]
+\centering
+\caption{Abgleich der wesentlichen Projektanforderungen mit den Validierungsergebnissen.}
+\label{tab:anforderungsabgleich}
+\begin{tabular}{p{5.0cm} p{4.0cm} p{4.5cm}}
+\toprule
+\textbf{Anforderung} & \textbf{Nachweis / Kennwert} & \textbf{Bewertung} \\
+\midrule
+Zuverlässige Reaktion auf statische Hindernisse & kollisionsfreie Fahrten, erfolgreiche Umfahrung in beiden Läufen & erfüllt \\
+Experimentelle Untersuchung unter Laborbedingungen & reproduzierbare Fahrversuche und rosbag-basierte Auswertung & erfüllt \\
+Bewertung von Robustheit und Reaktionsfähigkeit & Vergleich zweier Strecken, Zeitreihenanalyse, Planner-Zustände & teilweise erfüllt \\
+Modulare Integration in bestehende ROS~2-Infrastruktur & klar getrennter Pfad aus Perception, FTG, Planner und Control & erfüllt \\
+Kritische Analyse von Leistungsfähigkeit und Grenzen & Identifikation von Corner-Blockaden, Stale-Zuständen und Parametereinflüssen & erfüllt \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Damit kann festgehalten werden, dass die grundlegende Funktionalität und Integration erfolgreich nachgewiesen wurden. Die Robustheit ist jedoch noch nicht in allen Szenarien gleichermaßen gegeben und bleibt daher Gegenstand weiterer Optimierung.
+
+\subsection{Empfehlungen aus der Validierung}
+
+Aus den Messergebnissen ergeben sich mehrere konkrete Optimierungsempfehlungen:
+
+\begin{enumerate}
+    \item \textbf{Reduktion des effektiven Fahrzeugradius im FTG-Kern:} Der Parameter \texttt{kCarRadius} sollte von 0{,}4\,m auf etwa 0{,}20\,m reduziert bzw. künftig als konfigurierbarer ROS-Parameter umgesetzt werden.
+    \item \textbf{Trennung von FTG-Sichtfeld und Clearance-Sichtfeld:} Für die Berechnung von \texttt{front\_clearance} sollte ein engeres Sichtfenster verwendet werden als für den eigentlichen FTG-Scan, um Seitenwände in Korridoren weniger stark zu gewichten.
+    \item \textbf{Überprüfung der Stop-Propagation:} Stopp-Anforderungen des Planners sollten in der Control-Stufe konsequent bis zum Ackermann-Ausgang durchgereicht werden.
+    \item \textbf{Further Tuning der Planner-Policy:} Die Clearance- und Steering-Schwellen sollten so gewählt werden, dass Corner-Blockaden vermieden werden, ohne die Sicherheitsreserve unangemessen zu reduzieren.
+\end{enumerate}
+
+\subsection{Robustheit gegenüber statischen Hindernissen}
+
+Die Experimente zeigen, dass das System statische Hindernisse grundsätzlich erkennen und in kollisionsfreie Ausweichmanöver überführen kann. Dies bestätigt die grundsätzliche Eignung des Stack-Aufbaus für strukturierte Innenraumumgebungen.
+
+Die Robustheit ist jedoch nicht in jedem Szenario gleich hoch. Während Lauf~A eine stabile und konsistente Reaktion zeigt, offenbart Lauf~B eine höhere Sensitivität gegenüber Konfigurations- und Umgebungsunterschieden.
+
+\subsection{Grenzfälle und Grenzen des Systems}
+
+Trotz der positiven Ergebnisse treten typische Einschränkungen des gewählten Ansatzes auf:
+
+\begin{itemize}
+    \item keine strategische Entscheidung in Sackgassen oder global komplexen Szenarien,
+    \item potenziell suboptimale Wahl in asymmetrischen oder mehrdeutigen Geometrien,
+    \item starke Abhängigkeit von Sichtfeld und Clearance-Parametrierung,
+    \item konservatives Verhalten bei übergroß gewählter Fahrzeuggeometrie,
+    \item mögliche Diskrepanzen zwischen Planner-Stop und tatsächlich ausgegebenem Fahrbefehl.
+\end{itemize}
+
+Diese Grenzen sind teils algorithmisch inhärent und teils durch die konkrete Implementierung und Parametrierung bedingt. Sie bilden damit zugleich die zentralen Ansatzpunkte für zukünftige Weiterentwicklungen.
+
+\section{Einordnung in den wissenschaftlichen Kontext}
+
+Die Kombination aus klassischem FTG-Ansatz, CTU-Referenzimplementierung und moderner ROS~2-Infrastruktur zeigt, wie etablierte lokale Reaktionsverfahren in eine aktuelle modulare Fahrzeugsoftware integriert werden können. Die Arbeit leistet dabei keinen Beitrag zur Weiterentwicklung des mathematischen FTG-Algorithmus selbst, sondern zur systematischen Integration, reproduzierbaren Umsetzung und experimentellen Bewertung eines bestehenden Ansatzes unter realen Randbedingungen.
+
+Gerade im Kontext der Aufgabenstellung liegt der wissenschaftliche Mehrwert damit in drei Punkten:
+
+\begin{itemize}
+    \item der technisch sauberen Einbettung eines reaktiven Planers in eine reale ROS~2-Fahrzeugarchitektur,
+    \item der nachvollziehbaren experimentellen Validierung anhand definierter Kenngrößen,
+    \item sowie der kritischen Analyse von Robustheit, Reaktionsfähigkeit und Grenzen des Systems.
+\end{itemize}
