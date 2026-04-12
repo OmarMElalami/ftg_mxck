@@ -29,10 +29,20 @@ Die Validierung zeigt, dass das System unter Laborbedingungen grundsätzlich fun
 
 Gleichzeitig hat die Auswertung deutlich gemacht, dass die Qualität des Fahrverhaltens wesentlich von der Parametrierung abhängt. Sichtfeld, Clearance-Schwellen, Steering-Slowdown und die internen geometrischen FTG-Konstanten beeinflussen unmittelbar, ob das Fahrzeug eher flüssig, defensiv, konservativ oder instabil reagiert. Die Arbeit zeigt damit nicht nur, dass der Stack prinzipiell funktioniert, sondern auch, dass reproduzierbare Validierung und kritische Parameterauswertung unverzichtbar für eine belastbare Bewertung sind.
 
+Die Ergebnisse lassen sich wie folgt zusammenfassen:
+
+\begin{itemize}
+    \item Die scan-basierte Hauptpipeline wurde konsistent in die bestehende MXCK-Architektur integriert.
+    \item Die Rollen von Perception, FTG-Kern, Planner und Control sind funktional sauber getrennt.
+    \item Die experimentellen Fahrversuche belegen die grundsätzliche Eignung des Systems für strukturierte Innenraumszenarien mit statischen Hindernissen.
+    \item Die Robustheit ist jedoch nicht in allen Szenarien gleichermaßen hoch und hängt stark von Parametrierung und Umgebungsgeometrie ab.
+    \item Die Arbeit identifiziert damit nicht nur eine funktionierende Lösung, sondern auch konkrete technische Grenzen und Optimierungsbedarfe.
+\end{itemize}
+
 Zusammenfassend wurden die wesentlichen Ziele der Aufgabenstellung erreicht:
 
 \begin{itemize}
-    \item fachliche Einarbeitung in Hinderniserkennung, ROS~2 und MxCarkit-Systemarchitektur,
+    \item fachliche Einarbeitung in Hinderniserkennung, ROS~2 und MXCK-Systemarchitektur,
     \item modularer Entwurf und Integration eines scan-basierten Hindernisvermeidungsstacks,
     \item experimentelle Validierung anhand realer Fahrversuche,
     \item sowie kritische Analyse von Leistungsfähigkeit, Robustheit und Grenzen.
