@@ -33,7 +33,7 @@ Der eingesetzte Planungsansatz basiert auf dem Follow-the-Gap-Verfahren nach Sez
 \begin{figure}[H]
     \centering
     % PLACEHOLDER: Algorithmusbild aus deinem Repo
-    \includegraphics[width=0.75\textwidth]{images/ftg_algorithm.JPG}
+    \includegraphics[width=1\textwidth]{images/ftg_algorithm.JPG}
     \caption{Schematische Darstellung des Follow-the-Gap-Prinzips. Erstellt unter Verwendung generativer KI-Tools.}
     \label{fig:ftg_algorithm}
 \end{figure}
@@ -58,9 +58,8 @@ Die implementierte Verarbeitung umfasst:
 
 Diese Schritte sind notwendig, um die geometrische Konsistenz zwischen Sensor und Fahrzeug sicherzustellen.
 
-\subsection{Ergebnis der Vorverarbeitung}
-
-Das Ergebnis ist ein gefilterter Scan, der ausschließlich den relevanten Frontbereich beschreibt und bereits im \texttt{base\_link}-Koordinatensystem vorliegt. Zusätzlich wird eine skalare Größe für den minimalen Hindernisabstand bereitgestellt.
+\subsection{Node Perception Erklärung}
+Bla Bla Bla
 
 \section{Stufe 2: Follow-the-Gap-Kern}
 
@@ -133,7 +132,7 @@ Die Validierung des Systems erfolgte anhand realer Fahrversuche im Innenraum.
 
 \subsection{Versuchsaufbau}
 
-Die Tests wurden in einem strukturierten Korridor durchgeführt, der durch Möbel und gezielt platzierte Hindernisse definiert wurde.
+Die Tests wurden in einem strukturierten Korridor durchgeführt, der durch gezielt platzierte Hindernisse definiert wurde.
 
 \begin{figure}[H]
     \centering
@@ -151,6 +150,9 @@ Die Tests wurden in einem strukturierten Korridor durchgeführt, der durch Möbe
     \label{fig:test_track2}
 \end{figure}
 
+\subsection{Parameter}
+Repo 5 Konfiguration
+
 \subsection{Messmethodik}
 
 Zur Analyse wurden alle relevanten Systemgrößen aufgezeichnet und anschließend ausgewertet. Dazu gehören insbesondere:
@@ -162,10 +164,8 @@ Zur Analyse wurden alle relevanten Systemgrößen aufgezeichnet und anschließen
     \item Gap-Erkennung.
 \end{itemize}
 
-\subsection{Zeitreihenanalyse}
+Aufzeichnung :
 
+ in Repo 7.11 Bags
 
-
-\section{Zusammenfassung}
-
-Die Durchführung zeigt, dass der entwickelte Stack eine klar strukturierte und reproduzierbare Verarbeitungskette darstellt. Durch die Trennung von Wahrnehmung, Planung und Steuerung entsteht ein System, das sowohl robust als auch wartbar ist und sich gut in die bestehende MXCK-Architektur integriert.
+ + Abbildung von Foxglove
