@@ -30,38 +30,11 @@ Im Gegensatz zu globalen Planern oder kartengestützten Verfahren besitzt der im
 
 Die Architektur ist daher klar als \textbf{lokaler reaktiver Planer} einzuordnen und nicht als vollständiges Navigationssystem.
 
-\section{Rolle der geometrischen Konsistenz}
 
-Eine zentrale Erkenntnis der Arbeit ist, dass die Systemstabilität maßgeblich von der korrekten geometrischen Transformation der Sensordaten abhängt.
-
-\subsection{Einfluss von TF-Fehlern}
-
-Bereits geringe Abweichungen im Transformationsbaum können zu systematischen Fehlinterpretationen führen. Insbesondere wirkt sich ein falscher Offset zwischen LiDAR und Fahrzeugrahmen direkt auf die Hindernisprojektion aus.
-
-Formal ergibt sich für die Positionsabbildung:
-
-\begin{equation}
-x_{\text{sys}} = x_{\text{real}} - \Delta_{\text{offset}}
-\end{equation}
-
-Ein zu kleiner Offset führt dazu, dass Hindernisse im Modell näher am Fahrzeugzentrum erscheinen als in der Realität. Dies resultiert in einer Überschätzung des verfügbaren Freiraums.
-
-\subsection{Praktische Auswirkungen}
-
-Die experimentell beobachteten Kollisionen lassen sich direkt auf diesen Effekt zurückführen. Der Planer berechnet in solchen Fällen einen scheinbar sicheren Fahrpfad, der physikalisch nicht existiert.
-
-Diese Beobachtung unterstreicht, dass:
-
-\begin{itemize}
-    \item die Korrektheit der TF-Struktur kritischer ist als die Wahl des Planungsalgorithmus,
-    \item geometrische Inkonsistenzen nicht durch nachgelagerte Logik kompensiert werden können.
-\end{itemize}
 
 \section{Analyse der Planner- und Control-Schicht}
 
 Die Trennung zwischen algorithmischem Kern, Planner und Control stellt eine klare funktionale Hierarchie dar.
-
-\subsection{Vorteile der modularen Struktur}
 
 Die gewählte Aufteilung ermöglicht:
 
@@ -73,17 +46,6 @@ Die gewählte Aufteilung ermöglicht:
 
 Insbesondere fungiert der Planner als \textbf{Policy-Schicht}, die sicherstellt, dass die reaktive Planung in physikalisch realisierbare und sichere Fahrbefehle überführt wird.
 
-\subsection{Systemische Nachteile}
-
-Die erhöhte Modularität führt gleichzeitig zu:
-
-\begin{itemize}
-    \item zusätzlichem Kommunikationsaufwand,
-    \item erhöhter Abhängigkeit von korrekter Topic-Synchronisation,
-    \item potenziellen Verzögerungen durch asynchrone Verarbeitung.
-\end{itemize}
-
-Diese Effekte sind im vorliegenden System aufgrund der moderaten Geschwindigkeit tolerierbar, würden jedoch bei höheren Dynamiken stärker ins Gewicht fallen.
 
 \section{Bewertung der experimentellen Ergebnisse}
 
@@ -95,11 +57,11 @@ Tabelle~\ref{tab:validierung_vergleich} fasst die wichtigsten Metriken der beide
 
 \begin{table}[H]
 \centering
-\caption{Vergleich der Metriken: Validierung Kurs A vs. Kurs B}
+\caption{Vergleich der Metriken: Validierung Test 1 vs. Test 2}
 \label{tab:validierung_vergleich}
 \begin{tabular}{l c c}
 \toprule
-\textbf{Metrik} & \textbf{Test 1 (Kurs A)} & \textbf{Test 2 (Kurs B)} \\
+\textbf{Metrik} & \textbf{Test 1} & \textbf{Test 2} \\
 \midrule
 Gap erkannt & 90\% & 56\% \\
 Speed = 0 (Zeitanteil) & 10\% & 44\% \\
@@ -108,7 +70,6 @@ Min. Clearance & 0,27 m & 0,34 m \\
 Kollisionen & 0 & 0 \\
 Heading-Bereich & $\pm$ 0,8 rad & $\pm$ 0,8 rad \\
 \midrule
-\textbf{Bewertung} & \textbf{Erfolgreich} & \textbf{Eingeschränkt} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -116,12 +77,12 @@ Heading-Bereich & $\pm$ 0,8 rad & $\pm$ 0,8 rad \\
 \subsection{Detailbewertung der Szenarien}
 
 \begin{itemize}
-    \item \textbf{Kurs A:} Die Navigation verlief erfolgreich. Alle Hindernisse wurden umfahren und die 90°-Ecke gemeistert. Der kurze Stopp an der Ecke resultiert aus dem \texttt{kCarRadius}-Parameter von 0,4\,m, der hier eine konservative Reaktion auslöste.
-    \item \textbf{Kurs B:} Dieser Lauf ist als eingeschränkt zu bewerten. Ein Zeitanteil von 44\% mit Geschwindigkeit 0 sowie eine Gap-Erkennungsrate von nur 56\% weisen auf Instabilitäten hin. Die Ursache liegt im 180° FOV, das zu breit gewählt war, wodurch Seitenwände die Lückenerkennung störten.
+    \item \textbf{Test 1:} Alle Hindernisse wurden umfahren und die 90°-Ecke gemeistert. Der kurze Stopp an der Ecke resultiert aus dem \texttt{kCarRadius}-Parameter von 0,4\,m, der hier eine konservative Reaktion auslöste.
+    \item \textbf{Test 2:} Dieser Lauf ist als eingeschränkt zu bewerten. Ein Zeitanteil von 44\% mit Geschwindigkeit 0 sowie eine Gap-Erkennungsrate von nur 56\% weisen auf Instabilitäten hin. Die Ursache liegt im 180° FOV, das zu breit gewählt war, wodurch Seitenwände die Lückenerkennung störten.
 \end{itemize}
 
 \subsection{Empfehlungen aus der Validierung}
-
+Bewertung für alle Parameter.
 Basierend auf den Ergebnissen wird empfohlen, das FOV auf 120° zurückzusetzen, um Störeinflüsse durch Wände zu minimieren. Zudem sollte der \texttt{kCarRadius} von 0,4\,m auf 0,20\,m reduziert werden, um dem realen 30\,cm breiten Fahrzeug besser gerecht zu werden.
 
 \subsection{Robustheit gegenüber statischen Hindernissen}
@@ -163,28 +124,3 @@ Die vorliegende Arbeit leistet dabei keinen Beitrag zur Weiterentwicklung des Al
     \item technischen Konsolidierung eines bestehenden Ansatzes.
 \end{itemize}
 
-\section{Bedeutung der Dokumentation}
-
-Ein wesentliches Ergebnis der Arbeit ist die Erkenntnis, dass die Qualität der Dokumentation direkten Einfluss auf die Funktionsfähigkeit des Systems hat.
-
-Fehlerhafte oder veraltete Dokumentation führte in früheren Versionen zu:
-
-\begin{itemize}
-    \item inkorrekten Startsequenzen,
-    \item falschen Architekturannahmen,
-    \item widersprüchlichen Systembeschreibungen.
-\end{itemize}
-
-Die Synchronisation von Codebasis und Dokumentation ist daher als integraler Bestandteil der Systementwicklung zu betrachten.
-
-\section{Zusammenfassung der Bewertung}
-
-Die entwickelte Lösung stellt einen robusten und klar strukturierten Ansatz für reaktive Hindernisvermeidung dar. Ihre Stärken liegen in:
-
-\begin{itemize}
-    \item Einfachheit der Architektur,
-    \item hoher Reaktivität,
-    \item guter Integrierbarkeit in bestehende Systeme.
-\end{itemize}
-
-Die Grenzen ergeben sich primär aus der lokalen Natur des Algorithmus und nicht aus der konkreten Implementierung.
