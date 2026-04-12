@@ -48,46 +48,32 @@ sowie dessen Interaktion mit realer Sensorik und Aktorik.
 Das MXCarkit (MXCK) stellt die physische und softwareseitige
 Zielplattform dieser Arbeit dar. Es handelt sich um ein
 Jetson-basiertes Versuchsfahrzeug, das für Lehre und Entwicklung im
-Bereich autonomer Fahrfunktionen konzipiert ist.
+Bereich autonomer Fahrfunktionen konzipiert ist. 
+
+Abbildung \ref{fig:mxck_top_view} zeigt den physischen Aufbau des Versuchsfahrzeugs mit den für diese Arbeit zentralen Sensorkomponenten.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Plan_Car.png}
+    \caption{Draufsicht des MXCarkit mit Markierung der Hauptkomponenten: NVIDIA Jetson, LiDAR und Tiefenkamera.}
+    \label{fig:mxck_top_view}
+\end{figure}
 
 Die Systemarchitektur des MXCK ist modular aufgebaut und nutzt eine
-containerisierte Umgebung. Zentrale Funktionalitäten sind in separaten
-Workspaces organisiert, insbesondere:
+containerisierte Umgebung. Eine detaillierte Übersicht der Hardware-Komponenten und deren Vernetzung ist in Abbildung \ref{fig:mxck_components} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{mxcarkit_components.jpg}
+    \caption{Systemarchitektur und Hardware-Komponenten des MXCarkit \cite{mxck_ws}.}
+    \label{fig:mxck_components}
+\end{figure}
+
+Zentrale Funktionalitäten sind in separaten Workspaces organisiert, insbesondere:
 \begin{itemize}
     \item \texttt{mxck2\_ws} für die Kernsysteme (Sensorik, Steuerung),
     \item \texttt{development\_ws} für experimentelle Erweiterungen.
 \end{itemize}
-
-Die Startlogik für Sensorik und Aktorik wird über das Paket
-\texttt{mxck\_run} realisiert, wobei einzelne Komponenten über
-Launch-Argumente gezielt aktiviert werden können.
-
-\begin{table}[H]
-\centering
-\caption{Relevante Systemeigenschaften des MXCarkit}
-\label{tab:mxck_overview}
-\begin{tabular}{>{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{9.2cm}}
-\toprule
-\textbf{Aspekt} & \textbf{Bedeutung für diese Arbeit} \\
-\midrule
-NVIDIA Jetson & Ausführungsplattform für ROS~2, Sensorverarbeitung und Planung \\
-Docker-basierter Betrieb & Klare Trennung von Laufzeit- und Entwicklungsumgebung \\
-2D-LiDAR (\texttt{/scan}) & Primärer Sensor für die lokale Hinderniserkennung \\
-Ackermann-Steuerung & Umsetzung von Lenkwinkel- und Geschwindigkeitsvorgaben \\
-Bestehende Fahrzeuglogik & Integration des FTG-Stacks ohne Umgehung der Safety-Kette \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Ein zentraler Aspekt ist die Einbettung des entwickelten Systems in die
-bestehende Fahrzeugsteuerung. Die Ausgabe erfolgt nicht direkt an
-hardware-nahe Steuer-Topics, sondern über
-\texttt{/autonomous/ackermann\_cmd}. Dadurch bleibt die vorhandene
-Sicherheits- und Moduslogik des MXCK vollständig erhalten.
-
-Der in dieser Arbeit betrachtete Softwarestand entspricht dem Repository
-\texttt{ftg\_mxck}, welches die vollständige Implementierung des
-beschriebenen FTG-Stacks enthält.
 
 \section{Grundlagen von ROS~2}
 
