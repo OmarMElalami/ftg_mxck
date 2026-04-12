@@ -14,9 +14,7 @@ Die entwickelte Pipeline folgt einer strikt modularen Struktur, die sich in vier
     \item fahrzeugspezifische Schnittstelle (\textit{Control})
 \end{enumerate}
 
-Die resultierende Datenflusskette ist in Abbildung~\ref{fig:system_pipeline} dargestellt.
-
-Die Architektur ist so ausgelegt, dass der entwickelte FTG-Stack nicht direkt in die Aktorik eingreift, sondern ausschließlich Sollwerte an die bestehende Fahrzeugsteuerung übergibt. Dadurch bleibt die vorhandene Sicherheits- und Moduslogik des MXCarkit unverändert erhalten, während die reaktive Hindernisvermeidung als zusätzlicher autonomer Entscheidungsweg integriert wird.
+Die resultierende Datenflusskette ist in Abbildung~\ref{fig:system_pipeline} dargestellt. Die Architektur ist so ausgelegt, dass der entwickelte FTG-Stack nicht direkt in die Aktorik eingreift, sondern ausschließlich Sollwerte an die bestehende Fahrzeugsteuerung übergibt. Dadurch bleibt die vorhandene Sicherheits- und Moduslogik des MXCarkit unverändert erhalten, während die reaktive Hindernisvermeidung als zusätzlicher autonomer Entscheidungsweg integriert wird.
 
 \begin{figure}[H]
     \centering
