@@ -1,0 +1,26 @@
+version: "3.8"
+
+x-common-setup: &common-setup
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  privileged: true
+  network_mode: mxck0000-net
+  volumes:
+    - /home/mxck/development_ws:/mxck2_ws
+    - /dev:/dev
+  stdin_open: true
+  # Modern GPU-Configuration for Docker Compose
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu, compute, utility]
+
+services:
+  development:
+    <<: *common-setup
+    container_name: mxck2_development
+    command: bash
