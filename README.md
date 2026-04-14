@@ -47,7 +47,7 @@ für das MXCarkit (MXCK) – ein Jetson-basiertes autonomes Modellfahrzeug.
 ┌─────────────────────────┐
 │  scan_preprocessor_node │  Paket: mxck_ftg_perception
 │  TF: base_link ← laser  │  Rezentrierung auf Fahrzeug-Front
-│  FOV: ±60° (120°)       │  Clipping: 0.25–10.0 m
+│  FOV: ±90° (180°)       │  Clipping: 0.25–10.0 m
 └────────┬────────────────┘
          │
          ├──▶ /autonomous/ftg/scan_filtered  (LaserScan, frame: base_link)
@@ -477,7 +477,7 @@ ros2 launch vehicle_control manual_control_launch.py
 In Terminal 2:
 ```bash
 sudo docker exec -it mxck2_control bash
-ros2 launch mxck_run mxck_run_launch.py broadcast_tf:=true run_lidar:=true
+ros2 launch mxck_run mxck_run_launch.py broadcast_tf:=true run_lidar:=true run_foxglove:=true
 ```
 
 Prüfen:
